@@ -7,7 +7,7 @@
 | Asesor empresarial | Juan Méndez Herrera |
 | Líder de proyecto / evaluaciones | Edgar Loheffelmman |
 | Fecha de inicio | 2026-09-28 |
-| Estado | Completo — secciones 1–3 aprobadas una por una; 4–8 redactadas a petición del residente sin aprobación intermedia. Pendiente: revisión final del documento completo |
+| Estado | ✅ Aprobado por el residente (2026-09-28). Secciones 1–3 aprobadas una por una; 4–8 aprobadas en la revisión del documento completo |
 
 Este documento corresponde al entregable **"Documento de requerimientos"** del cronograma y es la base de la propuesta técnica, el documento de arquitectura y el plan del proyecto.
 
