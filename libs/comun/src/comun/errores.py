@@ -2,7 +2,6 @@
 
 import logging
 from collections.abc import Mapping
-from http import HTTPStatus
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -10,9 +9,21 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from comun.logs import correlation_id
+from comun.logs import CABECERA_CORRELACION, correlation_id
 
 log = logging.getLogger(__name__)
+
+# English default details from HTTPStatus (Starlette uses these)
+DETALLES_INGLES = {
+    404: "Not Found",
+    405: "Method Not Allowed",
+}
+
+# Spanish details to use when Starlette's default is detected
+DETALLES_ESPANOL = {
+    404: "El recurso solicitado no existe.",
+    405: "Método no permitido para este recurso.",
+}
 
 TITULOS = {
     400: "Solicitud incorrecta",
@@ -20,10 +31,15 @@ TITULOS = {
     403: "Sin permiso",
     404: "No encontrado",
     405: "Método no permitido",
+    409: "Conflicto",
+    410: "Ya no disponible",
     413: "Contenido demasiado grande",
     422: "Solicitud inválida",
     429: "Demasiadas solicitudes",
+    500: "Error interno",
+    502: "Puerta de enlace incorrecta",
     503: "Servicio no disponible",
+    504: "Tiempo de espera agotado",
 }
 
 
@@ -69,8 +85,15 @@ def registrar_manejadores(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        titulo = TITULOS.get(exc.status_code, HTTPStatus(exc.status_code).phrase)
-        return _problema(request, exc.status_code, titulo, str(exc.detail), headers=exc.headers)
+        titulo = TITULOS.get(exc.status_code, f"Error {exc.status_code}")
+        detalle = str(exc.detail)
+        # Replace English default detail with Spanish if detected
+        if exc.status_code in DETALLES_INGLES and detalle == DETALLES_INGLES[exc.status_code]:
+            detalle = DETALLES_ESPANOL[exc.status_code]
+        elif not detalle or detalle == "":
+            # If no detail provided, use Spanish title as detail
+            detalle = titulo
+        return _problema(request, exc.status_code, titulo, detalle, headers=exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def _validacion(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -90,4 +113,5 @@ def registrar_manejadores(app: FastAPI) -> None:
             500,
             "Error interno",
             "Ocurrió un error inesperado. Reporte el correlation_id a soporte.",
+            headers={CABECERA_CORRELACION: correlation_id.get()},
         )

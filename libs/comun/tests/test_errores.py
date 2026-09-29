@@ -27,6 +27,14 @@ def _app() -> FastAPI:
     async def falla() -> None:
         raise RuntimeError("detalle interno secreto")
 
+    @app.get("/folio-duplicado")
+    async def folio_duplicado() -> None:
+        raise HTTPException(409, "Folio duplicado")
+
+    @app.get("/raro")
+    async def raro() -> None:
+        raise HTTPException(299, "raro")
+
     return app
 
 
@@ -60,6 +68,7 @@ def test_ruta_inexistente_responde_404_en_espanol() -> None:
     respuesta = cliente.get("/no-existe")
     assert respuesta.status_code == 404
     assert respuesta.json()["title"] == "No encontrado"
+    assert respuesta.json()["detail"] == "El recurso solicitado no existe."
 
 
 def test_validacion_lista_los_campos_con_error() -> None:
@@ -76,3 +85,18 @@ def test_error_inesperado_no_filtra_detalles_internos() -> None:
     assert "secreto" not in respuesta.text
     assert respuesta.json()["title"] == "Error interno"
     assert respuesta.json()["correlation_id"] == "req-9"
+    assert respuesta.headers["x-request-id"] == "req-9"
+
+
+def test_http_exception_409_titulo_conflicto() -> None:
+    respuesta = cliente.get("/folio-duplicado")
+    assert respuesta.status_code == 409
+    assert respuesta.json()["title"] == "Conflicto"
+    assert respuesta.json()["detail"] == "Folio duplicado"
+
+
+def test_http_exception_codigo_desconocido_no_crashea() -> None:
+    respuesta = cliente.get("/raro")
+    assert respuesta.status_code == 299
+    assert respuesta.json()["title"] == "Error 299"
+    assert respuesta.json()["detail"] == "raro"
