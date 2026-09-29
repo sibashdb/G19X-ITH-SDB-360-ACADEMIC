@@ -11,6 +11,7 @@ dev = [
     "pytest-asyncio>=0.25",
     "pytest-cov>=6.0",
     "httpx>=0.28",
+    "asyncpg>=0.30",
     "testcontainers[postgres,rabbitmq]>=4.9",
     "ruff>=0.8",
     "mypy>=1.13",
