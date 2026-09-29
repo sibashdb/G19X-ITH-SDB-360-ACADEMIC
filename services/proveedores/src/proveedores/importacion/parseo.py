@@ -2,6 +2,8 @@
 
 import csv
 import io
+import re
+from collections import Counter
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 
@@ -30,6 +32,8 @@ MENSAJES = {
     "int_parsing": "Debe ser un número entero",
     "date_parsing": "Fecha inválida; use AAAA-MM-DD",
     "date_from_datetime_parsing": "Fecha inválida; use AAAA-MM-DD",
+    "date_from_datetime_inexact": "Fecha inválida; use AAAA-MM-DD",
+    "finite_number": "Debe ser un número finito",
     "bool_parsing": "Debe ser true o false",
     "extra_forbidden": "Columna no reconocida",
 }
@@ -48,45 +52,65 @@ class ResultadoParseo[M: BaseModel]:
     errores: list[ErrorFila] = field(default_factory=list)
 
 
+def _unir(elementos: list[str], conjuncion: str) -> str:
+    """Une como lo hace Pydantic: "a", "a o b", "a, b o c"."""
+    if len(elementos) == 1:
+        return elementos[0]
+    return f"{', '.join(elementos[:-1])} {conjuncion} {elementos[-1]}"
+
+
+def _opciones(esperado: str) -> str | None:
+    """Traduce el "'a', 'b' or 'c'" de Pydantic; None si no es una lista de cadenas."""
+    valores = re.findall(r"'([^']*)'", esperado)
+    if not valores or _unir([f"'{valor}'" for valor in valores], "or") != esperado:
+        return None
+    return _unir(valores, "o")
+
+
 def _mensaje(error: ErrorDetails) -> str:
-    plantilla = MENSAJES.get(error["type"])
+    tipo = error["type"]
+    contexto = dict(error.get("ctx", {}))
+    if tipo == "literal_error":
+        opciones = _opciones(str(contexto.get("expected", "")))
+        if opciones is None:
+            return "Valor no permitido"
+        contexto["expected"] = opciones
+    plantilla = MENSAJES.get(tipo)
     if plantilla is None:
         return error["msg"].removeprefix("Value error, ")
     try:
-        return plantilla.format(**error.get("ctx", {}))
+        return plantilla.format(**contexto)
     except (KeyError, IndexError):
         return error["msg"]
 
 
-def leer_csv[M: BaseModel](contenido: bytes, esquema: type[M]) -> ResultadoParseo[M]:
-    resultado: ResultadoParseo[M] = ResultadoParseo()
-    try:
-        texto = contenido.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        resultado.errores.append(
-            ErrorFila(0, "archivo", "El archivo debe estar codificado en UTF-8")
-        )
-        return resultado
-
+def _leer_registros[M: BaseModel](
+    texto: str, esquema: type[M], resultado: ResultadoParseo[M]
+) -> None:
     primera_linea = texto.split("\n", 1)[0]
     separador = ";" if primera_linea.count(";") > primera_linea.count(",") else ","
     lector = csv.DictReader(io.StringIO(texto, newline=""), delimiter=separador)
-    lector.fieldnames = [columna.strip() for columna in lector.fieldnames or []]
+    encabezado = [columna.strip() for columna in lector.fieldnames or []]
+    lector.fieldnames = encabezado
 
-    columnas = set(lector.fieldnames)
+    columnas = set(encabezado)
     obligatorias = {n for n, campo in esquema.model_fields.items() if campo.is_required()}
     faltantes = sorted(obligatorias - columnas)
     desconocidas = sorted(columnas - set(esquema.model_fields))
-    if faltantes or desconocidas:
+    # DictReader se queda con la última columna repetida: se perdería el dato sin avisar.
+    duplicadas = sorted(nombre for nombre, veces in Counter(encabezado).items() if veces > 1)
+    if faltantes or desconocidas or duplicadas:
         partes = []
         if faltantes:
             partes.append("faltan: " + ", ".join(faltantes))
         if desconocidas:
             partes.append("no reconocidas: " + ", ".join(desconocidas))
+        if duplicadas:
+            partes.append("duplicadas: " + ", ".join(duplicadas))
         resultado.errores.append(
             ErrorFila(1, "encabezado", "Columnas inválidas; " + "; ".join(partes))
         )
-        return resultado
+        return
 
     for numero, fila in enumerate(lector, start=2):
         if numero - 1 > MAX_FILAS:
@@ -105,6 +129,31 @@ def leer_csv[M: BaseModel](contenido: bytes, esquema: type[M]) -> ResultadoParse
             for error in exc.errors():
                 campo = ".".join(str(parte) for parte in error["loc"]) or "fila"
                 resultado.errores.append(ErrorFila(numero, campo, _mensaje(error)))
+
+
+def leer_csv[M: BaseModel](contenido: bytes, esquema: type[M]) -> ResultadoParseo[M]:
+    resultado: ResultadoParseo[M] = ResultadoParseo()
+    try:
+        texto = contenido.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        resultado.errores.append(
+            ErrorFila(0, "archivo", "El archivo debe estar codificado en UTF-8")
+        )
+        return resultado
+
+    try:
+        _leer_registros(texto, esquema, resultado)
+    except csv.Error:
+        # Comillas sin cerrar o campo mayor que el límite de csv (128 KB): nunca debe
+        # llegar como excepción (HTTP 500). Se conserva lo leído; el llamador rechaza el archivo.
+        resultado.errores.append(
+            ErrorFila(
+                0,
+                "archivo",
+                "El archivo CSV está mal formado "
+                "(revise comillas sin cerrar o campos demasiado largos)",
+            )
+        )
     return resultado
 
 

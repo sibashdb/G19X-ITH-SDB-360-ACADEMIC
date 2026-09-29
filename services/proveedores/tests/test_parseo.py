@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Literal
 
 import pytest
 from proveedores.importacion import parseo
@@ -9,6 +10,7 @@ from proveedores.importacion.esquemas import (
     FilaServicio,
 )
 from proveedores.importacion.parseo import ErrorFila, agrupar_contratos, duplicados, leer_csv
+from pydantic import BaseModel
 
 SERVICIOS = (
     "codigo,nombre,categoria,unidad,moneda\n"
@@ -161,3 +163,77 @@ def test_agrupar_contratos_detecta_cabeceras_distintas_y_servicios_repetidos() -
         ErrorFila(3, "folio", "Los datos del contrato C-0001 no coinciden con la fila 2") in errores
     )
     assert ErrorFila(4, "codigo_servicio", "Servicio repetido en el contrato C-0001") in errores
+
+
+def test_csv_mal_formado_no_lanza_excepcion() -> None:
+    # Una comilla sin cerrar seguida de más de 128 KB desborda el límite de campo de csv.
+    texto = "codigo,nombre,categoria,unidad,moneda\n" + '"' + "x" * 140_000 + "\n"
+    resultado = leer_csv(texto.encode(), FilaServicio)
+    assert resultado.filas == []
+    assert resultado.errores == [
+        ErrorFila(
+            0,
+            "archivo",
+            "El archivo CSV está mal formado "
+            "(revise comillas sin cerrar o campos demasiado largos)",
+        )
+    ]
+
+
+def test_valor_no_permitido_lista_las_opciones_en_espanol() -> None:
+    texto = CONTRATO_ENC + _contrato(moneda="EUR")
+    assert leer_csv(texto.encode(), FilaContrato).errores == [
+        ErrorFila(2, "moneda", "Valor no permitido; opciones: MXN o USD")
+    ]
+    cuatro = SERVICIOS.replace("consultoria", "otra")
+    assert leer_csv(cuatro.encode(), FilaServicio).errores == [
+        ErrorFila(
+            3,
+            "categoria",
+            "Valor no permitido; opciones: licencia_saas, nube, consultoria o soporte",
+        )
+    ]
+
+
+def test_valor_no_permitido_sin_opciones_legibles_no_muestra_ingles() -> None:
+    class Numeros(BaseModel):
+        n: Literal[1, 2]
+
+    assert leer_csv(b"n\n3\n", Numeros).errores == [ErrorFila(2, "n", "Valor no permitido")]
+
+
+def test_numero_no_finito_y_fecha_con_hora_en_espanol() -> None:
+    texto = (
+        CONTRATO_ENC
+        + _contrato(precio_unitario="NaN")
+        + _contrato(folio="C-0002", fecha_inicio="2025-01-01T10:00:00")
+    )
+    errores = leer_csv(texto.encode(), FilaContrato).errores
+    assert ErrorFila(2, "precio_unitario", "Debe ser un número finito") in errores
+    assert ErrorFila(3, "fecha_inicio", "Fecha inválida; use AAAA-MM-DD") in errores
+
+
+def test_encabezado_con_columnas_duplicadas() -> None:
+    texto = "codigo,nombre,nombre,categoria,unidad,moneda\nX,Y,Z,nube,hora,MXN\n"
+    assert leer_csv(texto.encode(), FilaServicio).errores == [
+        ErrorFila(1, "encabezado", "Columnas inválidas; duplicadas: nombre")
+    ]
+
+
+def test_celda_con_solo_espacios_equivale_a_vacia() -> None:
+    texto = CONTRATO_ENC + _contrato(sla_disponibilidad="   ", cuota_implementacion="  ")
+    [(_, fila)] = leer_csv(texto.encode(), FilaContrato).filas
+    assert fila.sla_disponibilidad is None
+    assert fila.cuota_implementacion == Decimal(0)
+    obligatorio = CONTRATO_ENC + _contrato(rfc_proveedor="   ")
+    assert leer_csv(obligatorio.encode(), FilaContrato).errores == [
+        ErrorFila(2, "rfc_proveedor", "Campo obligatorio")
+    ]
+
+
+def test_rfc_rechaza_digitos_no_ascii() -> None:
+    arabes = "٢١٠٣١٥"
+    texto = CONTRATO_ENC + _contrato(rfc_proveedor=f"NAZ{arabes}AB1")
+    assert leer_csv(texto.encode(), FilaContrato).errores == [
+        ErrorFila(2, "rfc_proveedor", "Formato inválido")
+    ]

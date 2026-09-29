@@ -12,7 +12,7 @@ Unidad = Literal["usuario_mes", "vcpu_mes", "gb_mes", "mes", "hora", "ticket"]
 Porcentaje = Annotated[Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2)]
 Dinero = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=4)]
 
-RFC = r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$"
+RFC = r"^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$"  # [0-9]: \d aceptaría dígitos no ASCII
 CORREO = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 CODIGO = r"^[A-Z0-9-]{3,30}$"
 
@@ -29,10 +29,14 @@ class Fila(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def omitir_vacios(cls, datos: Any) -> Any:
-        # Una celda vacía equivale a "sin dato": aplica el valor por defecto o
-        # produce el error "Campo obligatorio".
+        # Una celda vacía (o solo con espacios) equivale a "sin dato": aplica el valor
+        # por defecto o produce el error "Campo obligatorio".
         if isinstance(datos, dict):
-            return {clave: valor for clave, valor in datos.items() if valor not in ("", None)}
+            return {
+                clave: valor
+                for clave, valor in datos.items()
+                if valor is not None and not (isinstance(valor, str) and not valor.strip())
+            }
         return datos
 
 
