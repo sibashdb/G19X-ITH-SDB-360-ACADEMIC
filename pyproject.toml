@@ -34,6 +34,8 @@ asyncio_default_fixture_loop_scope = "function"
 markers = ["integracion: requiere Docker (Testcontainers)"]
 filterwarnings = [
     "ignore:Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead",
+    # testcontainers (RabbitMqContainer) usa su propio decorador obsoleto al importarse.
+    "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning",
 ]
 
 [tool.coverage.run]

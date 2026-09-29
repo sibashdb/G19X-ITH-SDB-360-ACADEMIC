@@ -22,6 +22,7 @@ from comun.logs import correlation_id
 log = logging.getLogger(__name__)
 
 EXCHANGE_EVENTOS = "eventos"
+TIMEOUT_PUBLICACION = 10  # segundos para publicar y recibir la confirmación del broker
 
 
 class ColumnasOutbox:
@@ -120,7 +121,14 @@ class RelayOutbox:
                 )
                 # mandatory=False: mientras no haya colas enlazadas (incremento 2),
                 # RabbitMQ descarta el mensaje en lugar de devolverlo.
-                await self._exchange.publish(mensaje, routing_key=fila.tipo, mandatory=False)
+                # timeout: un broker detenido no debe retener la transacción ni los
+                # bloqueos de fila (FOR UPDATE) indefinidamente.
+                await self._exchange.publish(
+                    mensaje,
+                    routing_key=fila.tipo,
+                    mandatory=False,
+                    timeout=TIMEOUT_PUBLICACION,
+                )
                 fila.publicado_en = datetime.now(UTC)
         return len(filas)
 
