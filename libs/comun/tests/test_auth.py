@@ -1,6 +1,8 @@
+import base64
 import time
 from typing import Annotated, Any
 
+import jwt
 import pytest
 from comun.auth import Usuario, requiere_rol, usuario_actual, validador_desde_jwks
 from comun.errores import registrar_manejadores
@@ -10,6 +12,40 @@ from fastapi.testclient import TestClient
 from httpx import Response
 
 claves = ClavesPrueba()
+
+
+def _token_sin_exp() -> str:
+    """Construye un JWT sin el claim 'exp' firmado con la clave privada de prueba."""
+    ahora = int(time.time())
+    datos = {
+        "sub": "usuario-prueba",
+        "preferred_username": "usuario-prueba",
+        "iss": ClavesPrueba.EMISOR,
+        "aud": ClavesPrueba.AUDIENCIA,
+        "iat": ahora,
+        # exp ausente intencionalmente
+        "realm_access": {"roles": ["admin"]},
+    }
+    return jwt.encode(datos, claves._privada, algorithm="RS256")
+
+
+def _token_alg_none() -> str:
+    """Construye un JWT con algoritmo 'none' en el header."""
+    ahora = int(time.time())
+    datos = {
+        "sub": "usuario-prueba",
+        "preferred_username": "usuario-prueba",
+        "iss": ClavesPrueba.EMISOR,
+        "aud": ClavesPrueba.AUDIENCIA,
+        "iat": ahora,
+        "exp": ahora + 300,
+        "realm_access": {"roles": ["admin"]},
+    }
+    header = base64.urlsafe_b64encode(b'{"alg":"none","typ":"JWT"}').rstrip(b"=")
+    payload = base64.urlsafe_b64encode(
+        __import__("json").dumps(datos, separators=(",", ":")).encode()
+    ).rstrip(b"=")
+    return (header + b"." + payload + b".").decode()
 
 
 def _app() -> FastAPI:
@@ -82,3 +118,23 @@ def test_jwks_inaccesible_responde_503() -> None:
     with pytest.raises(HTTPException) as error:
         validador.validar(claves.token("admin"))
     assert error.value.status_code == 503
+
+
+def test_token_alg_none_responde_401() -> None:
+    """Regresión: token con algoritmo 'none' debe rechazarse."""
+    respuesta = _get("/yo", _token_alg_none())
+    assert respuesta.status_code == 401
+
+
+def test_token_sin_exp_responde_401() -> None:
+    """Regresión: token sin claim 'exp' requerido debe rechazarse."""
+    respuesta = _get("/yo", _token_sin_exp())
+    assert respuesta.status_code == 401
+
+
+def test_realm_access_null_devuelve_roles_vacio() -> None:
+    """Regresión: realm_access=null no causa AttributeError, devuelve roles vacío."""
+    token_con_null = claves.token("comprador", **{"realm_access": None})
+    respuesta = _get("/yo", token_con_null)
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"id": "usuario-prueba", "nombre": "usuario-prueba", "roles": []}

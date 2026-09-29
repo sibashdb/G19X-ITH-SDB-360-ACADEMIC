@@ -52,7 +52,7 @@ class ValidadorJWT:
             ) from exc
         except jwt.PyJWTError as exc:
             raise _no_autenticado("Token inválido o vencido") from exc
-        roles = datos.get("realm_access", {}).get("roles", [])
+        roles = (datos.get("realm_access") or {}).get("roles") or []
         return Usuario(
             id=datos["sub"],
             nombre=datos.get("preferred_username", datos["sub"]),
@@ -61,7 +61,7 @@ class ValidadorJWT:
 
 
 def validador_desde_jwks(emisor: str, audiencia: str, url_jwks: str) -> ValidadorJWT:
-    cliente = jwt.PyJWKClient(url_jwks, cache_keys=True)
+    cliente = jwt.PyJWKClient(url_jwks)
     return ValidadorJWT(
         emisor, audiencia, lambda token: cliente.get_signing_key_from_jwt(token).key
     )
