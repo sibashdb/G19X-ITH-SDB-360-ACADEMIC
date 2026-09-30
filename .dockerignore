@@ -10,3 +10,4 @@ datos
 .env
 infra/.env
 *.pdf
+.superpowers

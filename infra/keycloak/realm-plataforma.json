@@ -1,0 +1,106 @@
+{
+  "realm": "plataforma",
+  "enabled": true,
+  "displayName": "Plataforma de Negociación",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["es"],
+  "defaultLocale": "es",
+  "bruteForceProtected": true,
+  "passwordPolicy": "length(12) and notUsername",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Configura catálogos, pesos, umbrales, usuarios e importaciones" },
+      { "name": "comprador", "description": "Crea y supervisa eventos de negociación" },
+      { "name": "aprobador", "description": "Aprueba adjudicaciones" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "web",
+      "name": "Plataforma web",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*", "http://localhost:8080/*"],
+      "webOrigins": ["http://localhost:5173", "http://localhost:8080"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "protocolMappers": [
+        {
+          "name": "audiencia-plataforma-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "plataforma-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "pruebas-humo",
+      "name": "Pruebas de humo (solo desarrollo)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audiencia-plataforma-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "plataforma-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin1",
+      "enabled": true,
+      "email": "admin1@plataforma.example",
+      "emailVerified": true,
+      "firstName": "Andrea",
+      "lastName": "Administradora",
+      "credentials": [{ "type": "password", "value": "Admin-Dev-2026!", "temporary": false }],
+      "realmRoles": ["admin"],
+      "requiredActions": ["CONFIGURE_TOTP"]
+    },
+    {
+      "username": "comprador1",
+      "enabled": true,
+      "email": "comprador1@plataforma.example",
+      "emailVerified": true,
+      "firstName": "Carlos",
+      "lastName": "Comprador",
+      "credentials": [{ "type": "password", "value": "Comprador-Dev-2026!", "temporary": false }],
+      "realmRoles": ["comprador"]
+    },
+    {
+      "username": "aprobador1",
+      "enabled": true,
+      "email": "aprobador1@plataforma.example",
+      "emailVerified": true,
+      "firstName": "Alicia",
+      "lastName": "Aprobadora",
+      "credentials": [{ "type": "password", "value": "Aprobador-Dev-2026!", "temporary": false }],
+      "realmRoles": ["aprobador"],
+      "requiredActions": ["CONFIGURE_TOTP"]
+    }
+  ]
+}
