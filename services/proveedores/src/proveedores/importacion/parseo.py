@@ -2,41 +2,16 @@
 
 import csv
 import io
-import re
 from collections import Counter
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 
+from comun.mensajes import traducir_error
 from pydantic import BaseModel, ValidationError
-from pydantic_core import ErrorDetails
 
 from proveedores.importacion.esquemas import FilaContrato
 
 MAX_FILAS = 50_000
-
-MENSAJES = {
-    "missing": "Campo obligatorio",
-    "string_pattern_mismatch": "Formato inválido",
-    "string_too_long": "Máximo {max_length} caracteres",
-    "string_too_short": "No puede estar vacío",
-    "too_short": "Debe tener al menos {min_length} elemento(s)",
-    "literal_error": "Valor no permitido; opciones: {expected}",
-    "greater_than": "Debe ser mayor que {gt}",
-    "greater_than_equal": "Debe ser mayor o igual que {ge}",
-    "less_than": "Debe ser menor que {lt}",
-    "less_than_equal": "Debe ser menor o igual que {le}",
-    "decimal_parsing": "Debe ser un número (punto decimal, sin separador de miles)",
-    "decimal_max_places": "Máximo {decimal_places} decimales",
-    "decimal_max_digits": "Máximo {max_digits} dígitos",
-    "decimal_whole_digits": "Demasiados dígitos enteros",
-    "int_parsing": "Debe ser un número entero",
-    "date_parsing": "Fecha inválida; use AAAA-MM-DD",
-    "date_from_datetime_parsing": "Fecha inválida; use AAAA-MM-DD",
-    "date_from_datetime_inexact": "Fecha inválida; use AAAA-MM-DD",
-    "finite_number": "Debe ser un número finito",
-    "bool_parsing": "Debe ser true o false",
-    "extra_forbidden": "Columna no reconocida",
-}
 
 
 @dataclass(frozen=True)
@@ -50,38 +25,6 @@ class ErrorFila:
 class ResultadoParseo[M: BaseModel]:
     filas: list[tuple[int, M]] = field(default_factory=list)
     errores: list[ErrorFila] = field(default_factory=list)
-
-
-def _unir(elementos: list[str], conjuncion: str) -> str:
-    """Une como lo hace Pydantic: "a", "a o b", "a, b o c"."""
-    if len(elementos) == 1:
-        return elementos[0]
-    return f"{', '.join(elementos[:-1])} {conjuncion} {elementos[-1]}"
-
-
-def _opciones(esperado: str) -> str | None:
-    """Traduce el "'a', 'b' or 'c'" de Pydantic; None si no es una lista de cadenas."""
-    valores = re.findall(r"'([^']*)'", esperado)
-    if not valores or _unir([f"'{valor}'" for valor in valores], "or") != esperado:
-        return None
-    return _unir(valores, "o")
-
-
-def _mensaje(error: ErrorDetails) -> str:
-    tipo = error["type"]
-    contexto = dict(error.get("ctx", {}))
-    if tipo == "literal_error":
-        opciones = _opciones(str(contexto.get("expected", "")))
-        if opciones is None:
-            return "Valor no permitido"
-        contexto["expected"] = opciones
-    plantilla = MENSAJES.get(tipo)
-    if plantilla is None:
-        return error["msg"].removeprefix("Value error, ")
-    try:
-        return plantilla.format(**contexto)
-    except (KeyError, IndexError):
-        return error["msg"]
 
 
 def _leer_registros[M: BaseModel](
@@ -128,7 +71,7 @@ def _leer_registros[M: BaseModel](
         except ValidationError as exc:
             for error in exc.errors():
                 campo = ".".join(str(parte) for parte in error["loc"]) or "fila"
-                resultado.errores.append(ErrorFila(numero, campo, _mensaje(error)))
+                resultado.errores.append(ErrorFila(numero, campo, traducir_error(error)))
 
 
 def leer_csv[M: BaseModel](contenido: bytes, esquema: type[M]) -> ResultadoParseo[M]:

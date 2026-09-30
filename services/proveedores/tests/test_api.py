@@ -138,7 +138,10 @@ async def test_entidad_desconocida_devuelve_422(
 
 
 async def test_importaciones_concurrentes_en_conflicto_devuelven_409(
-    cliente: httpx.AsyncClient, claves: ClavesPrueba, monkeypatch: pytest.MonkeyPatch
+    cliente: httpx.AsyncClient,
+    claves: ClavesPrueba,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     async def choca(*_args: Any, **_kwargs: Any) -> None:
         raise IntegrityError("x", {}, Exception("dup"))
@@ -147,6 +150,7 @@ async def test_importaciones_concurrentes_en_conflicto_devuelven_409(
     respuesta = await _subir(cliente, claves, "servicios", SERVICIOS.encode())
     assert respuesta.status_code == 409
     assert respuesta.json()["title"] == "Conflicto"
+    assert "Conflicto de integridad al importar servicios" in caplog.text
 
 
 async def test_listar_filtrar_y_buscar(con_datos: httpx.AsyncClient, claves: ClavesPrueba) -> None:
@@ -225,6 +229,45 @@ async def test_proveedor_inexistente_o_id_invalido(
         await con_datos.get(f"/proveedores/{inexistente}/contratos", headers=cabeceras)
     ).status_code == 404
     assert (await con_datos.get("/proveedores/no-es-uuid", headers=cabeceras)).status_code == 422
+
+
+async def test_errores_de_validacion_de_parametros_en_espanol(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba
+) -> None:
+    cabeceras = _auth(claves, "comprador")
+
+    async def errores(ruta: str, **params: str | int) -> list[dict[str, str]]:
+        respuesta = await cliente.get(ruta, params=params, headers=cabeceras)
+        assert respuesta.status_code == 422
+        return list(respuesta.json()["errores"])
+
+    assert await errores("/proveedores/no-es-uuid") == [
+        {"campo": "path.proveedor_id", "mensaje": "Debe ser un UUID válido"}
+    ]
+    assert await errores("/proveedores", limite=500) == [
+        {"campo": "query.limite", "mensaje": "Debe ser menor o igual que 100"}
+    ]
+    assert await errores("/proveedores", categoria="otra") == [
+        {
+            "campo": "query.categoria",
+            "mensaje": "Valor no permitido; opciones: licencia_saas, nube, consultoria o soporte",
+        }
+    ]
+    assert await errores("/proveedores", activo="quizas") == [
+        {"campo": "query.activo", "mensaje": "Debe ser true o false"}
+    ]
+
+
+async def test_desplazamiento_fuera_de_rango_devuelve_422(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba
+) -> None:
+    respuesta = await cliente.get(
+        "/proveedores", params={"desplazamiento": 1_000_001}, headers=_auth(claves, "comprador")
+    )
+    assert respuesta.status_code == 422
+    assert respuesta.json()["errores"] == [
+        {"campo": "query.desplazamiento", "mensaje": "Debe ser menor o igual que 1000000"}
+    ]
 
 
 async def test_catalogo_de_servicios(con_datos: httpx.AsyncClient, claves: ClavesPrueba) -> None:

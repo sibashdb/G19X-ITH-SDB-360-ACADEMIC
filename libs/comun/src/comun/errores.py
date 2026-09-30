@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from comun.logs import CABECERA_CORRELACION, correlation_id
+from comun.mensajes import traducir_error
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ def registrar_manejadores(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validacion(request: Request, exc: RequestValidationError) -> JSONResponse:
         errores = [
-            {"campo": ".".join(str(parte) for parte in e["loc"]), "mensaje": e["msg"]}
+            {"campo": ".".join(str(parte) for parte in e["loc"]), "mensaje": traducir_error(e)}
             for e in exc.errors()
         ]
         return _problema(

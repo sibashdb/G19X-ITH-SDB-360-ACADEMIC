@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from typing import Annotated
 from uuid import UUID
@@ -28,6 +29,8 @@ Sesion = Annotated[AsyncSession, Depends(obtener_sesion)]
 Interno = Annotated[Usuario, Depends(requiere_rol(*ROLES_INTERNOS))]
 Admin = Annotated[Usuario, Depends(requiere_rol("admin"))]
 
+log = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -50,7 +53,7 @@ async def listar_proveedores(
     categoria: Categoria | None = None,
     activo: bool | None = None,
     limite: Annotated[int, Query(ge=1, le=100)] = 25,
-    desplazamiento: Annotated[int, Query(ge=0)] = 0,
+    desplazamiento: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
 ) -> esquemas.PaginaProveedores:
     condiciones = []
     if q:
@@ -179,6 +182,7 @@ async def importar_archivo(
         async with sesion.begin():
             return await importar(sesion, entidad, contenido)
     except IntegrityError as error:
+        log.warning("Conflicto de integridad al importar %s", entidad, exc_info=True)
         # Dos importaciones simultáneas del mismo folio: la segunda pierde en el commit.
         raise ErrorDominio(
             409,

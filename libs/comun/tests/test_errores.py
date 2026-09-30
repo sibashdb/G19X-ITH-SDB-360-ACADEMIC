@@ -76,7 +76,7 @@ def test_validacion_lista_los_campos_con_error() -> None:
     assert respuesta.status_code == 422
     cuerpo = respuesta.json()
     assert cuerpo["title"] == "Solicitud inválida"
-    assert cuerpo["errores"][0]["campo"] == "path.n"
+    assert cuerpo["errores"] == [{"campo": "path.n", "mensaje": "Debe ser un número entero"}]
 
 
 def test_error_inesperado_no_filtra_detalles_internos() -> None:
