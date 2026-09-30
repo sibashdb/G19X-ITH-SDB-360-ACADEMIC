@@ -9,5 +9,9 @@ datos
 **/.ruff_cache
 .env
 infra/.env
+**/.env
+**/.env.local
+.coverage
+htmlcov
 *.pdf
 .superpowers
