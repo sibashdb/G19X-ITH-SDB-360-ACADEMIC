@@ -16,8 +16,9 @@ function respuestaJson(cuerpo: object, estado: number): Response {
   })
 }
 
-function renderizar() {
-  const cliente = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+function renderizar(
+  cliente = new QueryClient({ defaultOptions: { mutations: { retry: false } } }),
+) {
   return render(
     <QueryClientProvider client={cliente}>
       <Importacion />
@@ -75,5 +76,27 @@ describe("Importacion", () => {
     await userEvent.click(screen.getByRole("button", { name: "Importar" }))
 
     expect(await screen.findByText(/40 registros/)).toBeInTheDocument()
+  })
+
+  it("invalida la lista y los detalles de proveedores tras importar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        respuestaJson({ entidad: "contratos", filas: 1, registros: 1, omitidos: 0, eventos: 1 }, 200),
+      ),
+    )
+    const cliente = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const invalidar = vi.spyOn(cliente, "invalidateQueries")
+    renderizar(cliente)
+
+    await userEvent.upload(
+      screen.getByLabelText("Archivo CSV"),
+      new File(["x"], "contratos.csv", { type: "text/csv" }),
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Importar" }))
+    await screen.findByText(/1 registros/)
+
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["proveedores"] })
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["proveedor"] })
   })
 })

@@ -31,7 +31,7 @@ export function Layout() {
   if (auth.error) {
     return (
       <div role="alert" className="space-y-3 p-6">
-        <p>Tu sesión expiró o no se pudo iniciar sesión.</p>
+        <p>Su sesión expiró o no se pudo iniciar sesión.</p>
         <Button onClick={() => void volverAIniciarSesion()}>Volver a iniciar sesión</Button>
       </div>
     )

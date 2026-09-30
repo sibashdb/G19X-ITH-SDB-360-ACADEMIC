@@ -80,64 +80,98 @@ export function ProveedorDetalle() {
       </Card>
 
       <h2 className="text-xl font-semibold">Contratos</h2>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Folio</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Vigencia</TableHead>
-            <TableHead>Servicio</TableHead>
-            <TableHead className="text-right">Cantidad</TableHead>
-            <TableHead className="text-right">Precio unitario</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {contratos.data?.flatMap((c) =>
-            c.lineas.map((linea, i) => (
-              <TableRow key={`${c.id}-${linea.codigo_servicio}`}>
-                <TableCell className="font-mono">{i === 0 ? c.folio : ""}</TableCell>
-                <TableCell>{i === 0 ? (c.tipo === "nuevo" ? "Nuevo" : "Renovación") : ""}</TableCell>
-                <TableCell>
-                  {i === 0 ? `${formatoFecha(c.fecha_inicio)} – ${formatoFecha(c.fecha_fin)}` : ""}
-                </TableCell>
-                <TableCell>{linea.nombre_servicio}</TableCell>
-                <TableCell className="text-right">
-                  {Number(linea.cantidad).toLocaleString("es-MX")} {linea.unidad}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatoMoneda(linea.precio_unitario, c.moneda)}
+      {contratos.isPending ? (
+        <p>Cargando…</p>
+      ) : contratos.isError ? (
+        <p role="alert" className="text-destructive">
+          {contratos.error.message}
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Folio</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Vigencia</TableHead>
+              <TableHead>Servicio</TableHead>
+              <TableHead className="text-right">Cantidad</TableHead>
+              <TableHead className="text-right">Precio unitario</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {contratos.data.flatMap((c) =>
+              c.lineas.map((linea, i) => (
+                <TableRow key={`${c.id}-${linea.codigo_servicio}`}>
+                  <TableCell className="font-mono">{i === 0 ? c.folio : ""}</TableCell>
+                  <TableCell>
+                    {i === 0 ? (c.tipo === "nuevo" ? "Nuevo" : "Renovación") : ""}
+                  </TableCell>
+                  <TableCell>
+                    {i === 0
+                      ? `${formatoFecha(c.fecha_inicio)} – ${formatoFecha(c.fecha_fin)}`
+                      : ""}
+                  </TableCell>
+                  <TableCell>{linea.nombre_servicio}</TableCell>
+                  <TableCell className="text-right">
+                    {Number(linea.cantidad).toLocaleString("es-MX")} {linea.unidad}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatoMoneda(linea.precio_unitario, c.moneda)}
+                  </TableCell>
+                </TableRow>
+              )),
+            )}
+            {contratos.data.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  Sin contratos registrados
                 </TableCell>
               </TableRow>
-            )),
-          )}
-        </TableBody>
-      </Table>
+            )}
+          </TableBody>
+        </Table>
+      )}
 
       <h2 className="text-xl font-semibold">Desempeño (últimos 12 meses)</h2>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Periodo</TableHead>
-            <TableHead className="text-right">Cumplimiento SLA</TableHead>
-            <TableHead className="text-right">Resolución (h)</TableHead>
-            <TableHead className="text-right">Incidentes críticos</TableHead>
-            <TableHead className="text-right">Entregas a tiempo</TableHead>
-            <TableHead className="text-right">Satisfacción (1–5)</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {desempeno.data?.map((d) => (
-            <TableRow key={d.periodo}>
-              <TableCell>{formatoFecha(d.periodo)}</TableCell>
-              <TableCell className="text-right">{d.sla_cumplimiento_pct} %</TableCell>
-              <TableCell className="text-right">{d.tiempo_resolucion_h}</TableCell>
-              <TableCell className="text-right">{d.incidentes_criticos}</TableCell>
-              <TableCell className="text-right">{d.entregas_a_tiempo_pct} %</TableCell>
-              <TableCell className="text-right">{d.satisfaccion}</TableCell>
+      {desempeno.isPending ? (
+        <p>Cargando…</p>
+      ) : desempeno.isError ? (
+        <p role="alert" className="text-destructive">
+          {desempeno.error.message}
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Periodo</TableHead>
+              <TableHead className="text-right">Cumplimiento SLA</TableHead>
+              <TableHead className="text-right">Resolución (h)</TableHead>
+              <TableHead className="text-right">Incidentes críticos</TableHead>
+              <TableHead className="text-right">Entregas a tiempo</TableHead>
+              <TableHead className="text-right">Satisfacción (1–5)</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {desempeno.data.map((d) => (
+              <TableRow key={d.periodo}>
+                <TableCell>{formatoFecha(d.periodo)}</TableCell>
+                <TableCell className="text-right">{d.sla_cumplimiento_pct} %</TableCell>
+                <TableCell className="text-right">{d.tiempo_resolucion_h}</TableCell>
+                <TableCell className="text-right">{d.incidentes_criticos}</TableCell>
+                <TableCell className="text-right">{d.entregas_a_tiempo_pct} %</TableCell>
+                <TableCell className="text-right">{d.satisfaccion}</TableCell>
+              </TableRow>
+            ))}
+            {desempeno.data.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  Sin datos de desempeño
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      )}
     </section>
   )
 }

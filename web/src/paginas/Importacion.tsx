@@ -64,7 +64,12 @@ export function Importacion() {
         body: formulario,
       })
     },
-    onSuccess: () => clienteConsultas.invalidateQueries({ queryKey: ["proveedores"] }),
+    // "proveedor" es el prefijo de las consultas del detalle (ficha, contratos y desempeño).
+    onSuccess: () =>
+      Promise.all([
+        clienteConsultas.invalidateQueries({ queryKey: ["proveedores"] }),
+        clienteConsultas.invalidateQueries({ queryKey: ["proveedor"] }),
+      ]),
   })
 
   if (!roles.includes("admin")) {

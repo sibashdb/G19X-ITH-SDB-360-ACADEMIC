@@ -36,7 +36,7 @@ describe("Layout con la sesión en error", () => {
     )
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Tu sesión expiró o no se pudo iniciar sesión.",
+      "Su sesión expiró o no se pudo iniciar sesión.",
     )
     expect(screen.queryByText(/invalid_grant/)).not.toBeInTheDocument()
     expect(signinRedirect).not.toHaveBeenCalled()
