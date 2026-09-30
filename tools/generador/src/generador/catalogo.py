@@ -77,7 +77,7 @@ SERVICIOS: tuple[ServicioBase, ...] = (
         "USD",
         "0.08",
     ),
-    _s("NUBE-K8S-CLU", "Clúster de Kubernetes administrado", NUBE, "mes", "USD", "73"),
+    _s("NUBE-K8S-CLU", "Clúster de contenedores administrado", NUBE, "mes", "USD", "73"),
     _s("NUBE-LB-STD", "Balanceador de carga", NUBE, "mes", "USD", "18"),
     _s("NUBE-VPN-S2S", "VPN sitio a sitio", NUBE, "mes", "USD", "36"),
     _s("CONS-DEV-JR", "Desarrollador(a) junior", CONS, "hora", "MXN", "450"),

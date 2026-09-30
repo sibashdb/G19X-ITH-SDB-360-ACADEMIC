@@ -89,6 +89,7 @@ def escribir(datos: DatosSinteticos, carpeta: Path) -> None:
             for p in datos.proveedores
         ],
     }
+    # newline="\n": mismos bytes en Windows y Linux (sin esto el JSON saldría con CRLF).
     (carpeta / "verdad_oculta.json").write_text(
-        json.dumps(verdad, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(verdad, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n"
     )

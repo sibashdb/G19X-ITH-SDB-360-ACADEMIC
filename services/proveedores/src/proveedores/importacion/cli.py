@@ -18,15 +18,41 @@ from proveedores.importacion.aplicar import (
 )
 
 
+class ErrorCarga(ErrorImportacion):
+    """`ErrorImportacion` que además indica qué archivo falló y qué ya se había importado.
+
+    Cada archivo se confirma por separado: los anteriores al que falló ya están en la base.
+    """
+
+    def __init__(self, origen: ErrorImportacion, entidad: str, importadas: list[str]) -> None:
+        super().__init__(origen.errores)
+        self.entidad = entidad
+        self.importadas = importadas
+
+    def mensaje(self) -> str:
+        previo = (
+            f"Ya se importaron: {', '.join(self.importadas)}."
+            if self.importadas
+            else "No se había importado ningún archivo antes del error."
+        )
+        return f"Error en {self.entidad}.csv: {self.detalle.rstrip('.')}. {previo}"
+
+
 async def cargar_carpeta(
     fabrica: async_sessionmaker[AsyncSession], carpeta: Path
 ) -> list[ResumenImportacion]:
-    """Importa en ORDEN_CARGA; cada archivo en su propia transacción."""
-    resumenes = []
+    """Importa en ORDEN_CARGA; cada archivo en su propia transacción.
+
+    Si un archivo trae errores lanza `ErrorCarga` (un `ErrorImportacion`).
+    """
+    resumenes: list[ResumenImportacion] = []
     for entidad in ORDEN_CARGA:
         contenido = (carpeta / f"{entidad}.csv").read_bytes()
-        async with fabrica() as sesion, sesion.begin():
-            resumenes.append(await importar(sesion, entidad, contenido))
+        try:
+            async with fabrica() as sesion, sesion.begin():
+                resumenes.append(await importar(sesion, entidad, contenido))
+        except ErrorImportacion as error:
+            raise ErrorCarga(error, entidad, [r.entidad for r in resumenes]) from error
     return resumenes
 
 
@@ -38,10 +64,10 @@ async def _principal(carpeta: Path) -> int:
     motor = create_async_engine(Configuracion().database_url)
     try:
         resumenes = await cargar_carpeta(async_sessionmaker(motor, expire_on_commit=False), carpeta)
-    except ErrorImportacion as error:
-        print(error.detalle, file=sys.stderr)
+    except ErrorCarga as error:
+        print(error.mensaje(), file=sys.stderr)
         for e in error.errores[:20]:
-            print(f"  fila {e.fila}, {e.campo}: {e.mensaje}", file=sys.stderr)
+            print(f"  {error.entidad}.csv, fila {e.fila}, {e.campo}: {e.mensaje}", file=sys.stderr)
         return 1
     finally:
         await motor.dispose()

@@ -64,6 +64,9 @@ APELLIDOS = (
 )
 LETRAS_RFC = "ABCDEFGHJKLMNPRSTUVWXYZ"
 INFLACION_ANUAL = 0.045
+SESGO_OBSERVACION = 0.10  # desv. estándar del sesgo persistente con que los KPI ven la calidad
+DESPLAZAMIENTO_KPI = 0.08  # desv. estándar del desplazamiento persistente de cada KPI
+PROPORCION_RECIENTES = 0.15  # proveedores con solo 1 a 12 meses de historial
 PLAZOS = {
     "licencia_saas": (12, 24, 36),
     "nube": (12, 24, 36),
@@ -210,7 +213,14 @@ def _contratos(
     ofrecidos = [s for s in SERVICIOS if s.categoria in proveedor.categorias]
     catalogo = rng.sample(ofrecidos, k=min(len(ofrecidos), rng.randint(3, 5)))
     total_meses = _meses_entre(inicio, hasta)
-    arranques = sorted(rng.randrange(total_meses) for _ in range(rng.randint(20, 46)))
+    if rng.random() < PROPORCION_RECIENTES:
+        # Proveedor reciente: pocos contratos, todos en los últimos 12 meses de la ventana
+        # (historial de desempeño de 1 a 12 meses, para probar la contracción bayesiana).
+        arranques = sorted(
+            rng.randint(total_meses - 11, total_meses) for _ in range(rng.randint(2, 6))
+        )
+    else:
+        arranques = sorted(rng.randrange(total_meses) for _ in range(rng.randint(20, 46)))
     contratos: list[list[dict[str, str]]] = []
     for numero, mes in enumerate(arranques):
         base = rng.choice(catalogo)
@@ -257,7 +267,11 @@ def _contratos(
 def _desempeno(
     rng: random.Random, proveedor: ProveedorSintetico, desde: date, hasta: date
 ) -> list[dict[str, str]]:
-    q = proveedor.calidad
+    # Señales imperfectas de la calidad oculta: los KPI "ven" una calidad con un sesgo
+    # persistente del proveedor y, además, cada KPI tiene su propio desplazamiento persistente
+    # (en unidades de calidad), de modo que no son colineales ni reflejan la calidad exacta.
+    q = _limitar(proveedor.calidad + rng.gauss(0, SESGO_OBSERVACION), 0, 1)
+    q_sla, q_res, q_inc, q_ent, q_sat = (q + rng.gauss(0, DESPLAZAMIENTO_KPI) for _ in range(5))
     filas = []
     mes = desde
     while mes <= hasta:
@@ -265,11 +279,15 @@ def _desempeno(
             {
                 "rfc_proveedor": proveedor.rfc,
                 "periodo": mes.isoformat(),
-                "sla_cumplimiento_pct": _dec(_limitar(95 + 5 * q + rng.gauss(0, 0.8), 80, 100), 2),
-                "tiempo_resolucion_h": _dec(max(0.5, 24 - 18 * q + rng.gauss(0, 2.5)), 2),
-                "incidentes_criticos": str(max(0, round(rng.gauss(3 * (1 - q), 1)))),
-                "entregas_a_tiempo_pct": _dec(_limitar(80 + 20 * q + rng.gauss(0, 4), 0, 100), 2),
-                "satisfaccion": _dec(_limitar(1.5 + 3.5 * q + rng.gauss(0, 0.4), 1, 5), 2),
+                "sla_cumplimiento_pct": _dec(
+                    _limitar(95 + 5 * q_sla + rng.gauss(0, 0.8), 80, 100), 2
+                ),
+                "tiempo_resolucion_h": _dec(max(0.5, 24 - 18 * q_res + rng.gauss(0, 2.5)), 2),
+                "incidentes_criticos": str(max(0, round(rng.gauss(3 * (1 - q_inc), 1)))),
+                "entregas_a_tiempo_pct": _dec(
+                    _limitar(80 + 20 * q_ent + rng.gauss(0, 4), 0, 100), 2
+                ),
+                "satisfaccion": _dec(_limitar(1.5 + 3.5 * q_sat + rng.gauss(0, 0.4), 1, 5), 2),
             }
         )
         mes = _sumar_meses(mes, 1)
