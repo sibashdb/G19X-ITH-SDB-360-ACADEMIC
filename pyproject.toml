@@ -8,6 +8,7 @@ dependencies = []
 dev = [
     "comun",
     "proveedores",
+    "generador",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
     "pytest-cov>=6.0",
@@ -27,6 +28,7 @@ members = ["libs/*", "services/*", "tools/*"]
 [tool.uv.sources]
 comun = { workspace = true }
 proveedores = { workspace = true }
+generador = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["libs", "services", "tools"]
@@ -42,7 +44,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["comun", "proveedores"]
+source = ["comun", "proveedores", "generador"]
 
 [tool.coverage.report]
 fail_under = 80
@@ -65,5 +67,5 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["comun", "proveedores"]
+packages = ["comun", "proveedores", "generador"]
 plugins = ["pydantic.mypy"]

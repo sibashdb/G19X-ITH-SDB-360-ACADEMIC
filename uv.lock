@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "comun",
+    "generador",
     "plataforma-negociacion",
     "proveedores",
 ]
@@ -582,6 +583,11 @@ wheels = [
 ]
 
 [[package]]
+name = "generador"
+version = "0.1.0"
+source = { editable = "tools/generador" }
+
+[[package]]
 name = "greenlet"
 version = "3.5.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1104,6 +1110,7 @@ source = { virtual = "." }
 dev = [
     { name = "asyncpg" },
     { name = "comun" },
+    { name = "generador" },
     { name = "httpx" },
     { name = "mypy" },
     { name = "proveedores" },
@@ -1120,6 +1127,7 @@ dev = [
 dev = [
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "comun", editable = "libs/comun" },
+    { name = "generador", editable = "tools/generador" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "proveedores", editable = "services/proveedores" },
