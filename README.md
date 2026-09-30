@@ -31,7 +31,7 @@ aprobador configuran OTP en su primer inicio de sesión. Verificación automáti
 
 - Antes del último comando (`docker compose … exec … /datos`), ejecute `export MSYS_NO_PATHCONV=1`:
   Git Bash convierte `/datos` en una ruta de Windows y la importación no encuentra la carpeta.
-- Si `uv` no encuentra su Python administrado, indíquele uno con la variable de entorno `UV_PYTHON`.
+- Si `uv` no encuentra su Python administrado, indíquele la versión con `export UV_PYTHON=3.13`.
 
 ## Desarrollo
 
@@ -39,8 +39,9 @@ aprobador configuran OTP en su primer inicio de sesión. Verificación automáti
 |---|---|
 | Pruebas de Python (requieren Docker) | `uv run pytest --cov` |
 | Lint, formato y tipos | `uv run ruff format . && uv run ruff check . && uv run mypy` |
+| Dependencias del frontend (una vez, antes de `npm run dev` o las pruebas) | `cd web && npm ci` |
 | SPA con recarga en caliente | `cd web && npm run dev` → <http://localhost:5173> |
-| Pruebas del frontend | `cd web && npm test` |
+| Pruebas del frontend | `cd web && npm test -- --run` |
 | Contrato OpenAPI de proveedores | <http://localhost:8080/api/proveedores/docs> |
 | Consola de RabbitMQ | <http://localhost:15672> |
 

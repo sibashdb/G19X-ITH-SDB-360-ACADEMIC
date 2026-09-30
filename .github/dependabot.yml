@@ -4,15 +4,33 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: build(deps)
   - package-ecosystem: npm
     directory: /web
     schedule:
       interval: weekly
+    commit-message:
+      prefix: build(deps)
   - package-ecosystem: docker
     directories: [/services/proveedores, /web]
     schedule:
       interval: weekly
+    commit-message:
+      prefix: build(deps)
+    ignore:
+      # El proyecto fija Python 3.13: solo se aceptan parches de la imagen.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+  - package-ecosystem: docker-compose
+    directory: /infra
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build(deps)
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: ci(deps)

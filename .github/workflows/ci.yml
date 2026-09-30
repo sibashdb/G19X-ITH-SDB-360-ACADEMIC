@@ -8,9 +8,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   python:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -24,6 +29,7 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -41,6 +47,7 @@ jobs:
 
   stack:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [python, web]
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +63,11 @@ jobs:
 
   secretos:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # gitleaks-action consulta los commits del PR (API); el permiso global contents: read no basta en repos privados.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,3 +75,5 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Solo se exige si el repositorio pertenece a una organización; inocuo en una cuenta personal.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
