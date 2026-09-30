@@ -2,10 +2,13 @@ import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
+import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
 from comun.pruebas import ClavesPrueba
+from proveedores.config import Configuracion
+from proveedores.main import crear_app
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -40,3 +43,13 @@ async def fabrica(url_bd: str) -> AsyncIterator[async_sessionmaker[AsyncSession]
 @pytest.fixture(scope="session")
 def claves() -> ClavesPrueba:
     return ClavesPrueba()
+
+
+@pytest.fixture
+async def cliente(
+    url_bd: str, fabrica: async_sessionmaker[AsyncSession], claves: ClavesPrueba
+) -> AsyncIterator[httpx.AsyncClient]:
+    app = crear_app(Configuracion(database_url=url_bd), claves.validador(), fabrica)
+    transporte = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as cliente:
+        yield cliente
