@@ -7,6 +7,13 @@ export const NOMBRES_CATEGORIA: Record<Categoria, string> = {
   soporte: "Soporte",
 }
 
+export const NOMBRES_TAMANO: Record<string, string> = {
+  micro: "Micro",
+  pequena: "Pequeña",
+  mediana: "Mediana",
+  grande: "Grande",
+}
+
 export type ProveedorResumen = {
   id: string
   rfc: string

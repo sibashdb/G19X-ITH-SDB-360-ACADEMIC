@@ -14,6 +14,23 @@ export class ErrorApi extends Error {
   }
 }
 
+/** Mensajes en español para respuestas de error sin Problem Details (p. ej. las del proxy). */
+function problemaPorEstado(estado: number): { titulo: string; detalle: string } {
+  if (estado === 413) {
+    return { titulo: "Contenido demasiado grande", detalle: "El archivo excede el límite de 10 MB." }
+  }
+  if (estado === 429) {
+    return { titulo: "Demasiadas solicitudes", detalle: "Espere unos segundos e intente de nuevo." }
+  }
+  if (estado >= 500) {
+    return {
+      titulo: "Servicio no disponible",
+      detalle: "El servicio no está disponible; intente más tarde.",
+    }
+  }
+  return { titulo: "Error", detalle: `Ocurrió un error (código ${estado}).` }
+}
+
 export async function pedir<T>(
   ruta: string,
   token: string | undefined,
@@ -23,12 +40,17 @@ export async function pedir<T>(
   if (token) cabeceras.set("Authorization", `Bearer ${token}`)
   const respuesta = await fetch(`/api${ruta}`, { ...init, headers: cabeceras })
   if (!respuesta.ok) {
-    const cuerpo = await respuesta.json().catch(() => ({}))
+    const cuerpo: unknown = await respuesta.json().catch(() => null)
+    const problema =
+      typeof cuerpo === "object" && cuerpo !== null
+        ? (cuerpo as { title?: string; detail?: string; errores?: ErrorFila[] })
+        : {}
+    const porDefecto = problemaPorEstado(respuesta.status)
     throw new ErrorApi(
       respuesta.status,
-      cuerpo.title ?? "Error",
-      cuerpo.detail ?? respuesta.statusText,
-      cuerpo.errores ?? [],
+      problema.title ?? porDefecto.titulo,
+      problema.detail ?? porDefecto.detalle,
+      problema.errores ?? [],
     )
   }
   return (await respuesta.json()) as T

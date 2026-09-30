@@ -1,0 +1,85 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { ErrorApi, pedir } from "@/api"
+
+function simular(cuerpo: BodyInit | null, estado: number, tipo = "application/json") {
+  const simulado = vi
+    .fn()
+    .mockResolvedValue(new Response(cuerpo, { status: estado, headers: { "Content-Type": tipo } }))
+  vi.stubGlobal("fetch", simulado)
+  return simulado
+}
+
+async function errorDe(promesa: Promise<unknown>): Promise<ErrorApi> {
+  const error = await promesa.then(
+    () => null,
+    (e: unknown) => e,
+  )
+  expect(error).toBeInstanceOf(ErrorApi)
+  return error as ErrorApi
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe("pedir", () => {
+  it("devuelve el JSON y envía el token en Authorization", async () => {
+    const simulado = simular(JSON.stringify({ total: 1 }), 200)
+
+    expect(await pedir("/proveedores/proveedores", "tk")).toEqual({ total: 1 })
+
+    const [url, init] = simulado.mock.calls[0]
+    expect(url).toBe("/api/proveedores/proveedores")
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tk")
+  })
+
+  it("convierte Problem Details en ErrorApi", async () => {
+    simular(
+      JSON.stringify({
+        title: "Archivo con errores",
+        detail: "Se encontraron 1 error(es).",
+        errores: [{ fila: 2, campo: "rfc", mensaje: "Formato inválido" }],
+      }),
+      422,
+      "application/problem+json",
+    )
+
+    const error = await errorDe(pedir("/x", "tk"))
+
+    expect(error.estado).toBe(422)
+    expect(error.titulo).toBe("Archivo con errores")
+    expect(error.message).toBe("Se encontraron 1 error(es).")
+    expect(error.errores).toEqual([{ fila: 2, campo: "rfc", mensaje: "Formato inválido" }])
+  })
+
+  it("muestra un mensaje en español cuando el cuerpo de un 413 no es JSON", async () => {
+    simular("<html>Request Entity Too Large</html>", 413, "text/html")
+
+    const error = await errorDe(pedir("/x", "tk"))
+
+    expect(error.estado).toBe(413)
+    expect(error.titulo).toBe("Contenido demasiado grande")
+    expect(error.message).toBe("El archivo excede el límite de 10 MB.")
+    expect(error.errores).toEqual([])
+  })
+
+  it.each([
+    [429, "Demasiadas solicitudes", "Espere unos segundos e intente de nuevo."],
+    [502, "Servicio no disponible", "El servicio no está disponible; intente más tarde."],
+    [503, "Servicio no disponible", "El servicio no está disponible; intente más tarde."],
+    [504, "Servicio no disponible", "El servicio no está disponible; intente más tarde."],
+    [418, "Error", "Ocurrió un error (código 418)."],
+  ])("traduce el estado %i cuando el cuerpo no es JSON", async (estado, titulo, detalle) => {
+    simular("texto", estado, "text/plain")
+
+    const error = await errorDe(pedir("/x", undefined))
+
+    expect([error.titulo, error.message]).toEqual([titulo, detalle])
+  })
+
+  it("trata un cuerpo JSON nulo como no JSON", async () => {
+    simular("null", 502)
+
+    const error = await errorDe(pedir("/x", "tk"))
+
+    expect(error.titulo).toBe("Servicio no disponible")
+  })
+})
