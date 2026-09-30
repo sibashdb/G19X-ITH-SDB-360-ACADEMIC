@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Credenciales de prueba del realm de desarrollo y valores de ejemplo"
+paths = [
+  '''infra/keycloak/realm-plataforma\.json''',
+  '''infra/\.env\.example''',
+]
