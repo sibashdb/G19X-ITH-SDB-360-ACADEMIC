@@ -1,16 +1,16 @@
 import { useEffect } from "react"
-import { NavLink, Outlet } from "react-router"
 import { hasAuthParams, useAuth } from "react-oidc-context"
-import { useRoles } from "@/auth"
+import { Outlet, useLocation } from "react-router"
+import { BarraLateral } from "@/componentes/BarraLateral"
+import { BarraSuperior } from "@/componentes/BarraSuperior"
+import { migasDe } from "@/componentes/navegacion"
 import { Button } from "@/components/ui/button"
-
-function claseEnlace({ isActive }: { isActive: boolean }): string {
-  return isActive ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
-}
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export function Layout() {
   const auth = useAuth()
-  const roles = useRoles()
+  const { pathname } = useLocation()
 
   useEffect(() => {
     const puedeRedirigir =
@@ -23,8 +23,16 @@ export function Layout() {
     if (auth.error) console.error("Error de sesión:", auth.error)
   }, [auth.error])
 
+  // Cada página tiene su propio título (lo anuncian los lectores de pantalla al navegar).
+  useEffect(() => {
+    const migas = migasDe(pathname)
+    document.title = `${migas[migas.length - 1].titulo} · PluriOne`
+  }, [pathname])
+
   async function volverAIniciarSesion() {
-    await auth.removeUser().catch((error: unknown) => console.error("No se pudo limpiar la sesión:", error))
+    await auth
+      .removeUser()
+      .catch((error: unknown) => console.error("No se pudo limpiar la sesión:", error))
     await auth.signinRedirect()
   }
 
@@ -36,35 +44,31 @@ export function Layout() {
       </div>
     )
   }
-  if (!auth.isAuthenticated) return <p className="p-6">Redirigiendo al inicio de sesión…</p>
+  if (!auth.isAuthenticated) {
+    return <p className="p-6 text-muted-foreground">Redirigiendo al inicio de sesión…</p>
+  }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <nav aria-label="Principal" className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-          <span className="font-semibold">Plataforma de Negociación</span>
-          <NavLink to="/" end className={claseEnlace}>
-            Inicio
-          </NavLink>
-          <NavLink to="/proveedores" className={claseEnlace}>
-            Proveedores
-          </NavLink>
-          {roles.includes("admin") && (
-            <NavLink to="/importacion" className={claseEnlace}>
-              Importación
-            </NavLink>
-          )}
-          <span className="ml-auto text-sm text-muted-foreground">
-            {auth.user?.profile.preferred_username}
-          </span>
-          <Button variant="outline" size="sm" onClick={() => void auth.signoutRedirect()}>
-            Cerrar sesión
-          </Button>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <Outlet />
-      </main>
-    </div>
+    <TooltipProvider>
+      <SidebarProvider>
+        <a
+          href="#contenido"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring"
+        >
+          Saltar al contenido
+        </a>
+        <BarraLateral />
+        <SidebarInset>
+          <BarraSuperior />
+          <div
+            id="contenido"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-7xl flex-1 p-4 outline-none md:p-6 lg:p-8"
+          >
+            <Outlet />
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   )
 }
