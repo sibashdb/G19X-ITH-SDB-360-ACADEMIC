@@ -44,6 +44,12 @@ def configurar_logs(servicio: str, nivel: str = "INFO") -> None:
     raiz = logging.getLogger()
     raiz.handlers = [manejador]
     raiz.setLevel(nivel)
+    # uvicorn instala sus propios manejadores de texto plano: se quitan para que sus
+    # registros (arranque, accesos, errores) salgan por el manejador JSON de la raíz.
+    for nombre in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        registro = logging.getLogger(nombre)
+        registro.handlers = []
+        registro.propagate = True
 
 
 async def middleware_correlacion(
