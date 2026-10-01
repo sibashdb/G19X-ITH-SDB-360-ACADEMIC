@@ -18,7 +18,7 @@ import {
 export function ProveedorDetalle() {
   const { id = "" } = useParams()
   const token = useToken()
-  const ruta = `/proveedores/proveedores/${id}`
+  const ruta = `/proveedores/proveedores/${encodeURIComponent(id)}`
 
   const detalle = useQuery({
     queryKey: ["proveedor", id],

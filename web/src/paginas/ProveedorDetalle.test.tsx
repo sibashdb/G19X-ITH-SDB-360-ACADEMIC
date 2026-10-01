@@ -62,11 +62,11 @@ function simularApi(rutas: Record<string, () => Response | Promise<Response>>) {
   )
 }
 
-function renderizar() {
+function renderizar(ruta = "/proveedores/p1") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={cliente}>
-      <MemoryRouter initialEntries={["/proveedores/p1"]}>
+      <MemoryRouter initialEntries={[ruta]}>
         <Routes>
           <Route path="/proveedores/:id" element={<ProveedorDetalle />} />
         </Routes>
@@ -117,6 +117,17 @@ describe("ProveedorDetalle", () => {
     renderizar()
 
     expect(await screen.findByText("Sin contratos registrados")).toBeInTheDocument()
+  })
+
+  it("codifica el id al construir la ruta de la API", async () => {
+    simularApi({
+      "/api/proveedores/proveedores/a%20b%3Fx": () => respuestaJson(PROVEEDOR),
+      "/api/proveedores/proveedores/a%20b%3Fx/contratos": () => respuestaJson([]),
+      "/api/proveedores/proveedores/a%20b%3Fx/desempeno?meses=12": () => respuestaJson([]),
+    })
+    renderizar("/proveedores/a%20b%3Fx")
+
+    expect(await screen.findByText("Proveedor Uno")).toBeInTheDocument()
   })
 
   it("muestra Cargando mientras llegan los contratos y el desempeño", async () => {
