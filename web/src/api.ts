@@ -38,7 +38,17 @@ export async function pedir<T>(
 ): Promise<T> {
   const cabeceras = new Headers(init.headers)
   if (token) cabeceras.set("Authorization", `Bearer ${token}`)
-  const respuesta = await fetch(`/api${ruta}`, { ...init, headers: cabeceras })
+  let respuesta: Response
+  try {
+    respuesta = await fetch(`/api${ruta}`, { ...init, headers: cabeceras })
+  } catch {
+    // fetch rechaza, con un mensaje en inglés, cuando no hay red o el gateway no responde.
+    throw new ErrorApi(
+      0,
+      "Sin conexión",
+      "No se pudo conectar con el servidor; revise su conexión e intente de nuevo.",
+    )
+  }
   if (!respuesta.ok) {
     const cuerpo: unknown = await respuesta.json().catch(() => null)
     const problema =

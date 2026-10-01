@@ -82,4 +82,16 @@ describe("pedir", () => {
 
     expect(error.titulo).toBe("Servicio no disponible")
   })
+
+  it("traduce un fallo de red (fetch rechazado) a un mensaje en español", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")))
+
+    const error = await errorDe(pedir("/x", "tk"))
+
+    expect(error.estado).toBe(0)
+    expect(error.titulo).toBe("Sin conexión")
+    expect(error.message).toBe(
+      "No se pudo conectar con el servidor; revise su conexión e intente de nuevo."
+    )
+  })
 })
