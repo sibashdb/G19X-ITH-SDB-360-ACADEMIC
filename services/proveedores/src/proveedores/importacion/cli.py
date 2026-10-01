@@ -61,7 +61,9 @@ async def _principal(carpeta: Path) -> int:
     if faltantes:
         print(f"Faltan archivos en {carpeta}: {', '.join(faltantes)}", file=sys.stderr)
         return 1
-    motor = create_async_engine(Configuracion().database_url)
+    motor = create_async_engine(
+        Configuracion().database_url, pool_pre_ping=True, hide_parameters=True
+    )
     try:
         resumenes = await cargar_carpeta(async_sessionmaker(motor, expire_on_commit=False), carpeta)
     except ErrorCarga as error:

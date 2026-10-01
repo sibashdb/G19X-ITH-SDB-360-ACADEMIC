@@ -1,9 +1,13 @@
+import logging
 import uuid
+from datetime import UTC, datetime, tzinfo
 from typing import Any
 
 import httpx
 import pytest
 from comun.pruebas import ClavesPrueba
+from proveedores.config import Configuracion
+from proveedores.main import crear_app
 from sqlalchemy.exc import IntegrityError
 
 pytestmark = pytest.mark.integracion
@@ -100,6 +104,26 @@ async def test_importar_devuelve_resumen(cliente: httpx.AsyncClient, claves: Cla
         "omitidos": 0,
         "eventos": 0,
     }
+
+
+async def test_importar_registra_resumen_y_usuario_sin_contenido_ni_token(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="proveedores.api.rutas")
+    token = claves.token("admin", sub="admin-42")
+    respuesta = await cliente.post(
+        "/importaciones/servicios",
+        files={"archivo": ("servicios.csv", SERVICIOS.encode(), "text/csv")},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert respuesta.status_code == 200
+    [registro] = [r for r in caplog.records if r.name == "proveedores.api.rutas"]
+    assert registro.getMessage() == (
+        "Importación de servicios confirmada: 2 filas, 2 registros, 0 omitidos, 0 eventos "
+        "(usuario admin-42)"
+    )
+    assert "SAAS-OFI-EMP" not in caplog.text
+    assert token not in caplog.text
 
 
 async def test_importar_con_errores_devuelve_422_con_detalle(
@@ -217,6 +241,64 @@ async def test_detalle_contratos_y_desempeno(
     assert [d["periodo"] for d in desempeno] == ["2025-02-01"]
 
 
+async def test_contratos_vigentes_usa_el_dia_de_negocio_en_mexico(
+    con_datos: httpx.AsyncClient, claves: ClavesPrueba, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class RelojFijo:
+        @staticmethod
+        def now(tz: tzinfo | None = None) -> datetime:
+            # 04:00 UTC del 2100-01-01 son las 22:00 del 2099-12-31 en Ciudad de México.
+            return datetime(2100, 1, 1, 4, 0, tzinfo=UTC).astimezone(tz)
+
+    monkeypatch.setattr("proveedores.api.rutas.datetime", RelojFijo)
+    proveedor_id = await _id_de(con_datos, claves, "NAZ210315AB1")
+    detalle = await con_datos.get(
+        f"/proveedores/{proveedor_id}", headers=_auth(claves, "comprador")
+    )
+    # C-0002 vence el 2099-12-31: sigue vigente en México aunque en UTC ya sea 2100.
+    assert detalle.json()["contratos_vigentes"] == 1
+
+
+async def test_orden_deterministico_con_nombres_y_fechas_iguales(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba
+) -> None:
+    proveedores = (
+        "rfc,nombre,tamano,categorias,contacto_nombre,contacto_email,activo\n"
+        "AAA210101AB1,Mismo Nombre S.A.,mediana,nube,Ana,a@proveedor.example,true\n"
+        "BBB210101AB1,Mismo Nombre S.A.,mediana,nube,Beto,b@proveedor.example,true\n"
+        "CCC210101AB1,Mismo Nombre S.A.,mediana,nube,Caro,c@proveedor.example,true\n"
+    )
+    # Dos contratos con la misma fecha de inicio; el folio mayor se importa primero, así que
+    # sin desempate saldrían en orden de inserción.
+    contratos = (
+        CONTRATOS.split("\n", 1)[0]
+        + "\n"
+        + "C-0009,AAA210101AB1,nuevo,2020-01-01,2099-12-31,USD,30,99.9,5,0,SAAS-OFI-EMP,10,20\n"
+        + "C-0002,AAA210101AB1,nuevo,2020-01-01,2099-12-31,USD,30,99.9,5,0,SAAS-OFI-EMP,10,20\n"
+    )
+    for entidad, texto in (
+        ("servicios", SERVICIOS),
+        ("proveedores", proveedores),
+        ("contratos", contratos),
+    ):
+        assert (await _subir(cliente, claves, entidad, texto.encode())).status_code == 200
+    cabeceras = _auth(claves, "comprador")
+
+    ids = []
+    for desplazamiento in range(3):
+        pagina = await cliente.get(
+            "/proveedores",
+            params={"limite": 1, "desplazamiento": desplazamiento},
+            headers=cabeceras,
+        )
+        ids.append(pagina.json()["elementos"][0]["id"])
+    assert ids == sorted(ids)
+
+    proveedor_id = await _id_de(cliente, claves, "AAA210101AB1")
+    salida = await cliente.get(f"/proveedores/{proveedor_id}/contratos", headers=cabeceras)
+    assert [c["folio"] for c in salida.json()] == ["C-0002", "C-0009"]
+
+
 async def test_proveedor_inexistente_o_id_invalido(
     con_datos: httpx.AsyncClient, claves: ClavesPrueba
 ) -> None:
@@ -273,6 +355,13 @@ async def test_desplazamiento_fuera_de_rango_devuelve_422(
 async def test_catalogo_de_servicios(con_datos: httpx.AsyncClient, claves: ClavesPrueba) -> None:
     respuesta = await con_datos.get("/servicios", headers=_auth(claves, "comprador"))
     assert [s["codigo"] for s in respuesta.json()] == ["SAAS-OFI-EMP", "SOP-MESA-TK"]
+
+
+def test_motor_no_expone_parametros_sql_y_verifica_conexiones(claves: ClavesPrueba) -> None:
+    app = crear_app(Configuracion(), claves.validador())
+    motor = app.state.fabrica.kw["bind"].sync_engine
+    assert motor.hide_parameters is True
+    assert motor.pool._pre_ping is True
 
 
 async def test_salud(cliente: httpx.AsyncClient) -> None:

@@ -27,7 +27,9 @@ def crear_app(
     config = configuracion or Configuracion()
     configurar_logs(config.nombre_servicio, config.log_level)
     sesiones = fabrica or async_sessionmaker(
-        create_async_engine(config.database_url, pool_pre_ping=True), expire_on_commit=False
+        # hide_parameters: que los datos de proveedores no lleguen a los logs en los errores de SQL.
+        create_async_engine(config.database_url, pool_pre_ping=True, hide_parameters=True),
+        expire_on_commit=False,
     )
     relay = RelayOutbox(sesiones, Outbox, config.rabbitmq_url)
 

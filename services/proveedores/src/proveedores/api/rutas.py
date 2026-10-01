@@ -1,7 +1,8 @@
 import logging
-from datetime import date
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from comun.auth import ROLES_INTERNOS, Usuario, requiere_rol
 from comun.errores import ErrorDominio
@@ -24,6 +25,7 @@ from proveedores.modelos import (
 )
 
 MAX_BYTES_CSV = 10 * 1024 * 1024
+ZONA_NEGOCIO = ZoneInfo("America/Mexico_City")  # el "hoy" de los contratos es el del negocio
 
 Sesion = Annotated[AsyncSession, Depends(obtener_sesion)]
 Interno = Annotated[Usuario, Depends(requiere_rol(*ROLES_INTERNOS))]
@@ -72,7 +74,7 @@ async def listar_proveedores(
     filas = await sesion.scalars(
         select(Proveedor)
         .where(*condiciones)
-        .order_by(Proveedor.nombre)
+        .order_by(Proveedor.nombre, Proveedor.id)
         .limit(limite)
         .offset(desplazamiento)
     )
@@ -87,7 +89,7 @@ async def obtener_proveedor(
     proveedor_id: UUID, sesion: Sesion, _: Interno
 ) -> esquemas.ProveedorDetalle:
     proveedor = await _proveedor_o_404(sesion, proveedor_id)
-    hoy = date.today()
+    hoy = datetime.now(ZONA_NEGOCIO).date()
     vigentes = await sesion.scalar(
         select(func.count())
         .select_from(Contrato)
@@ -113,7 +115,7 @@ async def contratos_del_proveedor(
     contratos = await sesion.scalars(
         select(Contrato)
         .where(Contrato.proveedor_id == proveedor_id)
-        .order_by(Contrato.fecha_inicio.desc())
+        .order_by(Contrato.fecha_inicio.desc(), Contrato.folio)
         .options(selectinload(Contrato.lineas).selectinload(LineaContrato.servicio))
     )
     return [
@@ -173,14 +175,14 @@ async def importar_archivo(
     entidad: Entidad,
     archivo: Annotated[UploadFile, File()],
     sesion: Sesion,
-    _: Admin,
+    usuario: Admin,
 ) -> ResumenImportacion:
     contenido = await archivo.read(MAX_BYTES_CSV + 1)
     if len(contenido) > MAX_BYTES_CSV:
         raise ErrorDominio(413, "Archivo demasiado grande", "El archivo excede el límite de 10 MB")
     try:
         async with sesion.begin():
-            return await importar(sesion, entidad, contenido)
+            resumen = await importar(sesion, entidad, contenido)
     except IntegrityError as error:
         log.warning("Conflicto de integridad al importar %s", entidad, exc_info=True)
         # Dos importaciones simultáneas del mismo folio: la segunda pierde en el commit.
@@ -189,3 +191,14 @@ async def importar_archivo(
             "Conflicto",
             "Otra importación modificó los mismos registros al mismo tiempo; intente de nuevo.",
         ) from error
+    log.info(
+        "Importación de %s confirmada: %d filas, %d registros, %d omitidos, %d eventos "
+        "(usuario %s)",
+        resumen.entidad,
+        resumen.filas,
+        resumen.registros,
+        resumen.omitidos,
+        resumen.eventos,
+        usuario.id,
+    )
+    return resumen
