@@ -83,6 +83,12 @@ def leer_csv[M: BaseModel](contenido: bytes, esquema: type[M]) -> ResultadoParse
             ErrorFila(0, "archivo", "El archivo debe estar codificado en UTF-8")
         )
         return resultado
+    if "\x00" in texto:
+        # PostgreSQL no admite NUL en texto: llegaría como excepción de la BD (HTTP 500).
+        resultado.errores.append(
+            ErrorFila(0, "archivo", "El archivo contiene caracteres no válidos (byte nulo).")
+        )
+        return resultado
 
     try:
         _leer_registros(texto, esquema, resultado)

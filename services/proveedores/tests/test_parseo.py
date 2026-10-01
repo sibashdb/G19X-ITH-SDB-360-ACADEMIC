@@ -69,6 +69,30 @@ def test_archivo_que_no_es_utf8_da_un_error_claro() -> None:
     ]
 
 
+def test_archivo_con_byte_nulo_se_rechaza_como_archivo() -> None:
+    contenido = SERVICIOS.replace("Suite", "Su\x00ite").encode()
+    resultado = leer_csv(contenido, FilaServicio)
+    assert resultado.filas == []
+    assert resultado.errores == [
+        ErrorFila(0, "archivo", "El archivo contiene caracteres no válidos (byte nulo).")
+    ]
+
+
+def test_incidentes_criticos_tiene_cota_superior() -> None:
+    encabezado = (
+        "rfc_proveedor,periodo,sla_cumplimiento_pct,tiempo_resolucion_h,"
+        "incidentes_criticos,entregas_a_tiempo_pct,satisfaccion\n"
+    )
+    fila = "NAZ210315AB1,2025-01-01,99.5,4.25,{},97,4.6\n"
+    enorme = leer_csv((encabezado + fila.format("99999999999999999999")).encode(), FilaDesempeno)
+    assert enorme.filas == []
+    assert enorme.errores == [
+        ErrorFila(2, "incidentes_criticos", "Debe ser menor o igual que 1000000")
+    ]
+    limite = leer_csv((encabezado + fila.format("1000000")).encode(), FilaDesempeno)
+    assert limite.errores == []
+
+
 def test_encabezado_con_columnas_faltantes_y_desconocidas() -> None:
     [error] = leer_csv(b"codigo,nombre,precio\nX,Y,1\n", FilaServicio).errores
     assert (error.fila, error.campo) == (1, "encabezado")

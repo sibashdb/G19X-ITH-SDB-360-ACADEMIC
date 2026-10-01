@@ -80,7 +80,7 @@ class FilaDesempeno(Fila):
     periodo: date
     sla_cumplimiento_pct: Porcentaje
     tiempo_resolucion_h: Decimal = Field(ge=0, max_digits=8, decimal_places=2)
-    incidentes_criticos: int = Field(ge=0)
+    incidentes_criticos: int = Field(ge=0, le=1_000_000)
     entregas_a_tiempo_pct: Porcentaje
     satisfaccion: Decimal = Field(ge=1, le=5, max_digits=3, decimal_places=2)
 
