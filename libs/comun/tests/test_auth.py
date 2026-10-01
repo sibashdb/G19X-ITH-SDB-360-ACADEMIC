@@ -86,11 +86,30 @@ def test_sin_token_responde_401_con_www_authenticate() -> None:
 
 @pytest.mark.parametrize(
     "extra",
-    [{"exp": int(time.time()) - 10}, {"iss": "http://otro-emisor"}, {"aud": "otra-api"}],
+    # 60 s: más allá de la tolerancia de reloj de 10 s.
+    [{"exp": int(time.time()) - 60}, {"iss": "http://otro-emisor"}, {"aud": "otra-api"}],
     ids=["vencido", "otro-emisor", "otra-audiencia"],
 )
 def test_token_vencido_o_ajeno_responde_401(extra: dict[str, Any]) -> None:
     assert _get("/yo", claves.token("admin", **extra)).status_code == 401
+
+
+def test_token_recien_vencido_se_acepta_por_desfase_de_reloj() -> None:
+    """Keycloak y el servicio pueden tener relojes desfasados unos segundos."""
+    recien_vencido = claves.token("admin", exp=int(time.time()) - 3)
+    assert _get("/yo", recien_vencido).status_code == 200
+
+
+def test_cliente_jwks_tiene_tiempo_de_espera(monkeypatch: pytest.MonkeyPatch) -> None:
+    capturado: dict[str, Any] = {}
+
+    class ClienteFalso:
+        def __init__(self, url: str, **kwargs: Any) -> None:
+            capturado.update(url=url, **kwargs)
+
+    monkeypatch.setattr("comun.auth.jwt.PyJWKClient", ClienteFalso)
+    validador_desde_jwks(ClavesPrueba.EMISOR, ClavesPrueba.AUDIENCIA, "http://keycloak/certs")
+    assert capturado == {"url": "http://keycloak/certs", "timeout": 5}
 
 
 def test_token_firmado_con_otra_clave_responde_401() -> None:

@@ -10,6 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWKClientConnectionError
 
 ROLES_INTERNOS = ("admin", "comprador", "aprobador")
+TOLERANCIA_RELOJ_S = 10  # desfase de reloj admitido entre Keycloak y los servicios
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class ValidadorJWT:
                 algorithms=["RS256"],
                 audience=self._audiencia,
                 issuer=self._emisor,
+                leeway=TOLERANCIA_RELOJ_S,
                 options={"require": ["exp", "iss", "aud", "sub"]},
             )
         except PyJWKClientConnectionError as exc:
@@ -61,7 +63,7 @@ class ValidadorJWT:
 
 
 def validador_desde_jwks(emisor: str, audiencia: str, url_jwks: str) -> ValidadorJWT:
-    cliente = jwt.PyJWKClient(url_jwks)
+    cliente = jwt.PyJWKClient(url_jwks, timeout=5)
     return ValidadorJWT(
         emisor, audiencia, lambda token: cliente.get_signing_key_from_jwt(token).key
     )
