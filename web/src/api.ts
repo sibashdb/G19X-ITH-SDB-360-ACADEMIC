@@ -41,7 +41,9 @@ export async function pedir<T>(
   let respuesta: Response
   try {
     respuesta = await fetch(`/api${ruta}`, { ...init, headers: cabeceras })
-  } catch {
+  } catch (error) {
+    // Una cancelación pedida por el llamador no es un fallo de red.
+    if (init.signal?.aborted) throw error
     // fetch rechaza, con un mensaje en inglés, cuando no hay red o el gateway no responde.
     throw new ErrorApi(
       0,

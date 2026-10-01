@@ -94,4 +94,19 @@ describe("pedir", () => {
       "No se pudo conectar con el servidor; revise su conexión e intente de nuevo."
     )
   })
+
+  it("no reporta como fallo de red una petición cancelada por el llamador", async () => {
+    const cancelacion = new DOMException("The operation was aborted.", "AbortError")
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(cancelacion))
+    const controlador = new AbortController()
+    controlador.abort()
+
+    const error = await pedir("/x", "tk", { signal: controlador.signal }).then(
+      () => null,
+      (e: unknown) => e
+    )
+
+    expect(error).toBe(cancelacion)
+    expect(error).not.toBeInstanceOf(ErrorApi)
+  })
 })

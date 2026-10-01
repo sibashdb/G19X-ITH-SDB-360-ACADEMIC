@@ -49,6 +49,11 @@ describe("estados estándar", () => {
     )
     expect(screen.getByRole("alert")).toHaveTextContent("Servicio no disponible")
     expect(screen.getByRole("alert")).toHaveTextContent("Intente más tarde.")
+    // jsdom no calcula estilos: se comprueba que la clase de color de la descripción sea un
+    // token propio (una clase fusionada con otra no generaría CSS y dejaría el texto gris).
+    expect(screen.getByRole("alert").className.split(/\s+/)).toContain(
+      "*:data-[slot=alert-description]:text-destructive"
+    )
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }))
     expect(alReintentar).toHaveBeenCalledOnce()
   })
