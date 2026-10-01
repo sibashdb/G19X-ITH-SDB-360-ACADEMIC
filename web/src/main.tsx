@@ -5,6 +5,7 @@ import { AuthProvider } from "react-oidc-context"
 import { RouterProvider } from "react-router/dom"
 import { configuracionOidc } from "@/auth"
 import { router } from "@/rutas"
+import { ProveedorTema } from "@/tema"
 import "./index.css"
 
 const clienteConsultas = new QueryClient({
@@ -13,10 +14,12 @@ const clienteConsultas = new QueryClient({
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AuthProvider {...configuracionOidc}>
-      <QueryClientProvider client={clienteConsultas}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </AuthProvider>
+    <ProveedorTema>
+      <AuthProvider {...configuracionOidc}>
+        <QueryClientProvider client={clienteConsultas}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </AuthProvider>
+    </ProveedorTema>
   </StrictMode>,
 )
