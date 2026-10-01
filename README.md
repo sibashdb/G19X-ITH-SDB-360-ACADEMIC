@@ -55,6 +55,18 @@ aprobador configuran OTP en su primer inicio de sesión. Verificación automáti
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |
 
+## Limitaciones conocidas (Incremento 1)
+
+- **OTP por usuario, no por rol.** Keycloak exige OTP solo a los usuarios sembrados
+  `admin1` y `aprobador1`, no a todo usuario con esos roles. Antes de cualquier despliegue no
+  local hay que configurar en Keycloak un flujo de autenticación condicional por rol.
+- **Eventos sin cola enlazada.** Un evento que se publica en RabbitMQ sin colas enlazadas al
+  exchange se descarta; el outbox conserva el registro. El Incremento 2 declarará las colas
+  antes de publicar y agregará el reproceso.
+- **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
+  trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
+  fuera de un entorno local.
+
 ## Convenciones
 
 - *Trunk-based*: ramas cortas `feat/…` o `fix/…` y PR hacia `main`.
