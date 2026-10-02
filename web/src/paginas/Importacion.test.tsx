@@ -89,21 +89,24 @@ describe("Importacion", () => {
     expect(screen.getByRole("button", { name: "Atrás" })).toBeDisabled()
   })
 
-  it("invalida la lista y los detalles de proveedores tras importar", async () => {
+  it("invalida todas las consultas tras importar, incluido el catálogo de servicios", async () => {
     simularApi({
       "/api/proveedores/importaciones/servicios": () =>
         respuestaJson({ entidad: "servicios", filas: 1, registros: 1, omitidos: 0, eventos: 1 }),
     })
     const { cliente } = renderizarPagina(<Importacion />)
-    const invalidar = vi.spyOn(cliente, "invalidateQueries")
+    // Consultas de otras páginas que una importación puede dejar obsoletas (Precios usa "servicios").
+    const claves = [["servicios"], ["proveedores", {}], ["proveedor", "p1"], ["proveedor", "p1", "contratos"]]
+    for (const clave of claves) cliente.setQueryData(clave, [])
 
     await irAlPasoDeArchivo()
     await userEvent.upload(zonaDeArchivo(), new File(["x"], "servicios.csv", { type: "text/csv" }))
     await userEvent.click(screen.getByRole("button", { name: "Importar" }))
     await screen.findByText("Importación completada")
 
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["proveedores"] })
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["proveedor"] })
+    for (const clave of claves) {
+      expect(cliente.getQueryState(clave)?.isInvalidated, JSON.stringify(clave)).toBe(true)
+    }
   })
 
   it("rechaza en el navegador un archivo que no es CSV", async () => {

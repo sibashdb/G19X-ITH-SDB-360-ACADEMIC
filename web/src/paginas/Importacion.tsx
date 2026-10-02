@@ -130,12 +130,8 @@ function FlujoImportacion() {
         body: formulario,
       })
     },
-    // "proveedor" es el prefijo de las consultas del detalle (ficha, contratos y desempeño).
-    onSuccess: () =>
-      Promise.all([
-        clienteConsultas.invalidateQueries({ queryKey: ["proveedores"] }),
-        clienteConsultas.invalidateQueries({ queryKey: ["proveedor"] }),
-      ]),
+    // Una importación puede cambiar cualquier dato (proveedores, servicios, contratos, alertas…).
+    onSuccess: () => clienteConsultas.invalidateQueries(),
   })
 
   const indice = ENTIDADES.findIndex((e) => e.valor === entidad)
