@@ -12,7 +12,9 @@ export function Layout() {
   const auth = useAuth()
   const { pathname, search } = useLocation()
   // Se guarda como `state` del inicio de sesión para volver a la misma página y sus parámetros.
-  const rutaActual = pathname + search
+  // Si la URL aún trae los de la devolución de Keycloak (code, state, error), se omiten: guardarlos
+  // los restauraría tras un login correcto y cada recarga volvería a mostrar "Su sesión expiró".
+  const rutaActual = hasAuthParams() ? pathname : pathname + search
 
   useEffect(() => {
     const puedeRedirigir =

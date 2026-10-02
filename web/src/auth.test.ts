@@ -70,6 +70,7 @@ describe("onSigninCallback", () => {
     ["con una URL absoluta", "https://evil.example/precios"],
     ["con una ruta relativa al protocolo", "//evil.example/precios"],
     ["con una barra invertida", "/\\evil.example/precios"],
+    ["con una tabulación que resuelve a otro origen", "/\t/evil.example/x"],
   ])("conserva solo la ruta actual %s", (_caso, estado) => {
     const { url, alNavegar } = volverDeKeycloak(estado)
 

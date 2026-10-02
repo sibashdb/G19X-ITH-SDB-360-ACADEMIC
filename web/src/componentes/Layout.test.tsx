@@ -10,10 +10,10 @@ import { CLAVE_TEMA, ProveedorTema } from "@/tema"
 const removeUser = vi.fn().mockResolvedValue(undefined)
 const signinRedirect = vi.fn().mockResolvedValue(undefined)
 const signoutRedirect = vi.fn().mockResolvedValue(undefined)
-const estado = vi.hoisted(() => ({ autenticacion: {} as object }))
+const estado = vi.hoisted(() => ({ autenticacion: {} as object, parametrosDeLogin: false }))
 
 vi.mock("react-oidc-context", () => ({
-  hasAuthParams: () => false,
+  hasAuthParams: () => estado.parametrosDeLogin,
   useAuth: () => estado.autenticacion,
 }))
 
@@ -49,6 +49,7 @@ function renderizar(ruta = "/") {
 
 beforeEach(() => {
   estado.autenticacion = sesionCon(["comprador"])
+  estado.parametrosDeLogin = false
 })
 
 afterEach(() => {
@@ -87,6 +88,30 @@ describe("Layout con la sesión en error", () => {
     expect(removeUser.mock.invocationCallOrder[0]).toBeLessThan(
       signinRedirect.mock.invocationCallOrder[0]
     )
+  })
+})
+
+describe("Layout con la devolución del login fallida", () => {
+  // Si Keycloak devolvió ?error=…&state=…, la URL aún trae los parámetros de autenticación:
+  // guardarlos como estado los restauraría después de un login correcto y cada recarga
+  // volvería a mostrar "Su sesión expiró".
+  it("no guarda los parámetros de autenticación al volver a iniciar sesión", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
+    estado.parametrosDeLogin = true
+    estado.autenticacion = {
+      error: new Error("No matching state found in storage"),
+      isAuthenticated: false,
+      isLoading: false,
+      activeNavigator: undefined,
+      user: null,
+      removeUser,
+      signinRedirect,
+    }
+    renderizar("/proveedores/p1?error=access_denied&state=xyz")
+
+    await userEvent.click(screen.getByRole("button", { name: "Volver a iniciar sesión" }))
+
+    expect(signinRedirect).toHaveBeenCalledWith({ state: "/proveedores/p1" })
   })
 })
 

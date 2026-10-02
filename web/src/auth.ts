@@ -13,6 +13,15 @@ export const NOMBRES_ROL: Record<Rol, string> = {
 /** Empieza con una sola barra (ni "//" ni barra y barra invertida): nunca apunta a otro origen. */
 const RUTA_RELATIVA = /^\/(?![/\\])/
 
+/** Además de la forma, exige que resuelva al mismo origen (el navegador ignora tabulaciones y saltos). */
+function rutaSegura(estado: unknown): estado is string {
+  return (
+    typeof estado === "string" &&
+    RUTA_RELATIVA.test(estado) &&
+    new URL(estado, window.location.origin).origin === window.location.origin
+  )
+}
+
 export const configuracionOidc: AuthProviderProps = {
   authority:
     import.meta.env.VITE_OIDC_AUTHORITY ?? "http://localhost:8080/auth/realms/plataforma",
@@ -24,7 +33,7 @@ export const configuracionOidc: AuthProviderProps = {
   // y segura) para que un enlace profundo llegue a su destino y no caiga siempre en el Tablero.
   onSigninCallback: (usuario) => {
     const estado = usuario?.state
-    const destino = typeof estado === "string" && RUTA_RELATIVA.test(estado) ? estado : null
+    const destino = rutaSegura(estado) ? estado : null
     window.history.replaceState({}, document.title, destino ?? window.location.pathname)
     // createBrowserRouter solo se entera de un cambio de URL hecho a mano por el evento popstate.
     if (destino) window.dispatchEvent(new PopStateEvent("popstate"))
