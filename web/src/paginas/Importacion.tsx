@@ -232,7 +232,7 @@ function FlujoImportacion() {
               )}
             >
               <Upload aria-hidden className="size-8 text-muted-foreground" />
-              <span className="font-medium">Arrasque el archivo CSV aquí o haga clic para elegirlo</span>
+              <span className="font-medium">Arrastre el archivo CSV aquí o haga clic para elegirlo</span>
               <span className="text-sm text-muted-foreground">
                 CSV en UTF-8, separado por coma o punto y coma, de hasta 10 MB.
               </span>

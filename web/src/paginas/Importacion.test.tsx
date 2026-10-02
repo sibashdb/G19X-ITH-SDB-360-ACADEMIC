@@ -7,7 +7,7 @@ import { esperarSinViolaciones, renderizarPagina, respuestaJson, simularApi } fr
 
 vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
 
-const zonaDeArchivo = () => screen.getByLabelText(/Arrasque el archivo CSV/)
+const zonaDeArchivo = () => screen.getByLabelText(/Arrastre el archivo CSV/)
 
 function soltar(...archivos: File[]) {
   fireEvent.drop(zonaDeArchivo().closest("label")!, { dataTransfer: { files: archivos } })
