@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ErrorApi, pedir } from "@/api"
 
-function simular(cuerpo: BodyInit | null, estado: number, tipo = "application/json") {
-  const simulado = vi
-    .fn()
-    .mockResolvedValue(new Response(cuerpo, { status: estado, headers: { "Content-Type": tipo } }))
+function simular(
+  cuerpo: BodyInit | null,
+  estado: number,
+  tipo = "application/json"
+) {
+  const simulado = vi.fn().mockResolvedValue(
+    new Response(cuerpo, {
+      status: estado,
+      headers: { "Content-Type": tipo },
+    })
+  )
   vi.stubGlobal("fetch", simulado)
   return simulado
 }
@@ -12,7 +19,7 @@ function simular(cuerpo: BodyInit | null, estado: number, tipo = "application/js
 async function errorDe(promesa: Promise<unknown>): Promise<ErrorApi> {
   const error = await promesa.then(
     () => null,
-    (e: unknown) => e,
+    (e: unknown) => e
   )
   expect(error).toBeInstanceOf(ErrorApi)
   return error as ErrorApi
@@ -39,7 +46,7 @@ describe("pedir", () => {
         errores: [{ fila: 2, campo: "rfc", mensaje: "Formato inválido" }],
       }),
       422,
-      "application/problem+json",
+      "application/problem+json"
     )
 
     const error = await errorDe(pedir("/x", "tk"))
@@ -47,7 +54,9 @@ describe("pedir", () => {
     expect(error.estado).toBe(422)
     expect(error.titulo).toBe("Archivo con errores")
     expect(error.message).toBe("Se encontraron 1 error(es).")
-    expect(error.errores).toEqual([{ fila: 2, campo: "rfc", mensaje: "Formato inválido" }])
+    expect(error.errores).toEqual([
+      { fila: 2, campo: "rfc", mensaje: "Formato inválido" },
+    ])
   })
 
   it("muestra un mensaje en español cuando el cuerpo de un 413 no es JSON", async () => {
@@ -63,17 +72,32 @@ describe("pedir", () => {
 
   it.each([
     [429, "Demasiadas solicitudes", "Espere unos segundos e intente de nuevo."],
-    [502, "Servicio no disponible", "El servicio no está disponible; intente más tarde."],
-    [503, "Servicio no disponible", "El servicio no está disponible; intente más tarde."],
-    [504, "Servicio no disponible", "El servicio no está disponible; intente más tarde."],
+    [
+      502,
+      "Servicio no disponible",
+      "El servicio no está disponible; intente más tarde.",
+    ],
+    [
+      503,
+      "Servicio no disponible",
+      "El servicio no está disponible; intente más tarde.",
+    ],
+    [
+      504,
+      "Servicio no disponible",
+      "El servicio no está disponible; intente más tarde.",
+    ],
     [418, "Error", "Ocurrió un error (código 418)."],
-  ])("traduce el estado %i cuando el cuerpo no es JSON", async (estado, titulo, detalle) => {
-    simular("texto", estado, "text/plain")
+  ])(
+    "traduce el estado %i cuando el cuerpo no es JSON",
+    async (estado, titulo, detalle) => {
+      simular("texto", estado, "text/plain")
 
-    const error = await errorDe(pedir("/x", undefined))
+      const error = await errorDe(pedir("/x", undefined))
 
-    expect([error.titulo, error.message]).toEqual([titulo, detalle])
-  })
+      expect([error.titulo, error.message]).toEqual([titulo, detalle])
+    }
+  )
 
   it("trata un cuerpo JSON nulo como no JSON", async () => {
     simular("null", 502)
@@ -84,7 +108,10 @@ describe("pedir", () => {
   })
 
   it("traduce un fallo de red (fetch rechazado) a un mensaje en español", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+    )
 
     const error = await errorDe(pedir("/x", "tk"))
 
@@ -96,7 +123,10 @@ describe("pedir", () => {
   })
 
   it("no reporta como fallo de red una petición cancelada por el llamador", async () => {
-    const cancelacion = new DOMException("The operation was aborted.", "AbortError")
+    const cancelacion = new DOMException(
+      "The operation was aborted.",
+      "AbortError"
+    )
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(cancelacion))
     const controlador = new AbortController()
     controlador.abort()

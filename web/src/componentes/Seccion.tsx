@@ -19,7 +19,9 @@ export function Seccion({
       <CardHeader className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <h2 className="text-base font-semibold">{titulo}</h2>
-          {descripcion && <p className="text-sm text-muted-foreground">{descripcion}</p>}
+          {descripcion && (
+            <p className="text-sm text-muted-foreground">{descripcion}</p>
+          )}
         </div>
         {acciones}
       </CardHeader>

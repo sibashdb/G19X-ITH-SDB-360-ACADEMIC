@@ -12,18 +12,42 @@ import {
 } from "@/pruebas/utilidades"
 import { normalizarTexto } from "@/tipos"
 
-vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
 
 const SERVICIOS = [
-  { id: "s1", codigo: "CONS-01", nombre: "Consultoría SAP", categoria: "consultoria", unidad: "hora", moneda: "MXN" },
-  { id: "s2", codigo: "NUBE-01", nombre: "Cómputo en la nube", categoria: "nube", unidad: "mes", moneda: "USD" },
-  { id: "s3", codigo: "NUBE-02", nombre: "Almacenamiento de objetos", categoria: "nube", unidad: "TB", moneda: "USD" },
+  {
+    id: "s1",
+    codigo: "CONS-01",
+    nombre: "Consultoría SAP",
+    categoria: "consultoria",
+    unidad: "hora",
+    moneda: "MXN",
+  },
+  {
+    id: "s2",
+    codigo: "NUBE-01",
+    nombre: "Cómputo en la nube",
+    categoria: "nube",
+    unidad: "mes",
+    moneda: "USD",
+  },
+  {
+    id: "s3",
+    codigo: "NUBE-02",
+    nombre: "Almacenamiento de objetos",
+    categoria: "nube",
+    unidad: "TB",
+    moneda: "USD",
+  },
 ]
 
 const conCatalogo = (servicios: object[] = SERVICIOS) =>
   simularApi({ "/api/proveedores/servicios": () => respuestaJson(servicios) })
 
-const renderizar = (ruta = "/precios") => renderizarPagina(<Precios />, { ruta })
+const renderizar = (ruta = "/precios") =>
+  renderizarPagina(<Precios />, { ruta })
 const lista = () => screen.getByRole("list", { name: "Servicios del catálogo" })
 
 afterEach(() => {
@@ -40,7 +64,10 @@ describe("normalizarTexto", () => {
 
 describe("Precios", () => {
   it("muestra un esqueleto mientras carga el catálogo", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    )
     renderizar()
     expect(await screen.findByRole("status")).toHaveTextContent("Cargando…")
   })
@@ -49,7 +76,9 @@ describe("Precios", () => {
     conCatalogo()
     renderizar()
 
-    expect(await screen.findByRole("button", { name: /Consultoría SAP/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("button", { name: /Consultoría SAP/ })
+    ).toBeInTheDocument()
     expect(within(lista()).getByText("Consultoría")).toBeInTheDocument()
     expect(within(lista()).getByText("Nube")).toBeInTheDocument()
     expect(screen.getByText("Elija un servicio")).toBeInTheDocument()
@@ -64,7 +93,11 @@ describe("Precios", () => {
 
     const boton = await screen.findByRole("button", { name: /Consultoría SAP/ })
 
-    expect(boton).toHaveClass("outline-hidden", "focus-visible:ring-2", "focus-visible:ring-inset")
+    expect(boton).toHaveClass(
+      "outline-hidden",
+      "focus-visible:ring-2",
+      "focus-visible:ring-inset"
+    )
     expect(boton).not.toHaveClass("outline-none")
   })
 
@@ -72,31 +105,45 @@ describe("Precios", () => {
     conCatalogo()
     renderizar()
     await screen.findByRole("button", { name: /Consultoría SAP/ })
-    const buscador = screen.getByRole("searchbox", { name: "Buscar servicio por nombre o código" })
+    const buscador = screen.getByRole("searchbox", {
+      name: "Buscar servicio por nombre o código",
+    })
 
     await userEvent.type(buscador, "CONSULTORIA")
     expect(within(lista()).getAllByRole("button")).toHaveLength(1)
 
     await userEvent.clear(buscador)
     await userEvent.type(buscador, "nube-02")
-    expect(within(lista()).getByRole("button", { name: /Almacenamiento de objetos/ })).toBeInTheDocument()
+    expect(
+      within(lista()).getByRole("button", { name: /Almacenamiento de objetos/ })
+    ).toBeInTheDocument()
     expect(within(lista()).getAllByRole("button")).toHaveLength(1)
 
     await userEvent.clear(buscador)
     await userEvent.type(buscador, "zzz")
-    expect(screen.getByText("Ningún servicio coincide con «zzz».")).toBeInTheDocument()
+    expect(
+      screen.getByText("Ningún servicio coincide con «zzz».")
+    ).toBeInTheDocument()
   })
 
   it("elegir un servicio lo refleja en la URL y muestra su detalle", async () => {
     conCatalogo()
     renderizar()
 
-    await userEvent.click(await screen.findByRole("button", { name: /Cómputo en la nube/ }))
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Cómputo en la nube/ })
+    )
 
     expect(ubicacionActual()).toBe("/precios?servicio=NUBE-01")
-    expect(screen.getByRole("button", { name: /Cómputo en la nube/ })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("heading", { level: 2, name: "Cómputo en la nube" })).toBeInTheDocument()
-    expect(screen.getByText("NUBE-01 · Nube · por mes · USD")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: /Cómputo en la nube/ })
+    ).toHaveAttribute("aria-pressed", "true")
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Cómputo en la nube" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("NUBE-01 · Nube · por mes · USD")
+    ).toBeInTheDocument()
   })
 
   it("un servicio desconocido en la URL pide elegir uno", async () => {
@@ -110,29 +157,45 @@ describe("Precios", () => {
     renderizar()
     await screen.findByRole("button", { name: /Consultoría SAP/ })
 
-    await userEvent.click(screen.getByRole("button", { name: "Todos los sobreprecios" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Todos los sobreprecios" })
+    )
 
     expect(ubicacionActual()).toBe("/precios?vista=sobreprecios")
-    expect(screen.getByRole("heading", { level: 2, name: "Todos los sobreprecios" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Todos los sobreprecios" })).toHaveAttribute("aria-pressed", "true")
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Todos los sobreprecios" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Todos los sobreprecios" })
+    ).toHaveAttribute("aria-pressed", "true")
   })
 
   it("con el catálogo vacío invita al administrador a importar", async () => {
     conCatalogo([])
     renderizar()
-    expect(await screen.findByText("El catálogo está vacío")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Ir a Importación" })).toHaveAttribute("href", "/importacion")
+    expect(
+      await screen.findByText("El catálogo está vacío")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: "Ir a Importación" })
+    ).toHaveAttribute("href", "/importacion")
   })
 
   it("muestra el error en español y permite reintentar", async () => {
     let fallar = true
-    simularApi(() => (fallar ? new Response("", { status: 502 }) : respuestaJson(SERVICIOS)))
+    simularApi(() =>
+      fallar ? new Response("", { status: 502 }) : respuestaJson(SERVICIOS)
+    )
     renderizar()
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("El servicio no está disponible")
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El servicio no está disponible"
+    )
     fallar = false
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }))
-    expect(await screen.findByRole("button", { name: /Consultoría SAP/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("button", { name: /Consultoría SAP/ })
+    ).toBeInTheDocument()
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

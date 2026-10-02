@@ -5,9 +5,20 @@ import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { unoDe, useParametros } from "@/parametros"
-import { NOMBRES_SEVERIDAD, NOMBRES_TIPO_ALERTA, type Severidad, type TipoAlerta } from "@/tipos"
+import {
+  NOMBRES_SEVERIDAD,
+  NOMBRES_TIPO_ALERTA,
+  type Severidad,
+  type TipoAlerta,
+} from "@/tipos"
 
 // Radix Select no admite el valor vacío: "todas" representa "sin filtro".
 const TODAS = "todas"
@@ -54,19 +65,31 @@ export function Alertas() {
   const hayFiltros = Boolean(tipo || severidad)
   return (
     <section className="space-y-6">
-      <EncabezadoPagina titulo="Alertas" descripcion="Contratos por vencer, sobreprecios y proveedores en riesgo." />
+      <EncabezadoPagina
+        titulo="Alertas"
+        descripcion="Contratos por vencer, sobreprecios y proveedores en riesgo."
+      />
       <AvisoInteligencia />
       <div className="flex flex-wrap gap-4">
         <Filtro
           etiqueta="Tipo"
           valor={tipo ?? TODAS}
-          opciones={[[TODAS, "Todos los tipos"], ...TIPOS.map((t): [string, string] => [t, NOMBRES_TIPO_ALERTA[t]])]}
+          opciones={[
+            [TODAS, "Todos los tipos"],
+            ...TIPOS.map((t): [string, string] => [t, NOMBRES_TIPO_ALERTA[t]]),
+          ]}
           alCambiar={(v) => actualizar({ tipo: v === TODAS ? null : v })}
         />
         <Filtro
           etiqueta="Severidad"
           valor={severidad ?? TODAS}
-          opciones={[[TODAS, "Todas las severidades"], ...SEVERIDADES.map((s): [string, string] => [s, NOMBRES_SEVERIDAD[s]])]}
+          opciones={[
+            [TODAS, "Todas las severidades"],
+            ...SEVERIDADES.map((s): [string, string] => [
+              s,
+              NOMBRES_SEVERIDAD[s],
+            ]),
+          ]}
           alCambiar={(v) => actualizar({ severidad: v === TODAS ? null : v })}
         />
       </div>
@@ -77,7 +100,10 @@ export function Alertas() {
           descripcion="Aquí aparecerán los contratos por vencer en 90, 60 y 30 días, los precios sobre P75 y los proveedores con puntuación baja o en caída."
           accion={
             hayFiltros && (
-              <Button variant="outline" onClick={() => actualizar({ tipo: null, severidad: null })}>
+              <Button
+                variant="outline"
+                onClick={() => actualizar({ tipo: null, severidad: null })}
+              >
                 Quitar filtros
               </Button>
             )

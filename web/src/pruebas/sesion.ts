@@ -26,7 +26,11 @@ export function oidcSimulado() {
       error: undefined,
       user: {
         access_token: tokenConRoles(sesionDePrueba.roles),
-        profile: { given_name: "Ana", family_name: "López", preferred_username: "ana.lopez" },
+        profile: {
+          given_name: "Ana",
+          family_name: "López",
+          preferred_username: "ana.lopez",
+        },
       },
       signoutRedirect: sesionDePrueba.signoutRedirect,
       signinRedirect: vi.fn(async () => {}),

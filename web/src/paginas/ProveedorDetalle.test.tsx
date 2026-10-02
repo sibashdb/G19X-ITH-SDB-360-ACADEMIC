@@ -12,7 +12,9 @@ import {
 } from "@/pruebas/utilidades"
 import { formatoPeriodo } from "@/tipos"
 
-vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
 
 const RUTA = "/api/proveedores/proveedores/p1"
 
@@ -91,12 +93,13 @@ describe("ProveedorDetalle", () => {
     api()
     renderizar()
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    ).toBeInTheDocument()
     expect(screen.getByText("AAA010101AAA")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "ana@ejemplo.test" })).toHaveAttribute(
-      "href",
-      "mailto:ana@ejemplo.test"
-    )
+    expect(
+      screen.getByRole("link", { name: "ana@ejemplo.test" })
+    ).toHaveAttribute("href", "mailto:ana@ejemplo.test")
     expect(screen.getByText("Activo")).toBeInTheDocument()
   })
 
@@ -105,7 +108,9 @@ describe("ProveedorDetalle", () => {
     renderizar()
 
     expect(
-      await screen.findByRole("heading", { name: `Desempeño de ${formatoPeriodo("2026-08-01")}` })
+      await screen.findByRole("heading", {
+        name: `Desempeño de ${formatoPeriodo("2026-08-01")}`,
+      })
     ).toBeInTheDocument()
     expect(screen.getByText("99.10 %")).toBeInTheDocument()
     expect(screen.getByText("4.40 de 5")).toBeInTheDocument()
@@ -116,7 +121,10 @@ describe("ProveedorDetalle", () => {
     const espera = new Promise<void>((resolver) => {
       liberar = resolver
     })
-    api({ [`${RUTA}/desempeno?meses=24`]: () => espera.then(() => respuestaJson(DESEMPENO)) })
+    api({
+      [`${RUTA}/desempeno?meses=24`]: () =>
+        espera.then(() => respuestaJson(DESEMPENO)),
+    })
     renderizar()
 
     await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
@@ -136,15 +144,27 @@ describe("ProveedorDetalle", () => {
     expect(screen.getByText("Nube pública")).toBeInTheDocument()
     expect(ubicacionActual()).toBe("/proveedores/p1?pestana=contratos")
     // Con scroll horizontal y sin elementos enfocables, el teclado solo llega si el contenedor lo es.
-    expect(screen.getByRole("table").parentElement).toHaveAttribute("tabindex", "0")
+    expect(screen.getByRole("table").parentElement).toHaveAttribute(
+      "tabindex",
+      "0"
+    )
     // outline-none es outline-style: none y el modo de alto contraste no muestra el foco.
-    expect(screen.getByRole("table").parentElement).toHaveClass("outline-hidden")
+    expect(screen.getByRole("table").parentElement).toHaveClass(
+      "outline-hidden"
+    )
   })
 
   it("no repite claves de fila cuando un contrato incluye el mismo servicio dos veces", async () => {
     const repetida = { ...CONTRATO.lineas[0], cantidad: "3" }
-    api({ [`${RUTA}/contratos`]: () => respuestaJson([{ ...CONTRATO, lineas: [CONTRATO.lineas[0], repetida] }]) })
-    const registro = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    api({
+      [`${RUTA}/contratos`]: () =>
+        respuestaJson([
+          { ...CONTRATO, lineas: [CONTRATO.lineas[0], repetida] },
+        ]),
+    })
+    const registro = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined)
     renderizar("/proveedores/p1?pestana=contratos")
 
     await screen.findByText("CT-0001")
@@ -155,27 +175,35 @@ describe("ProveedorDetalle", () => {
   })
 
   it("avisa con una alerta cuando falla la consulta de contratos", async () => {
-    api({ [`${RUTA}/contratos`]: () => new Response("Bad Gateway", { status: 502 }) })
+    api({
+      [`${RUTA}/contratos`]: () => new Response("Bad Gateway", { status: 502 }),
+    })
     renderizar("/proveedores/p1?pestana=contratos")
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "El servicio no está disponible; intente más tarde."
     )
-    expect(screen.queryByText("Sin contratos registrados")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("Sin contratos registrados")
+    ).not.toBeInTheDocument()
   })
 
   it("muestra que no hay contratos cuando la lista llega vacía", async () => {
     api({ [`${RUTA}/contratos`]: () => respuestaJson([]) })
     renderizar("/proveedores/p1?pestana=contratos")
 
-    expect(await screen.findByText("Sin contratos registrados")).toBeInTheDocument()
+    expect(
+      await screen.findByText("Sin contratos registrados")
+    ).toBeInTheDocument()
   })
 
   it("muestra que no hay datos cuando el desempeño llega vacío", async () => {
     api({ [`${RUTA}/desempeno?meses=24`]: () => respuestaJson([]) })
     renderizar()
 
-    expect(await screen.findByText("Sin datos de desempeño")).toBeInTheDocument()
+    expect(
+      await screen.findByText("Sin datos de desempeño")
+    ).toBeInTheDocument()
   })
 
   it("la pestaña Desempeño muestra la gráfica y la tabla del indicador elegido", async () => {
@@ -183,16 +211,24 @@ describe("ProveedorDetalle", () => {
     renderizar("/proveedores/p1?pestana=desempeno")
 
     expect(
-      await screen.findByRole("figure", { name: "Cumplimiento de SLA de los últimos 2 meses" })
+      await screen.findByRole("figure", {
+        name: "Cumplimiento de SLA de los últimos 2 meses",
+      })
     ).toBeInTheDocument()
     const tabla = screen.getByRole("table")
     expect(within(tabla).getAllByRole("row")).toHaveLength(3)
     expect(tabla.parentElement).toHaveAttribute("tabindex", "0")
 
     await userEvent.click(screen.getByRole("combobox", { name: "Indicador" }))
-    await userEvent.click(await screen.findByRole("option", { name: "Satisfacción" }))
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Satisfacción" })
+    )
 
-    expect(screen.getByRole("figure", { name: "Satisfacción de los últimos 2 meses" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("figure", {
+        name: "Satisfacción de los últimos 2 meses",
+      })
+    ).toBeInTheDocument()
   })
 
   // Recharts no dibuja la gráfica en jsdom (el contenedor mide 0), así que la leyenda y el tooltip
@@ -208,37 +244,55 @@ describe("ProveedorDetalle", () => {
     api()
     renderizar("/proveedores/p1?pestana=inventada")
 
-    expect(await screen.findByRole("tab", { name: "Resumen" })).toHaveAttribute("aria-selected", "true")
+    expect(await screen.findByRole("tab", { name: "Resumen" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
   })
 
   it("codifica el id al construir la ruta de la API", async () => {
     simularApi({
       "/api/proveedores/proveedores/a%20b%3Fx": () => respuestaJson(PROVEEDOR),
-      "/api/proveedores/proveedores/a%20b%3Fx/contratos": () => respuestaJson([]),
-      "/api/proveedores/proveedores/a%20b%3Fx/desempeno?meses=24": () => respuestaJson([]),
+      "/api/proveedores/proveedores/a%20b%3Fx/contratos": () =>
+        respuestaJson([]),
+      "/api/proveedores/proveedores/a%20b%3Fx/desempeno?meses=24": () =>
+        respuestaJson([]),
     })
     renderizar("/proveedores/a%20b%3Fx")
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    ).toBeInTheDocument()
   })
 
   it("un proveedor inexistente ofrece volver a la lista", async () => {
     simularApi({})
     renderizar()
 
-    expect(await screen.findByText("El proveedor no existe")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Volver a proveedores" })).toHaveAttribute("href", "/proveedores")
+    expect(
+      await screen.findByText("El proveedor no existe")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: "Volver a proveedores" })
+    ).toHaveAttribute("href", "/proveedores")
   })
 
   it("un error al cargar la ficha permite reintentar", async () => {
     let fallar = true
-    api({ [RUTA]: () => (fallar ? new Response("", { status: 503 }) : respuestaJson(PROVEEDOR)) })
+    api({
+      [RUTA]: () =>
+        fallar ? new Response("", { status: 503 }) : respuestaJson(PROVEEDOR),
+    })
     renderizar()
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Servicio no disponible")
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Servicio no disponible"
+    )
     fallar = false
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }))
-    expect(await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    ).toBeInTheDocument()
   })
 
   it.each(["resumen", "contratos", "desempeno"])(

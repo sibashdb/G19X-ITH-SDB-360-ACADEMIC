@@ -6,7 +6,13 @@ import { EstadoVacio } from "@/componentes/Estados"
 import { Button } from "@/components/ui/button"
 
 /** Oculta una sección a quien no tiene el rol. Solo es interfaz: la API vuelve a validar. */
-export function RequiereRol({ rol, children }: { rol: Rol; children: ReactNode }) {
+export function RequiereRol({
+  rol,
+  children,
+}: {
+  rol: Rol
+  children: ReactNode
+}) {
   const roles = useRoles()
   if (roles.includes(rol)) return children
   return (

@@ -21,5 +21,5 @@ createRoot(document.getElementById("root")!).render(
         </QueryClientProvider>
       </AuthProvider>
     </ProveedorTema>
-  </StrictMode>,
+  </StrictMode>
 )

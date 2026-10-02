@@ -194,7 +194,9 @@ function Sidebar({
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Menú</SheetTitle>
-            <SheetDescription>Menú principal de la plataforma.</SheetDescription>
+            <SheetDescription>
+              Menú principal de la plataforma.
+            </SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>

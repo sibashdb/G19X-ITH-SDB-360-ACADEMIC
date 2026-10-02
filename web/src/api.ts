@@ -6,7 +6,12 @@ export class ErrorApi extends Error {
   readonly titulo: string
   readonly errores: ErrorFila[]
 
-  constructor(estado: number, titulo: string, detalle: string, errores: ErrorFila[] = []) {
+  constructor(
+    estado: number,
+    titulo: string,
+    detalle: string,
+    errores: ErrorFila[] = []
+  ) {
     super(detalle)
     this.estado = estado
     this.titulo = titulo
@@ -15,12 +20,21 @@ export class ErrorApi extends Error {
 }
 
 /** Mensajes en español para respuestas de error sin Problem Details (p. ej. las del proxy). */
-function problemaPorEstado(estado: number): { titulo: string; detalle: string } {
+function problemaPorEstado(estado: number): {
+  titulo: string
+  detalle: string
+} {
   if (estado === 413) {
-    return { titulo: "Contenido demasiado grande", detalle: "El archivo excede el límite de 10 MB." }
+    return {
+      titulo: "Contenido demasiado grande",
+      detalle: "El archivo excede el límite de 10 MB.",
+    }
   }
   if (estado === 429) {
-    return { titulo: "Demasiadas solicitudes", detalle: "Espere unos segundos e intente de nuevo." }
+    return {
+      titulo: "Demasiadas solicitudes",
+      detalle: "Espere unos segundos e intente de nuevo.",
+    }
   }
   if (estado >= 500) {
     return {
@@ -34,7 +48,7 @@ function problemaPorEstado(estado: number): { titulo: string; detalle: string } 
 export async function pedir<T>(
   ruta: string,
   token: string | undefined,
-  init: RequestInit = {},
+  init: RequestInit = {}
 ): Promise<T> {
   const cabeceras = new Headers(init.headers)
   if (token) cabeceras.set("Authorization", `Bearer ${token}`)
@@ -48,7 +62,7 @@ export async function pedir<T>(
     throw new ErrorApi(
       0,
       "Sin conexión",
-      "No se pudo conectar con el servidor; revise su conexión e intente de nuevo.",
+      "No se pudo conectar con el servidor; revise su conexión e intente de nuevo."
     )
   }
   if (!respuesta.ok) {
@@ -62,7 +76,7 @@ export async function pedir<T>(
       respuesta.status,
       problema.title ?? porDefecto.titulo,
       problema.detail ?? porDefecto.detalle,
-      problema.errores ?? [],
+      problema.errores ?? []
     )
   }
   return (await respuesta.json()) as T

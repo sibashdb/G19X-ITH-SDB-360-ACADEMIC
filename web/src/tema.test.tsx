@@ -28,7 +28,8 @@ function simularSistema(oscuroInicial: boolean) {
     },
     media: consulta,
     addEventListener: (_: string, oyente: () => void) => oyentes.add(oyente),
-    removeEventListener: (_: string, oyente: () => void) => oyentes.delete(oyente),
+    removeEventListener: (_: string, oyente: () => void) =>
+      oyentes.delete(oyente),
   }))
   return {
     cambiar(valor: boolean) {
@@ -118,7 +119,9 @@ describe("ProveedorTema", () => {
 
   it("useTema fuera del proveedor avisa en español", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined)
-    expect(() => render(<Interruptor />)).toThrow("useTema debe usarse dentro de ProveedorTema")
+    expect(() => render(<Interruptor />)).toThrow(
+      "useTema debe usarse dentro de ProveedorTema"
+    )
   })
 })
 
@@ -131,15 +134,18 @@ describe("script previo al render (public/tema.js)", () => {
     ["sistema", true, true],
     ["azul", true, true],
     [null, false, false],
-  ])("con %s guardado y sistema oscuro=%s aplica dark=%s", (guardado, sistemaOscuro, esperado) => {
-    simularSistema(sistemaOscuro)
-    if (guardado) localStorage.setItem(CLAVE_TEMA, guardado)
+  ])(
+    "con %s guardado y sistema oscuro=%s aplica dark=%s",
+    (guardado, sistemaOscuro, esperado) => {
+      simularSistema(sistemaOscuro)
+      if (guardado) localStorage.setItem(CLAVE_TEMA, guardado)
 
-    ejecutar()
+      ejecutar()
 
-    expect(html.classList.contains("dark")).toBe(esperado)
-    expect(html.style.colorScheme).toBe(esperado ? "dark" : "light")
-  })
+      expect(html.classList.contains("dark")).toBe(esperado)
+      expect(html.style.colorScheme).toBe(esperado ? "dark" : "light")
+    }
+  )
 
   it("no falla si localStorage está bloqueado", () => {
     simularSistema(true)

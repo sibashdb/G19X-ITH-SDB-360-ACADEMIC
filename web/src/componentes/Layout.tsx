@@ -18,8 +18,12 @@ export function Layout() {
 
   useEffect(() => {
     const puedeRedirigir =
-      !hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading
-    if (puedeRedirigir && !auth.error) void auth.signinRedirect({ state: rutaActual })
+      !hasAuthParams() &&
+      !auth.isAuthenticated &&
+      !auth.activeNavigator &&
+      !auth.isLoading
+    if (puedeRedirigir && !auth.error)
+      void auth.signinRedirect({ state: rutaActual })
   }, [auth, rutaActual])
 
   // El mensaje original de la librería suele venir en inglés: solo se registra, no se muestra.
@@ -36,7 +40,9 @@ export function Layout() {
   async function volverAIniciarSesion() {
     await auth
       .removeUser()
-      .catch((error: unknown) => console.error("No se pudo limpiar la sesión:", error))
+      .catch((error: unknown) =>
+        console.error("No se pudo limpiar la sesión:", error)
+      )
     await auth.signinRedirect({ state: rutaActual })
   }
 
@@ -44,12 +50,18 @@ export function Layout() {
     return (
       <div role="alert" className="space-y-3 p-6">
         <p>Su sesión expiró o no se pudo iniciar sesión.</p>
-        <Button onClick={() => void volverAIniciarSesion()}>Volver a iniciar sesión</Button>
+        <Button onClick={() => void volverAIniciarSesion()}>
+          Volver a iniciar sesión
+        </Button>
       </div>
     )
   }
   if (!auth.isAuthenticated) {
-    return <p className="p-6 text-muted-foreground">Redirigiendo al inicio de sesión…</p>
+    return (
+      <p className="p-6 text-muted-foreground">
+        Redirigiendo al inicio de sesión…
+      </p>
+    )
   }
 
   return (

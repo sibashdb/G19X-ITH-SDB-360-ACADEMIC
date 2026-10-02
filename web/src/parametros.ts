@@ -12,12 +12,18 @@ export function enteroPositivo(
 }
 
 /** El valor solo si está en la lista permitida (la URL se puede editar a mano). */
-export function unoDe<T extends string>(valor: string | null, permitidos: readonly T[]): T | null {
+export function unoDe<T extends string>(
+  valor: string | null,
+  permitidos: readonly T[]
+): T | null {
   return permitidos.includes(valor as T) ? (valor as T) : null
 }
 
 /** Parámetros de búsqueda de la URL y una función para cambiarlos (`null` borra la clave). */
-export function useParametros(): [URLSearchParams, (cambios: Record<string, string | null>) => void] {
+export function useParametros(): [
+  URLSearchParams,
+  (cambios: Record<string, string | null>) => void,
+] {
   const [parametros, setParametros] = useSearchParams()
   function actualizar(cambios: Record<string, string | null>) {
     setParametros((previos) => {

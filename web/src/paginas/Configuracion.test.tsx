@@ -4,7 +4,9 @@ import { Configuracion } from "@/paginas/Configuracion"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import { esperarSinViolaciones, renderizarPagina } from "@/pruebas/utilidades"
 
-vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
 
 afterEach(() => {
   cleanup()
@@ -14,15 +16,21 @@ afterEach(() => {
 describe("Configuracion", () => {
   it("muestra al administrador las secciones de puntuación y modelo", () => {
     renderizarPagina(<Configuracion />)
-    expect(screen.getByRole("heading", { name: "Pesos de la puntuación" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Modelo de precios" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Pesos de la puntuación" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Modelo de precios" })
+    ).toBeInTheDocument()
   })
 
   it("bloquea a quien no es administrador", () => {
     sesionDePrueba.roles = ["comprador"]
     renderizarPagina(<Configuracion />)
     expect(screen.getByText("Acceso restringido")).toBeInTheDocument()
-    expect(screen.queryByRole("heading", { name: "Pesos de la puntuación" })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Pesos de la puntuación" })
+    ).not.toBeInTheDocument()
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

@@ -16,11 +16,17 @@ export type ElementoNavegacion = {
   icono: LucideIcon
   soloAdmin?: boolean
 }
-export type SeccionNavegacion = { titulo: string; elementos: ElementoNavegacion[] }
+export type SeccionNavegacion = {
+  titulo: string
+  elementos: ElementoNavegacion[]
+}
 export type Miga = { titulo: string; ruta?: string }
 
 export const NAVEGACION: SeccionNavegacion[] = [
-  { titulo: "Resumen", elementos: [{ titulo: "Tablero", ruta: "/", icono: LayoutDashboard }] },
+  {
+    titulo: "Resumen",
+    elementos: [{ titulo: "Tablero", ruta: "/", icono: LayoutDashboard }],
+  },
   {
     titulo: "Proveedores",
     elementos: [
@@ -38,8 +44,18 @@ export const NAVEGACION: SeccionNavegacion[] = [
   {
     titulo: "Datos",
     elementos: [
-      { titulo: "Importación", ruta: "/importacion", icono: FileUp, soloAdmin: true },
-      { titulo: "Configuración", ruta: "/configuracion", icono: Settings, soloAdmin: true },
+      {
+        titulo: "Importación",
+        ruta: "/importacion",
+        icono: FileUp,
+        soloAdmin: true,
+      },
+      {
+        titulo: "Configuración",
+        ruta: "/configuracion",
+        icono: Settings,
+        soloAdmin: true,
+      },
     ],
   },
 ]
@@ -65,9 +81,14 @@ export function migasDe(pathname: string): Miga[] {
   for (const seccion of NAVEGACION) {
     const elemento = seccion.elementos.find((e) => e.ruta === base)
     if (!elemento) continue
-    const migas: Miga[] = seccion.titulo === elemento.titulo ? [] : [{ titulo: seccion.titulo }]
+    const migas: Miga[] =
+      seccion.titulo === elemento.titulo ? [] : [{ titulo: seccion.titulo }]
     if (resto.some(Boolean)) {
-      return [...migas, { titulo: elemento.titulo, ruta: elemento.ruta }, { titulo: "Detalle" }]
+      return [
+        ...migas,
+        { titulo: elemento.titulo, ruta: elemento.ruta },
+        { titulo: "Detalle" },
+      ]
     }
     return [...migas, { titulo: elemento.titulo }]
   }

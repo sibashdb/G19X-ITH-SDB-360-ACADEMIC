@@ -2,17 +2,28 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Ranking } from "@/paginas/Ranking"
-import { esperarSinViolaciones, renderizarPagina, ubicacionActual } from "@/pruebas/utilidades"
+import {
+  esperarSinViolaciones,
+  renderizarPagina,
+  ubicacionActual,
+} from "@/pruebas/utilidades"
 
-vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
 
 afterEach(cleanup)
 
 describe("Ranking", () => {
   it("abre la categoría indicada en la URL", () => {
     renderizarPagina(<Ranking />, { ruta: "/ranking?categoria=nube" })
-    expect(screen.getByRole("tab", { name: "Nube" })).toHaveAttribute("aria-selected", "true")
-    expect(screen.getByRole("heading", { name: "Ranking · Nube" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "Nube" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+    expect(
+      screen.getByRole("heading", { name: "Ranking · Nube" })
+    ).toBeInTheDocument()
     expect(screen.getByText("Sin puntuaciones todavía")).toBeInTheDocument()
   })
 
@@ -26,7 +37,10 @@ describe("Ranking", () => {
 
   it("una categoría inválida muestra todas", () => {
     renderizarPagina(<Ranking />, { ruta: "/ranking?categoria=inventada" })
-    expect(screen.getByRole("tab", { name: "Todas" })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByRole("tab", { name: "Todas" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

@@ -8,8 +8,9 @@ export function AvisoInteligencia() {
       <Info aria-hidden />
       <AlertTitle>Inteligencia en preparación</AlertTitle>
       <AlertDescription>
-        Los indicadores, precios de referencia, puntuaciones y alertas se activarán con el servicio de
-        inteligencia. Mientras tanto puede consultar proveedores, contratos y desempeño.
+        Los indicadores, precios de referencia, puntuaciones y alertas se
+        activarán con el servicio de inteligencia. Mientras tanto puede
+        consultar proveedores, contratos y desempeño.
       </AlertDescription>
     </Alert>
   )

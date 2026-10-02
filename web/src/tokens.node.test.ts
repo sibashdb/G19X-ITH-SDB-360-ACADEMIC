@@ -27,7 +27,9 @@ function color(tema: Record<string, string>, token: string): string {
     valor = tema[valor.slice(6, -1)]
   }
   if (!/^#[0-9a-f]{6}$/i.test(valor ?? "")) {
-    throw new Error(`El token --${token} debe ser un color #RRGGBB (es ${valor})`)
+    throw new Error(
+      `El token --${token} debe ser un color #RRGGBB (es ${valor})`
+    )
   }
   return valor
 }
@@ -48,7 +50,11 @@ function contraste(a: string, b: string): number {
 const TEXTO = 4.5
 const GRAFICO = 3
 
-function par(frente: string, fondo: string, minimo: number): [string, string, number] {
+function par(
+  frente: string,
+  fondo: string,
+  minimo: number
+): [string, string, number] {
   return [frente, fondo, minimo]
 }
 
@@ -87,8 +93,13 @@ describe("contraste de los tokens", () => {
   })
 
   for (const [nombre, tema] of Object.entries(TEMAS)) {
-    it.each(PARES)(`tema ${nombre}: --%s sobre --%s cumple %d:1`, (frente, fondo, minimo) => {
-      expect(contraste(color(tema, frente), color(tema, fondo))).toBeGreaterThanOrEqual(minimo)
-    })
+    it.each(PARES)(
+      `tema ${nombre}: --%s sobre --%s cumple %d:1`,
+      (frente, fondo, minimo) => {
+        expect(
+          contraste(color(tema, frente), color(tema, fondo))
+        ).toBeGreaterThanOrEqual(minimo)
+      }
+    )
   }
 })

@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react"
 
 export type Tema = "claro" | "oscuro" | "sistema"
 
@@ -25,7 +31,8 @@ function temaGuardado(): Tema {
 
 export function aplicarTema(tema: Tema): void {
   const oscuro =
-    tema === "oscuro" || (tema === "sistema" && window.matchMedia(CONSULTA_OSCURO).matches)
+    tema === "oscuro" ||
+    (tema === "sistema" && window.matchMedia(CONSULTA_OSCURO).matches)
   document.documentElement.classList.toggle("dark", oscuro)
   document.documentElement.style.colorScheme = oscuro ? "dark" : "light"
 }

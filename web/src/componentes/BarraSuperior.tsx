@@ -1,4 +1,12 @@
-import { Bell, BellOff, LogOut, Monitor, Moon, Sun, type LucideIcon } from "lucide-react"
+import {
+  Bell,
+  BellOff,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  type LucideIcon,
+} from "lucide-react"
 import { Fragment } from "react"
 import { useAuth } from "react-oidc-context"
 import { Link, useLocation } from "react-router"
@@ -27,7 +35,11 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { NOMBRES_TEMA, useTema, type Tema } from "@/tema"
 
-const ICONOS_TEMA: Record<Tema, LucideIcon> = { claro: Sun, oscuro: Moon, sistema: Monitor }
+const ICONOS_TEMA: Record<Tema, LucideIcon> = {
+  claro: Sun,
+  oscuro: Moon,
+  sistema: Monitor,
+}
 
 function Migas() {
   const migas = migasDe(useLocation().pathname)
@@ -39,7 +51,9 @@ function Migas() {
           return (
             <Fragment key={`${i}-${miga.titulo}`}>
               {i > 0 && <BreadcrumbSeparator className="hidden md:block" />}
-              <BreadcrumbItem className={ultima ? undefined : "hidden md:inline-flex"}>
+              <BreadcrumbItem
+                className={ultima ? undefined : "hidden md:inline-flex"}
+              >
                 {ultima ? (
                   <BreadcrumbPage>{miga.titulo}</BreadcrumbPage>
                 ) : miga.ruta ? (
@@ -89,13 +103,20 @@ function SelectorTema() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-lg" aria-label={`Tema: ${NOMBRES_TEMA[tema]}`}>
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          aria-label={`Tema: ${NOMBRES_TEMA[tema]}`}
+        >
           <Icono aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Tema</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={tema} onValueChange={(valor) => cambiarTema(valor as Tema)}>
+        <DropdownMenuRadioGroup
+          value={tema}
+          onValueChange={(valor) => cambiarTema(valor as Tema)}
+        >
           {(Object.keys(NOMBRES_TEMA) as Tema[]).map((opcion) => {
             const IconoOpcion = ICONOS_TEMA[opcion]
             return (
@@ -128,7 +149,11 @@ function MenuUsuario() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 gap-2 px-2" aria-label={`Cuenta de ${nombre}`}>
+        <Button
+          variant="ghost"
+          className="h-9 gap-2 px-2"
+          aria-label={`Cuenta de ${nombre}`}
+        >
           <span
             aria-hidden
             className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
@@ -142,7 +167,8 @@ function MenuUsuario() {
         <DropdownMenuLabel className="space-y-0.5">
           <span className="block font-medium">{nombre}</span>
           <span className="block text-xs font-normal text-muted-foreground">
-            {roles.map((rol) => NOMBRES_ROL[rol]).join(" · ") || "Sin rol asignado"}
+            {roles.map((rol) => NOMBRES_ROL[rol]).join(" · ") ||
+              "Sin rol asignado"}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -159,7 +185,10 @@ export function BarraSuperior() {
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
       <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+      <Separator
+        orientation="vertical"
+        className="mr-2 data-[orientation=vertical]:h-4"
+      />
       <Migas />
       <div className="ml-auto flex items-center gap-1">
         <MenuAlertas />

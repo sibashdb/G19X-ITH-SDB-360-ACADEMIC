@@ -98,7 +98,9 @@ export function formatoMoneda(valor: string, moneda: string): string {
 
 export function formatoFecha(iso: string): string {
   const [anio, mes, dia] = iso.split("-").map(Number)
-  return new Date(anio, mes - 1, dia).toLocaleDateString("es-MX", { dateStyle: "medium" })
+  return new Date(anio, mes - 1, dia).toLocaleDateString("es-MX", {
+    dateStyle: "medium",
+  })
 }
 
 export type ClaveKpi =
@@ -108,7 +110,11 @@ export type ClaveKpi =
   | "entregas_a_tiempo_pct"
   | "satisfaccion"
 
-export const KPIS_DESEMPENO: { clave: ClaveKpi; nombre: string; unidad: string }[] = [
+export const KPIS_DESEMPENO: {
+  clave: ClaveKpi
+  nombre: string
+  unidad: string
+}[] = [
   { clave: "sla_cumplimiento_pct", nombre: "Cumplimiento de SLA", unidad: "%" },
   { clave: "tiempo_resolucion_h", nombre: "Tiempo de resolución", unidad: "h" },
   { clave: "incidentes_criticos", nombre: "Incidentes críticos", unidad: "" },
@@ -123,7 +129,10 @@ export function formatoKpi(valor: string | number, unidad: string): string {
 /** "2026-08-01" → mes abreviado y año en español de México (p. ej. "ago 2026"). */
 export function formatoPeriodo(iso: string): string {
   const [anio, mes] = iso.split("-").map(Number)
-  return new Date(anio, mes - 1, 1).toLocaleDateString("es-MX", { month: "short", year: "numeric" })
+  return new Date(anio, mes - 1, 1).toLocaleDateString("es-MX", {
+    month: "short",
+    year: "numeric",
+  })
 }
 
 export type Servicio = {
@@ -137,5 +146,8 @@ export type Servicio = {
 
 /** Minúsculas y sin acentos, para buscar "consultoria" y encontrar "Consultoría". */
 export function normalizarTexto(texto: string): string {
-  return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
+  return texto
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
 }

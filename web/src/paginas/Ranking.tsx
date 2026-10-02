@@ -8,7 +8,10 @@ import { unoDe, useParametros } from "@/parametros"
 import { CATEGORIAS, NOMBRES_CATEGORIA } from "@/tipos"
 
 const TODAS = "todas"
-const OPCIONES: [string, string][] = [[TODAS, "Todas"], ...CATEGORIAS.map((c): [string, string] => [c, NOMBRES_CATEGORIA[c]])]
+const OPCIONES: [string, string][] = [
+  [TODAS, "Todas"],
+  ...CATEGORIAS.map((c): [string, string] => [c, NOMBRES_CATEGORIA[c]]),
+]
 
 export function Ranking() {
   const [parametros, actualizar] = useParametros()
@@ -20,7 +23,12 @@ export function Ranking() {
         descripcion="Proveedores ordenados por su puntuación ajustada dentro de cada categoría."
       />
       <AvisoInteligencia />
-      <Tabs value={activa} onValueChange={(valor) => actualizar({ categoria: valor === TODAS ? null : valor })}>
+      <Tabs
+        value={activa}
+        onValueChange={(valor) =>
+          actualizar({ categoria: valor === TODAS ? null : valor })
+        }
+      >
         <TabsList className="h-auto flex-wrap">
           {OPCIONES.map(([valor, nombre]) => (
             <TabsTrigger key={valor} value={valor}>
@@ -30,7 +38,9 @@ export function Ranking() {
         </TabsList>
         {OPCIONES.map(([valor, nombre]) => (
           <TabsContent key={valor} value={valor} className="mt-4">
-            <Seccion titulo={`Ranking · ${valor === TODAS ? "Todas las categorías" : nombre}`}>
+            <Seccion
+              titulo={`Ranking · ${valor === TODAS ? "Todas las categorías" : nombre}`}
+            >
               <EstadoVacio
                 icono={Trophy}
                 titulo="Sin puntuaciones todavía"

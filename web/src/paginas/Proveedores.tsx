@@ -11,15 +11,35 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { enteroPositivo, unoDe, useParametros } from "@/parametros"
-import { CATEGORIAS, NOMBRES_CATEGORIA, NOMBRES_TAMANO, type PaginaProveedores } from "@/tipos"
+import {
+  CATEGORIAS,
+  NOMBRES_CATEGORIA,
+  NOMBRES_TAMANO,
+  type PaginaProveedores,
+} from "@/tipos"
 
 const POR_PAGINA = 25
 const PAGINA_MAXIMA = 40_000 // la API acepta desplazamientos de hasta 1,000,000
 const ESTADOS = ["activos", "inactivos"] as const
 
-function Filtro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: ReactNode }) {
+function Filtro({
+  activo,
+  onClick,
+  children,
+}: {
+  activo: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
   return (
     <Button
       type="button"
@@ -62,7 +82,10 @@ export function Proveedores() {
       if (q) busqueda.set("q", q)
       if (categoria) busqueda.set("categoria", categoria)
       if (estado) busqueda.set("activo", String(estado === "activos"))
-      return pedir<PaginaProveedores>(`/proveedores/proveedores?${busqueda}`, token)
+      return pedir<PaginaProveedores>(
+        `/proveedores/proveedores?${busqueda}`,
+        token
+      )
     },
     enabled: Boolean(token),
     placeholderData: keepPreviousData,
@@ -70,10 +93,13 @@ export function Proveedores() {
 
   function buscar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    const texto = String(new FormData(evento.currentTarget).get("q") ?? "").trim()
+    const texto = String(
+      new FormData(evento.currentTarget).get("q") ?? ""
+    ).trim()
     actualizar({ q: texto || null, pagina: null })
   }
-  const limpiar = () => actualizar({ q: null, categoria: null, estado: null, pagina: null })
+  const limpiar = () =>
+    actualizar({ q: null, categoria: null, estado: null, pagina: null })
   const botonLimpiar = (
     <Button type="button" variant="ghost" onClick={limpiar}>
       <X aria-hidden />
@@ -84,7 +110,12 @@ export function Proveedores() {
   function contenido() {
     if (consulta.isPending) return <EstadoCarga />
     if (consulta.isError) {
-      return <EstadoError error={consulta.error} alReintentar={() => void consulta.refetch()} />
+      return (
+        <EstadoError
+          error={consulta.error}
+          alReintentar={() => void consulta.refetch()}
+        />
+      )
     }
     const { total, elementos } = consulta.data
     if (elementos.length === 0) {
@@ -94,10 +125,15 @@ export function Proveedores() {
           <EstadoVacio
             titulo="Esta página no tiene resultados"
             descripcion={`Hay ${total.toLocaleString("es-MX")} proveedores ${
-              hayFiltros ? "que coinciden con la búsqueda o los filtros" : "en total"
+              hayFiltros
+                ? "que coinciden con la búsqueda o los filtros"
+                : "en total"
             }.`}
             accion={
-              <Button variant="outline" onClick={() => actualizar({ pagina: null })}>
+              <Button
+                variant="outline"
+                onClick={() => actualizar({ pagina: null })}
+              >
                 Ir a la primera página
               </Button>
             }
@@ -157,7 +193,9 @@ export function Proveedores() {
                   >
                     {p.nombre}
                   </Link>
-                  <div className="font-mono text-xs text-muted-foreground">{p.rfc}</div>
+                  <div className="font-mono text-xs text-muted-foreground">
+                    {p.rfc}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
@@ -178,8 +216,9 @@ export function Proveedores() {
         </Table>
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
           <span aria-live="polite">
-            Mostrando {desde.toLocaleString("es-MX")}–{hasta.toLocaleString("es-MX")} de{" "}
-            {total.toLocaleString("es-MX")} proveedores
+            Mostrando {desde.toLocaleString("es-MX")}–
+            {hasta.toLocaleString("es-MX")} de {total.toLocaleString("es-MX")}{" "}
+            proveedores
           </span>
           <div className="flex gap-2">
             <Button
@@ -214,7 +253,11 @@ export function Proveedores() {
       />
       <Card>
         <CardContent className="space-y-4">
-          <form role="search" onSubmit={buscar} className="flex flex-wrap items-center gap-2">
+          <form
+            role="search"
+            onSubmit={buscar}
+            className="flex flex-wrap items-center gap-2"
+          >
             <label htmlFor="busqueda" className="sr-only">
               Buscar por nombre o RFC
             </label>
@@ -237,8 +280,15 @@ export function Proveedores() {
             {hayFiltros && botonLimpiar}
           </form>
           <div className="flex flex-wrap items-center gap-2">
-            <div role="group" aria-label="Filtrar por categoría" className="flex flex-wrap gap-2">
-              <Filtro activo={!categoria} onClick={() => actualizar({ categoria: null, pagina: null })}>
+            <div
+              role="group"
+              aria-label="Filtrar por categoría"
+              className="flex flex-wrap gap-2"
+            >
+              <Filtro
+                activo={!categoria}
+                onClick={() => actualizar({ categoria: null, pagina: null })}
+              >
                 Todas
               </Filtro>
               {CATEGORIAS.map((c) => (
@@ -251,8 +301,15 @@ export function Proveedores() {
                 </Filtro>
               ))}
             </div>
-            <div role="group" aria-label="Filtrar por estado" className="flex flex-wrap gap-2 md:ml-auto">
-              <Filtro activo={!estado} onClick={() => actualizar({ estado: null, pagina: null })}>
+            <div
+              role="group"
+              aria-label="Filtrar por estado"
+              className="flex flex-wrap gap-2 md:ml-auto"
+            >
+              <Filtro
+                activo={!estado}
+                onClick={() => actualizar({ estado: null, pagina: null })}
+              >
                 Todos
               </Filtro>
               <Filtro
@@ -263,7 +320,9 @@ export function Proveedores() {
               </Filtro>
               <Filtro
                 activo={estado === "inactivos"}
-                onClick={() => actualizar({ estado: "inactivos", pagina: null })}
+                onClick={() =>
+                  actualizar({ estado: "inactivos", pagina: null })
+                }
               >
                 Inactivos
               </Filtro>

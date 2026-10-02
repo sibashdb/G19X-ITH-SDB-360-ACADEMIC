@@ -6,7 +6,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function EstadoCarga({ filas = 5, etiqueta = "Cargando…" }: { filas?: number; etiqueta?: string }) {
+export function EstadoCarga({
+  filas = 5,
+  etiqueta = "Cargando…",
+}: {
+  filas?: number
+  etiqueta?: string
+}) {
   return (
     <div role="status" className="space-y-2">
       <span className="sr-only">{etiqueta}</span>
@@ -38,8 +44,17 @@ export function EstadoVacio({
   )
 }
 
-export function EstadoError({ error, alReintentar }: { error: Error; alReintentar?: () => void }) {
-  const titulo = error instanceof ErrorApi ? error.titulo : "No se pudo cargar la información"
+export function EstadoError({
+  error,
+  alReintentar,
+}: {
+  error: Error
+  alReintentar?: () => void
+}) {
+  const titulo =
+    error instanceof ErrorApi
+      ? error.titulo
+      : "No se pudo cargar la información"
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden />
@@ -47,7 +62,12 @@ export function EstadoError({ error, alReintentar }: { error: Error; alReintenta
       <AlertDescription>
         <p>{error.message}</p>
         {alReintentar && (
-          <Button variant="outline" size="sm" className="mt-2" onClick={alReintentar}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={alReintentar}
+          >
             <RefreshCw aria-hidden />
             Reintentar
           </Button>
@@ -67,7 +87,12 @@ export function ContenidoConsulta<T>({
 }) {
   if (consulta.isPending) return <EstadoCarga />
   if (consulta.isError) {
-    return <EstadoError error={consulta.error} alReintentar={() => void consulta.refetch()} />
+    return (
+      <EstadoError
+        error={consulta.error}
+        alReintentar={() => void consulta.refetch()}
+      />
+    )
   }
   return children(consulta.data)
 }

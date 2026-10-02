@@ -10,7 +10,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -20,10 +26,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { KPIS_DESEMPENO, formatoKpi, formatoPeriodo, type ClaveKpi, type Desempeno } from "@/tipos"
+import {
+  KPIS_DESEMPENO,
+  formatoKpi,
+  formatoPeriodo,
+  type ClaveKpi,
+  type Desempeno,
+} from "@/tipos"
 
 /** Valor del tooltip con su unidad; usa el decimal original ("99.10") para coincidir con la tabla. */
-export function formatearValorTooltip(valor: unknown, texto: unknown, unidad: string): string {
+export function formatearValorTooltip(
+  valor: unknown,
+  texto: unknown,
+  unidad: string
+): string {
   return formatoKpi(typeof texto === "string" ? texto : String(valor), unidad)
 }
 
@@ -45,10 +61,14 @@ export function DesempenoProveedor({ registros }: { registros: Desempeno[] }) {
   const kpi = KPIS_DESEMPENO.find((k) => k.clave === clave) ?? KPIS_DESEMPENO[0]
   // La API entrega del mes más reciente al más antiguo; la gráfica va en orden cronológico.
   // `texto` conserva el decimal tal como llega (p. ej. "99.10") para que el tooltip coincida con la tabla.
-  const serie = [...registros]
-    .reverse()
-    .map((r) => ({ periodo: r.periodo, valor: Number(r[clave]), texto: r[clave] }))
-  const configuracion = { valor: { label: kpi.nombre, color: "var(--chart-1)" } } satisfies ChartConfig
+  const serie = [...registros].reverse().map((r) => ({
+    periodo: r.periodo,
+    valor: Number(r[clave]),
+    texto: r[clave],
+  }))
+  const configuracion = {
+    valor: { label: kpi.nombre, color: "var(--chart-1)" },
+  } satisfies ChartConfig
 
   return (
     <div className="space-y-4">
@@ -56,7 +76,10 @@ export function DesempenoProveedor({ registros }: { registros: Desempeno[] }) {
         <span id={idEtiqueta} className="text-sm font-medium">
           Indicador
         </span>
-        <Select value={clave} onValueChange={(valor) => setClave(valor as ClaveKpi)}>
+        <Select
+          value={clave}
+          onValueChange={(valor) => setClave(valor as ClaveKpi)}
+        >
           <SelectTrigger aria-labelledby={idEtiqueta} className="w-60">
             <SelectValue />
           </SelectTrigger>
@@ -70,8 +93,15 @@ export function DesempenoProveedor({ registros }: { registros: Desempeno[] }) {
         </Select>
       </div>
       <figure aria-label={`${kpi.nombre} de los últimos ${serie.length} meses`}>
-        <ChartContainer config={configuracion} className="aspect-auto h-64 w-full">
-          <LineChart accessibilityLayer data={serie} margin={{ left: 8, right: 8, top: 8 }}>
+        <ChartContainer
+          config={configuracion}
+          className="aspect-auto h-64 w-full"
+        >
+          <LineChart
+            accessibilityLayer
+            data={serie}
+            margin={{ left: 8, right: 8, top: 8 }}
+          >
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="periodo"
@@ -80,7 +110,12 @@ export function DesempenoProveedor({ registros }: { registros: Desempeno[] }) {
               axisLine={false}
               minTickGap={24}
             />
-            <YAxis tickLine={false} axisLine={false} width={44} domain={["auto", "auto"]} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              width={44}
+              domain={["auto", "auto"]}
+            />
             <ChartTooltip
               content={
                 <ChartTooltipContent
@@ -92,9 +127,15 @@ export function DesempenoProveedor({ registros }: { registros: Desempeno[] }) {
                         style={{ backgroundColor: item.color }}
                       />
                       <div className="flex flex-1 items-center justify-between gap-2 leading-none">
-                        <span className="text-muted-foreground">{kpi.nombre}</span>
+                        <span className="text-muted-foreground">
+                          {kpi.nombre}
+                        </span>
                         <span className="font-mono font-medium text-foreground tabular-nums">
-                          {formatearValorTooltip(valor, item.payload?.texto, kpi.unidad)}
+                          {formatearValorTooltip(
+                            valor,
+                            item.payload?.texto,
+                            kpi.unidad
+                          )}
                         </span>
                       </div>
                     </>
@@ -103,7 +144,13 @@ export function DesempenoProveedor({ registros }: { registros: Desempeno[] }) {
               }
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Line dataKey="valor" type="monotone" stroke="var(--color-valor)" strokeWidth={2} dot={false} />
+            <Line
+              dataKey="valor"
+              type="monotone"
+              stroke="var(--color-valor)"
+              strokeWidth={2}
+              dot={false}
+            />
           </LineChart>
         </ChartContainer>
       </figure>

@@ -11,7 +11,12 @@ import { Seccion } from "@/componentes/Seccion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useParametros } from "@/parametros"
-import { CATEGORIAS, NOMBRES_CATEGORIA, normalizarTexto, type Servicio } from "@/tipos"
+import {
+  CATEGORIAS,
+  NOMBRES_CATEGORIA,
+  normalizarTexto,
+  type Servicio,
+} from "@/tipos"
 
 function ListaServicios({
   servicios,
@@ -25,7 +30,8 @@ function ListaServicios({
   const [busqueda, setBusqueda] = useState("")
   const termino = normalizarTexto(busqueda.trim())
   const visibles = servicios.filter(
-    (s) => !termino || normalizarTexto(`${s.nombre} ${s.codigo}`).includes(termino)
+    (s) =>
+      !termino || normalizarTexto(`${s.nombre} ${s.codigo}`).includes(termino)
   )
   const grupos = CATEGORIAS.map((categoria) => ({
     categoria,
@@ -45,9 +51,14 @@ function ListaServicios({
         onChange={(evento) => setBusqueda(evento.target.value)}
       />
       {grupos.length === 0 ? (
-        <p className="px-2 py-4 text-sm text-muted-foreground">Ningún servicio coincide con «{busqueda.trim()}».</p>
+        <p className="px-2 py-4 text-sm text-muted-foreground">
+          Ningún servicio coincide con «{busqueda.trim()}».
+        </p>
       ) : (
-        <ul aria-label="Servicios del catálogo" className="max-h-[28rem] space-y-3 overflow-y-auto">
+        <ul
+          aria-label="Servicios del catálogo"
+          className="max-h-[28rem] space-y-3 overflow-y-auto"
+        >
           {grupos.map((grupo) => (
             <li key={grupo.categoria}>
               <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -113,7 +124,8 @@ export function Precios() {
   const token = useToken()
   const roles = useRoles()
   const [parametros, actualizar] = useParametros()
-  const vista = parametros.get("vista") === "sobreprecios" ? "sobreprecios" : "servicio"
+  const vista =
+    parametros.get("vista") === "sobreprecios" ? "sobreprecios" : "servicio"
   const codigo = parametros.get("servicio")
 
   const servicios = useQuery({
@@ -179,7 +191,8 @@ export function Precios() {
                 />
               )
             }
-            const seleccionado = catalogo.find((s) => s.codigo === codigo) ?? null
+            const seleccionado =
+              catalogo.find((s) => s.codigo === codigo) ?? null
             return (
               <div className="grid items-start gap-4 lg:grid-cols-[20rem_1fr]">
                 <Seccion titulo="Servicios">

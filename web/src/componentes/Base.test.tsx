@@ -5,14 +5,21 @@ import { Bell } from "lucide-react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ErrorApi } from "@/api"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
-import { ContenidoConsulta, EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
+import {
+  ContenidoConsulta,
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+} from "@/componentes/Estados"
 import { RequiereRol } from "@/componentes/RequiereRol"
 import { Seccion } from "@/componentes/Seccion"
 import { Button } from "@/components/ui/button"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import { esperarSinViolaciones, renderizarPagina } from "@/pruebas/utilidades"
 
-vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
 
 afterEach(() => {
   cleanup()
@@ -36,18 +43,24 @@ describe("estados estándar", () => {
     )
     expect(screen.getByText("Sin alertas")).toBeInTheDocument()
     expect(screen.getByText("No hay nada pendiente.")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Actualizar" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Actualizar" })
+    ).toBeInTheDocument()
   })
 
   it("EstadoError usa el título de Problem Details y permite reintentar", async () => {
     const alReintentar = vi.fn()
     renderizarPagina(
       <EstadoError
-        error={new ErrorApi(503, "Servicio no disponible", "Intente más tarde.")}
+        error={
+          new ErrorApi(503, "Servicio no disponible", "Intente más tarde.")
+        }
         alReintentar={alReintentar}
       />
     )
-    expect(screen.getByRole("alert")).toHaveTextContent("Servicio no disponible")
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Servicio no disponible"
+    )
     expect(screen.getByRole("alert")).toHaveTextContent("Intente más tarde.")
     // jsdom no calcula estilos: se comprueba que la clase de color de la descripción sea un
     // token propio (una clase fusionada con otra no generaría CSS y dejaría el texto gris).
@@ -60,8 +73,12 @@ describe("estados estándar", () => {
 
   it("EstadoError sin ErrorApi usa un título genérico y sin reintento no muestra el botón", () => {
     renderizarPagina(<EstadoError error={new Error("Algo falló")} />)
-    expect(screen.getByRole("alert")).toHaveTextContent("No se pudo cargar la información")
-    expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No se pudo cargar la información"
+    )
+    expect(
+      screen.queryByRole("button", { name: "Reintentar" })
+    ).not.toBeInTheDocument()
   })
 
   it("ContenidoConsulta pasa de error a datos al reintentar", async () => {
@@ -71,11 +88,16 @@ describe("estados estándar", () => {
         queryKey: ["prueba"],
         queryFn: async () => {
           intentos += 1
-          if (intentos === 1) throw new ErrorApi(502, "Servicio no disponible", "Caído.")
+          if (intentos === 1)
+            throw new ErrorApi(502, "Servicio no disponible", "Caído.")
           return "datos listos"
         },
       })
-      return <ContenidoConsulta consulta={consulta}>{(datos) => <p>{datos}</p>}</ContenidoConsulta>
+      return (
+        <ContenidoConsulta consulta={consulta}>
+          {(datos) => <p>{datos}</p>}
+        </ContenidoConsulta>
+      )
     }
     renderizarPagina(<Consulta />)
 
@@ -89,12 +111,19 @@ describe("estructura de página", () => {
   it("EncabezadoPagina y Seccion dan títulos h1 y h2", () => {
     renderizarPagina(
       <>
-        <EncabezadoPagina titulo="Precios" descripcion="Precio de referencia." />
+        <EncabezadoPagina
+          titulo="Precios"
+          descripcion="Precio de referencia."
+        />
         <Seccion titulo="Historial">contenido</Seccion>
       </>
     )
-    expect(screen.getByRole("heading", { level: 1, name: "Precios" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { level: 2, name: "Historial" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Precios" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Historial" })
+    ).toBeInTheDocument()
   })
 
   it("RequiereRol muestra el contenido al rol indicado", () => {
@@ -107,7 +136,10 @@ describe("estructura de página", () => {
     renderizarPagina(<RequiereRol rol="admin">Panel de admin</RequiereRol>)
     expect(screen.queryByText("Panel de admin")).not.toBeInTheDocument()
     expect(screen.getByText("Acceso restringido")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Ir al tablero" })).toHaveAttribute("href", "/")
+    expect(screen.getByRole("link", { name: "Ir al tablero" })).toHaveAttribute(
+      "href",
+      "/"
+    )
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

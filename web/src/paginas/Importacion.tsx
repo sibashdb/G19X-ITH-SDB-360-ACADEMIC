@@ -1,5 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, ArrowRight, Check, CircleCheck, FileSpreadsheet, Upload } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleCheck,
+  FileSpreadsheet,
+  Upload,
+} from "lucide-react"
 import { useState, type DragEvent } from "react"
 import { ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
@@ -8,16 +15,43 @@ import { RequiereRol } from "@/componentes/RequiereRol"
 import { Seccion } from "@/componentes/Seccion"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import type { ResumenImportacion } from "@/tipos"
 
 const ENTIDADES = [
-  { valor: "servicios", nombre: "Catálogo de servicios", descripcion: "Servicios de TI con su categoría, unidad y moneda." },
-  { valor: "proveedores", nombre: "Proveedores", descripcion: "RFC, nombre, tamaño, categorías y contacto." },
-  { valor: "tipo_cambio", nombre: "Tipo de cambio", descripcion: "Tipo de cambio mensual de USD a MXN." },
-  { valor: "contratos", nombre: "Contratos", descripcion: "Contratos y sus líneas; requiere proveedores y servicios." },
-  { valor: "desempeno", nombre: "Desempeño", descripcion: "Indicadores mensuales por proveedor; requiere proveedores." },
+  {
+    valor: "servicios",
+    nombre: "Catálogo de servicios",
+    descripcion: "Servicios de TI con su categoría, unidad y moneda.",
+  },
+  {
+    valor: "proveedores",
+    nombre: "Proveedores",
+    descripcion: "RFC, nombre, tamaño, categorías y contacto.",
+  },
+  {
+    valor: "tipo_cambio",
+    nombre: "Tipo de cambio",
+    descripcion: "Tipo de cambio mensual de USD a MXN.",
+  },
+  {
+    valor: "contratos",
+    nombre: "Contratos",
+    descripcion: "Contratos y sus líneas; requiere proveedores y servicios.",
+  },
+  {
+    valor: "desempeno",
+    nombre: "Desempeño",
+    descripcion: "Indicadores mensuales por proveedor; requiere proveedores.",
+  },
 ] as const
 
 type Entidad = (typeof ENTIDADES)[number]["valor"]
@@ -27,7 +61,8 @@ const MAX_BYTES = 10 * 1024 * 1024
 
 /** Revisa en el navegador lo que el servidor rechazaría de todos modos, para avisar antes de subir. */
 export function validarArchivo(archivo: File): string | null {
-  if (!archivo.name.toLowerCase().endsWith(".csv")) return "El archivo debe tener extensión .csv."
+  if (!archivo.name.toLowerCase().endsWith(".csv"))
+    return "El archivo debe tener extensión .csv."
   if (archivo.size > MAX_BYTES) return "El archivo excede el límite de 10 MB."
   if (archivo.size === 0) return "El archivo está vacío."
   return null
@@ -63,7 +98,13 @@ function Pasos({ actual }: { actual: number }) {
             >
               {hecho ? <Check className="size-3.5" /> : numero}
             </span>
-            <span className={enCurso || hecho ? "font-medium" : "text-muted-foreground"}>{nombre}</span>
+            <span
+              className={
+                enCurso || hecho ? "font-medium" : "text-muted-foreground"
+              }
+            >
+              {nombre}
+            </span>
             {hecho && <span className="sr-only">(completado)</span>}
           </li>
         )
@@ -125,10 +166,14 @@ function FlujoImportacion() {
     mutationFn: (datos: { entidad: Entidad; archivo: File }) => {
       const formulario = new FormData()
       formulario.append("archivo", datos.archivo)
-      return pedir<ResumenImportacion>(`/proveedores/importaciones/${datos.entidad}`, token, {
-        method: "POST",
-        body: formulario,
-      })
+      return pedir<ResumenImportacion>(
+        `/proveedores/importaciones/${datos.entidad}`,
+        token,
+        {
+          method: "POST",
+          body: formulario,
+        }
+      )
     },
     // Una importación puede cambiar cualquier dato (proveedores, servicios, contratos, alertas…).
     onSuccess: () => clienteConsultas.invalidateQueries(),
@@ -137,7 +182,8 @@ function FlujoImportacion() {
   const indice = ENTIDADES.findIndex((e) => e.valor === entidad)
   const actual = ENTIDADES[indice]
   // El resultado describe lo que se importó (las variables de la mutación), no lo elegido ahora.
-  const importada = ENTIDADES.find((e) => e.valor === importacion.variables?.entidad) ?? actual
+  const importada =
+    ENTIDADES.find((e) => e.valor === importacion.variables?.entidad) ?? actual
   const siguiente = ENTIDADES[ENTIDADES.indexOf(importada) + 1]
 
   function elegir(nuevo: File | null) {
@@ -182,8 +228,8 @@ function FlujoImportacion() {
         <Seccion titulo="1. Elija el tipo de archivo">
           <fieldset className="space-y-2">
             <legend className="mb-2 text-sm text-muted-foreground">
-              Siga el orden recomendado: contratos y desempeño hacen referencia a proveedores y servicios ya
-              importados.
+              Siga el orden recomendado: contratos y desempeño hacen referencia
+              a proveedores y servicios ya importados.
             </legend>
             {ENTIDADES.map((e, i) => (
               <label
@@ -202,7 +248,9 @@ function FlujoImportacion() {
                   <span className="font-medium">
                     {i + 1}. {e.nombre}
                   </span>
-                  <span className="block text-sm text-muted-foreground">{e.descripcion}</span>
+                  <span className="block text-sm text-muted-foreground">
+                    {e.descripcion}
+                  </span>
                 </span>
               </label>
             ))}
@@ -230,7 +278,9 @@ function FlujoImportacion() {
               )}
             >
               <Upload aria-hidden className="size-8 text-muted-foreground" />
-              <span className="font-medium">Arrastre el archivo CSV aquí o haga clic para elegirlo</span>
+              <span className="font-medium">
+                Arrastre el archivo CSV aquí o haga clic para elegirlo
+              </span>
               <span className="text-sm text-muted-foreground">
                 CSV en UTF-8, separado por coma o punto y coma, de hasta 10 MB.
               </span>
@@ -243,7 +293,10 @@ function FlujoImportacion() {
             </label>
             {archivo && !errorArchivo && (
               <p className="flex items-center gap-2 text-sm">
-                <FileSpreadsheet aria-hidden className="size-4 text-muted-foreground" />
+                <FileSpreadsheet
+                  aria-hidden
+                  className="size-4 text-muted-foreground"
+                />
                 {archivo.name} · {tamanoLegible(archivo.size)}
               </p>
             )}
@@ -253,11 +306,20 @@ function FlujoImportacion() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled={importacion.isPending} onClick={() => setPaso(1)}>
+              <Button
+                variant="outline"
+                disabled={importacion.isPending}
+                onClick={() => setPaso(1)}
+              >
                 <ArrowLeft aria-hidden />
                 Atrás
               </Button>
-              <Button onClick={importar} disabled={!archivo || Boolean(errorArchivo) || importacion.isPending}>
+              <Button
+                onClick={importar}
+                disabled={
+                  !archivo || Boolean(errorArchivo) || importacion.isPending
+                }
+              >
                 {importacion.isPending ? "Importando…" : "Importar"}
               </Button>
             </div>
@@ -273,7 +335,8 @@ function FlujoImportacion() {
                 <CircleCheck aria-hidden className="text-success" />
                 <AlertTitle>Importación completada</AlertTitle>
                 <AlertDescription>
-                  Se importó {importacion.variables.archivo.name} ({importada.nombre}).
+                  Se importó {importacion.variables.archivo.name} (
+                  {importada.nombre}).
                 </AlertDescription>
               </Alert>
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -287,7 +350,9 @@ function FlujoImportacion() {
                 ).map(([nombre, valor]) => (
                   <div key={nombre} className="rounded-lg border p-3">
                     <dt className="text-sm text-muted-foreground">{nombre}</dt>
-                    <dd className="text-2xl font-semibold">{valor.toLocaleString("es-MX")}</dd>
+                    <dd className="text-2xl font-semibold">
+                      {valor.toLocaleString("es-MX")}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -298,7 +363,10 @@ function FlujoImportacion() {
                     <ArrowRight aria-hidden />
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => empezar(importada.valor, 1)}>
+                <Button
+                  variant="outline"
+                  onClick={() => empezar(importada.valor, 1)}
+                >
                   Importar otro archivo
                 </Button>
               </div>
@@ -307,7 +375,10 @@ function FlujoImportacion() {
           {importacion.isError && (
             <div className="space-y-4">
               <DetalleError error={importacion.error} />
-              <Button variant="outline" onClick={() => empezar(importada.valor, 2)}>
+              <Button
+                variant="outline"
+                onClick={() => empezar(importada.valor, 2)}
+              >
                 Elegir otro archivo
               </Button>
             </div>

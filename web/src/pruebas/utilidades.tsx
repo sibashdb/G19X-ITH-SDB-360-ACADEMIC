@@ -19,19 +19,30 @@ type Respuesta = Response | Promise<Response>
  * Sustituye fetch. Con un objeto, responde cada URL exacta (404 si no está); con una función,
  * decide por URL. Cada llamada crea una respuesta nueva (el cuerpo solo se lee una vez).
  */
-export function simularApi(respuestas: Record<string, () => Respuesta> | ((url: string) => Respuesta)) {
+export function simularApi(
+  respuestas: Record<string, () => Respuesta> | ((url: string) => Respuesta)
+) {
   const simulado = vi.fn((url: string) => {
-    if (typeof respuestas === "function") return Promise.resolve(respuestas(url))
+    if (typeof respuestas === "function")
+      return Promise.resolve(respuestas(url))
     const respuesta = respuestas[url]
-    return Promise.resolve(respuesta ? respuesta() : new Response("", { status: 404 }))
+    return Promise.resolve(
+      respuesta ? respuesta() : new Response("", { status: 404 })
+    )
   })
   vi.stubGlobal("fetch", simulado)
   return simulado
 }
 
 /** URL de una llamada a fetch simulada (por defecto, la última), para revisar sus parámetros. */
-export function urlDeLlamada(simulado: { mock: { calls: unknown[][] } }, indice = -1): URL {
-  return new URL(String(simulado.mock.calls.at(indice)?.[0]), "http://localhost")
+export function urlDeLlamada(
+  simulado: { mock: { calls: unknown[][] } },
+  indice = -1
+): URL {
+  return new URL(
+    String(simulado.mock.calls.at(indice)?.[0]),
+    "http://localhost"
+  )
 }
 
 function Ubicacion() {
@@ -49,7 +60,10 @@ export function ubicacionActual(): string {
 }
 
 /** Renderiza una página con tema, consultas (sin reintentos) y enrutador en memoria. */
-export function renderizarPagina(elemento: ReactNode, { ruta = "/", patron = "*" } = {}) {
+export function renderizarPagina(
+  elemento: ReactNode,
+  { ruta = "/", patron = "*" } = {}
+) {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -80,11 +94,16 @@ export function renderizarPagina(elemento: ReactNode, { ruta = "/", patron = "*"
  * así que la regla de contraste se desactiva: el contraste lo cubre tokens.node.test.ts y la
  * revisión en navegador de la Tarea 11.
  */
-export async function esperarSinViolaciones(contenedor: Element): Promise<void> {
+export async function esperarSinViolaciones(
+  contenedor: Element
+): Promise<void> {
   for (const oscuro of [false, true]) {
     document.documentElement.classList.toggle("dark", oscuro)
     const { violations } = await axe.run(contenedor, {
-      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
+      runOnly: {
+        type: "tag",
+        values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],
+      },
       rules: { "color-contrast": { enabled: false } },
     })
     expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([])

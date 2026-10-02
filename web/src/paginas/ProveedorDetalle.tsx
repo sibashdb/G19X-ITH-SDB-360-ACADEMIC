@@ -4,7 +4,12 @@ import { Link, useParams } from "react-router"
 import { ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { DesempenoProveedor } from "@/componentes/DesempenoProveedor"
-import { ContenidoConsulta, EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
+import {
+  ContenidoConsulta,
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+} from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
 import { Seccion } from "@/componentes/Seccion"
 import { TablaContratos } from "@/componentes/TablaContratos"
@@ -51,7 +56,10 @@ function Encabezado({ proveedor: p }: { proveedor: Detalle }) {
             <dt className="text-muted-foreground">Contacto</dt>
             <dd>{p.contacto_nombre}</dd>
             <dd>
-              <a href={`mailto:${p.contacto_email}`} className="text-accent hover:underline">
+              <a
+                href={`mailto:${p.contacto_email}`}
+                className="text-accent hover:underline"
+              >
                 {p.contacto_email}
               </a>
             </dd>
@@ -81,12 +89,19 @@ function Resumen({ consulta }: { consulta: UseQueryResult<Desempeno[]> }) {
           )
         }
         return (
-          <Seccion titulo={`Desempeño de ${formatoPeriodo(ultimo.periodo)}`} descripcion="Último mes registrado.">
+          <Seccion
+            titulo={`Desempeño de ${formatoPeriodo(ultimo.periodo)}`}
+            descripcion="Último mes registrado."
+          >
             <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {KPIS_DESEMPENO.map((kpi) => (
                 <div key={kpi.clave} className="rounded-lg border p-3">
-                  <dt className="text-sm text-muted-foreground">{kpi.nombre}</dt>
-                  <dd className="text-xl font-semibold">{formatoKpi(ultimo[kpi.clave], kpi.unidad)}</dd>
+                  <dt className="text-sm text-muted-foreground">
+                    {kpi.nombre}
+                  </dt>
+                  <dd className="text-xl font-semibold">
+                    {formatoKpi(ultimo[kpi.clave], kpi.unidad)}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -136,7 +151,12 @@ export function ProveedorDetalle() {
         />
       )
     }
-    return <EstadoError error={detalle.error} alReintentar={() => void detalle.refetch()} />
+    return (
+      <EstadoError
+        error={detalle.error}
+        alReintentar={() => void detalle.refetch()}
+      />
+    )
   }
 
   return (
@@ -150,7 +170,9 @@ export function ProveedorDetalle() {
       <Encabezado proveedor={detalle.data} />
       <Tabs
         value={pestana}
-        onValueChange={(valor) => actualizar({ pestana: valor === "resumen" ? null : valor })}
+        onValueChange={(valor) =>
+          actualizar({ pestana: valor === "resumen" ? null : valor })
+        }
       >
         <TabsList>
           <TabsTrigger value="resumen">Resumen</TabsTrigger>

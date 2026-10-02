@@ -22,7 +22,8 @@ class ResizeObserverDePrueba {
   unobserve() {}
   disconnect() {}
 }
-globalThis.ResizeObserver = ResizeObserverDePrueba as unknown as typeof ResizeObserver
+globalThis.ResizeObserver =
+  ResizeObserverDePrueba as unknown as typeof ResizeObserver
 
 Element.prototype.scrollIntoView = () => {}
 Element.prototype.hasPointerCapture = () => false

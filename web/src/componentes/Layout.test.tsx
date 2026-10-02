@@ -10,7 +10,10 @@ import { CLAVE_TEMA, ProveedorTema } from "@/tema"
 const removeUser = vi.fn().mockResolvedValue(undefined)
 const signinRedirect = vi.fn().mockResolvedValue(undefined)
 const signoutRedirect = vi.fn().mockResolvedValue(undefined)
-const estado = vi.hoisted(() => ({ autenticacion: {} as object, parametrosDeLogin: false }))
+const estado = vi.hoisted(() => ({
+  autenticacion: {} as object,
+  parametrosDeLogin: false,
+}))
 
 vi.mock("react-oidc-context", () => ({
   hasAuthParams: () => estado.parametrosDeLogin,
@@ -25,7 +28,11 @@ function sesionCon(roles: string[]) {
     error: undefined,
     user: {
       access_token: tokenConRoles(roles),
-      profile: { given_name: "Ana", family_name: "López", preferred_username: "ana.lopez" },
+      profile: {
+        given_name: "Ana",
+        family_name: "López",
+        preferred_username: "ana.lopez",
+      },
     },
     removeUser,
     signinRedirect,
@@ -80,11 +87,15 @@ describe("Layout con la sesión en error", () => {
     expect(screen.queryByText(/invalid_grant/)).not.toBeInTheDocument()
     expect(signinRedirect).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver a iniciar sesión" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Volver a iniciar sesión" })
+    )
 
     expect(removeUser).toHaveBeenCalledOnce()
     expect(signinRedirect).toHaveBeenCalledOnce()
-    expect(signinRedirect).toHaveBeenCalledWith({ state: "/proveedores/p1?pestana=contratos" })
+    expect(signinRedirect).toHaveBeenCalledWith({
+      state: "/proveedores/p1?pestana=contratos",
+    })
     expect(removeUser.mock.invocationCallOrder[0]).toBeLessThan(
       signinRedirect.mock.invocationCallOrder[0]
     )
@@ -109,7 +120,9 @@ describe("Layout con la devolución del login fallida", () => {
     }
     renderizar("/proveedores/p1?error=access_denied&state=xyz")
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver a iniciar sesión" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Volver a iniciar sesión" })
+    )
 
     expect(signinRedirect).toHaveBeenCalledWith({ state: "/proveedores/p1" })
   })
@@ -129,7 +142,9 @@ describe("Layout sin sesión", () => {
     renderizar("/proveedores/p1?pestana=desempeno")
 
     expect(signinRedirect).toHaveBeenCalledOnce()
-    expect(signinRedirect).toHaveBeenCalledWith({ state: "/proveedores/p1?pestana=desempeno" })
+    expect(signinRedirect).toHaveBeenCalledWith({
+      state: "/proveedores/p1?pestana=desempeno",
+    })
   })
 })
 
@@ -137,44 +152,70 @@ describe("Layout con sesión iniciada", () => {
   it("muestra a un comprador solo las secciones que le corresponden", () => {
     renderizar()
     const menu = screen.getByRole("navigation", { name: "Principal" })
-    for (const nombre of ["Tablero", "Proveedores", "Ranking", "Precios", "Alertas"]) {
-      expect(within(menu).getByRole("link", { name: nombre })).toBeInTheDocument()
+    for (const nombre of [
+      "Tablero",
+      "Proveedores",
+      "Ranking",
+      "Precios",
+      "Alertas",
+    ]) {
+      expect(
+        within(menu).getByRole("link", { name: nombre })
+      ).toBeInTheDocument()
     }
-    expect(within(menu).queryByRole("link", { name: "Importación" })).not.toBeInTheDocument()
-    expect(within(menu).queryByRole("link", { name: "Configuración" })).not.toBeInTheDocument()
+    expect(
+      within(menu).queryByRole("link", { name: "Importación" })
+    ).not.toBeInTheDocument()
+    expect(
+      within(menu).queryByRole("link", { name: "Configuración" })
+    ).not.toBeInTheDocument()
   })
 
   it("muestra al admin Importación y Configuración", () => {
     estado.autenticacion = sesionCon(["admin"])
     renderizar()
     const menu = screen.getByRole("navigation", { name: "Principal" })
-    expect(within(menu).getByRole("link", { name: "Importación" })).toHaveAttribute("href", "/importacion")
-    expect(within(menu).getByRole("link", { name: "Configuración" })).toHaveAttribute(
-      "href",
-      "/configuracion"
-    )
+    expect(
+      within(menu).getByRole("link", { name: "Importación" })
+    ).toHaveAttribute("href", "/importacion")
+    expect(
+      within(menu).getByRole("link", { name: "Configuración" })
+    ).toHaveAttribute("href", "/configuracion")
   })
 
   it("marca la página actual, muestra las migas y titula el documento", () => {
     renderizar("/proveedores/abc")
     const menu = screen.getByRole("navigation", { name: "Principal" })
-    expect(within(menu).getByRole("link", { name: "Proveedores" })).toHaveAttribute("aria-current", "page")
-    expect(within(menu).getByRole("link", { name: "Tablero" })).not.toHaveAttribute("aria-current")
+    expect(
+      within(menu).getByRole("link", { name: "Proveedores" })
+    ).toHaveAttribute("aria-current", "page")
+    expect(
+      within(menu).getByRole("link", { name: "Tablero" })
+    ).not.toHaveAttribute("aria-current")
 
     const migas = screen.getByRole("navigation", { name: "Ruta de navegación" })
-    expect(within(migas).getByRole("link", { name: "Proveedores" })).toHaveAttribute("href", "/proveedores")
-    expect(within(migas).getByText("Detalle")).toHaveAttribute("aria-current", "page")
+    expect(
+      within(migas).getByRole("link", { name: "Proveedores" })
+    ).toHaveAttribute("href", "/proveedores")
+    expect(within(migas).getByText("Detalle")).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
     expect(document.title).toBe("Detalle · PluriOne")
   })
 
   it("tiene un solo main, enlace para saltar al contenido y controles en español", () => {
     renderizar()
     expect(screen.getAllByRole("main")).toHaveLength(1)
-    expect(screen.getByRole("link", { name: "Saltar al contenido" })).toHaveAttribute("href", "#contenido")
+    expect(
+      screen.getByRole("link", { name: "Saltar al contenido" })
+    ).toHaveAttribute("href", "#contenido")
     expect(document.getElementById("contenido")).toContainElement(
       screen.getByRole("heading", { name: "Contenido de prueba" })
     )
-    expect(screen.getByRole("button", { name: "Mostrar u ocultar el menú" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Mostrar u ocultar el menú" })
+    ).toBeInTheDocument()
   })
 
   // jsdom no mide el diseño: esta clase evita el scroll horizontal de página a 768 y 1024 px,
@@ -187,20 +228,28 @@ describe("Layout con sesión iniciada", () => {
   it("cambia el tema desde la barra superior", async () => {
     renderizar()
     await userEvent.click(screen.getByRole("button", { name: "Tema: Sistema" }))
-    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Oscuro" }))
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: "Oscuro" })
+    )
 
     expect(document.documentElement).toHaveClass("dark")
     expect(localStorage.getItem(CLAVE_TEMA)).toBe("oscuro")
-    expect(screen.getByRole("button", { name: "Tema: Oscuro" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Tema: Oscuro" })
+    ).toBeInTheDocument()
   })
 
   it("muestra el usuario con sus roles y cierra sesión", async () => {
     estado.autenticacion = sesionCon(["comprador", "aprobador"])
     renderizar()
-    await userEvent.click(screen.getByRole("button", { name: "Cuenta de Ana López" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cuenta de Ana López" })
+    )
 
     expect(await screen.findByText("Compras · Aprobación")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("menuitem", { name: "Cerrar sesión" }))
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "Cerrar sesión" })
+    )
     expect(signoutRedirect).toHaveBeenCalledOnce()
   })
 
@@ -208,11 +257,12 @@ describe("Layout con sesión iniciada", () => {
     renderizar()
     await userEvent.click(screen.getByRole("button", { name: "Alertas" }))
 
-    expect(await screen.findByText("No hay alertas activas")).toBeInTheDocument()
-    expect(screen.getByRole("menuitem", { name: "Ver todas las alertas" })).toHaveAttribute(
-      "href",
-      "/alertas"
-    )
+    expect(
+      await screen.findByText("No hay alertas activas")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("menuitem", { name: "Ver todas las alertas" })
+    ).toHaveAttribute("href", "/alertas")
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

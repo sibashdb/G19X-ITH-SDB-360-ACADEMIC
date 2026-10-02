@@ -24,7 +24,8 @@ function rutaSegura(estado: unknown): estado is string {
 
 export const configuracionOidc: AuthProviderProps = {
   authority:
-    import.meta.env.VITE_OIDC_AUTHORITY ?? "http://localhost:8080/auth/realms/plataforma",
+    import.meta.env.VITE_OIDC_AUTHORITY ??
+    "http://localhost:8080/auth/realms/plataforma",
   client_id: "web",
   redirect_uri: `${window.location.origin}/`,
   post_logout_redirect_uri: `${window.location.origin}/`,
@@ -34,7 +35,11 @@ export const configuracionOidc: AuthProviderProps = {
   onSigninCallback: (usuario) => {
     const estado = usuario?.state
     const destino = rutaSegura(estado) ? estado : null
-    window.history.replaceState({}, document.title, destino ?? window.location.pathname)
+    window.history.replaceState(
+      {},
+      document.title,
+      destino ?? window.location.pathname
+    )
     // createBrowserRouter solo se entera de un cambio de URL hecho a mano por el evento popstate.
     if (destino) window.dispatchEvent(new PopStateEvent("popstate"))
   },
@@ -46,10 +51,14 @@ export function rolesDeToken(token: string | undefined): Rol[] {
   if (partes.length !== 3) return []
   try {
     const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/")
-    const carga = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")))
+    const carga = JSON.parse(
+      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))
+    )
     const roles: unknown = carga?.realm_access?.roles
     // Conserva el orden del token y descarta roles ajenos a la plataforma (p. ej. offline_access).
-    return Array.isArray(roles) ? roles.filter((r): r is Rol => ROLES.includes(r as Rol)) : []
+    return Array.isArray(roles)
+      ? roles.filter((r): r is Rol => ROLES.includes(r as Rol))
+      : []
   } catch {
     return []
   }

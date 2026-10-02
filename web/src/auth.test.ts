@@ -13,7 +13,9 @@ function tokenCon(carga: object): string {
 
 describe("rolesDeToken", () => {
   it("devuelve solo los roles de la plataforma", () => {
-    const token = tokenCon({ realm_access: { roles: ["comprador", "offline_access", "admin"] } })
+    const token = tokenCon({
+      realm_access: { roles: ["comprador", "offline_access", "admin"] },
+    })
     expect(rolesDeToken(token)).toEqual(["comprador", "admin"])
   })
 
@@ -47,7 +49,9 @@ describe("onSigninCallback", () => {
   }
 
   it("restaura la ruta guardada y avisa al enrutador", () => {
-    const { url, alNavegar } = volverDeKeycloak("/proveedores/p1?pestana=desempeno")
+    const { url, alNavegar } = volverDeKeycloak(
+      "/proveedores/p1?pestana=desempeno"
+    )
 
     expect(url).toBe("/proveedores/p1?pestana=desempeno")
     expect(alNavegar).toHaveBeenCalledOnce()
@@ -57,7 +61,9 @@ describe("onSigninCallback", () => {
     window.history.replaceState({}, "", "/?code=abc&state=xyz")
     const enrutador = createBrowserRouter([{ path: "*", element: null }])
 
-    configuracionOidc.onSigninCallback?.({ state: "/precios?servicio=nube" } as User)
+    configuracionOidc.onSigninCallback?.({
+      state: "/precios?servicio=nube",
+    } as User)
 
     const { pathname, search } = enrutador.state.location
     expect(pathname + search).toBe("/precios?servicio=nube")
