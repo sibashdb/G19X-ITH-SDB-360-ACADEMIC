@@ -125,3 +125,17 @@ export function formatoPeriodo(iso: string): string {
   const [anio, mes] = iso.split("-").map(Number)
   return new Date(anio, mes - 1, 1).toLocaleDateString("es-MX", { month: "short", year: "numeric" })
 }
+
+export type Servicio = {
+  id: string
+  codigo: string
+  nombre: string
+  categoria: Categoria
+  unidad: string
+  moneda: "MXN" | "USD"
+}
+
+/** Minúsculas y sin acentos, para buscar "consultoria" y encontrar "Consultoría". */
+export function normalizarTexto(texto: string): string {
+  return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
+}

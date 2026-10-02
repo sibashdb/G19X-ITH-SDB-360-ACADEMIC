@@ -4,6 +4,7 @@ import { Alertas } from "@/paginas/Alertas"
 import { Configuracion } from "@/paginas/Configuracion"
 import { Importacion } from "@/paginas/Importacion"
 import { NoEncontrado } from "@/paginas/NoEncontrado"
+import { Precios } from "@/paginas/Precios"
 import { ProveedorDetalle } from "@/paginas/ProveedorDetalle"
 import { Proveedores } from "@/paginas/Proveedores"
 import { Ranking } from "@/paginas/Ranking"
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: "proveedores", Component: Proveedores },
       { path: "proveedores/:id", Component: ProveedorDetalle },
       { path: "ranking", Component: Ranking },
+      { path: "precios", Component: Precios },
       { path: "alertas", Component: Alertas },
       { path: "importacion", Component: Importacion },
       { path: "configuracion", Component: Configuracion },
