@@ -28,7 +28,8 @@ export function TablaContratos({ contratos }: { contratos: Contrato[] }) {
       <TableBody>
         {contratos.flatMap((c) =>
           c.lineas.map((linea, i) => (
-            <TableRow key={`${c.id}-${linea.codigo_servicio}`}>
+            // El índice evita claves repetidas: la API permite el mismo servicio en varias líneas.
+            <TableRow key={`${c.id}-${i}`}>
               <TableCell className="font-mono">{i === 0 ? c.folio : ""}</TableCell>
               <TableCell>{i === 0 ? (c.tipo === "nuevo" ? "Nuevo" : "Renovación") : ""}</TableCell>
               <TableCell>

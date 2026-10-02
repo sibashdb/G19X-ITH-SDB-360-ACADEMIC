@@ -141,6 +141,19 @@ describe("ProveedorDetalle", () => {
     expect(screen.getByRole("table").parentElement).toHaveClass("outline-hidden")
   })
 
+  it("no repite claves de fila cuando un contrato incluye el mismo servicio dos veces", async () => {
+    const repetida = { ...CONTRATO.lineas[0], cantidad: "3" }
+    api({ [`${RUTA}/contratos`]: () => respuestaJson([{ ...CONTRATO, lineas: [CONTRATO.lineas[0], repetida] }]) })
+    const registro = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    renderizar("/proveedores/p1?pestana=contratos")
+
+    await screen.findByText("CT-0001")
+
+    expect(screen.getAllByText("Nube pública")).toHaveLength(2)
+    expect(registro).not.toHaveBeenCalled()
+    registro.mockRestore()
+  })
+
   it("avisa con una alerta cuando falla la consulta de contratos", async () => {
     api({ [`${RUTA}/contratos`]: () => new Response("Bad Gateway", { status: 502 }) })
     renderizar("/proveedores/p1?pestana=contratos")
