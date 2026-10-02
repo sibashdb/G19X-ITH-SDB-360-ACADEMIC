@@ -137,6 +137,8 @@ describe("ProveedorDetalle", () => {
     expect(ubicacionActual()).toBe("/proveedores/p1?pestana=contratos")
     // Con scroll horizontal y sin elementos enfocables, el teclado solo llega si el contenedor lo es.
     expect(screen.getByRole("table").parentElement).toHaveAttribute("tabindex", "0")
+    // outline-none es outline-style: none y el modo de alto contraste no muestra el foco.
+    expect(screen.getByRole("table").parentElement).toHaveClass("outline-hidden")
   })
 
   it("avisa con una alerta cuando falla la consulta de contratos", async () => {

@@ -4,11 +4,12 @@ import { cn } from "cn"
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     // Con scroll y sin elementos enfocables dentro, solo el teclado llega al desplazamiento
-    // si el propio contenedor es enfocable (WCAG 2.1.1).
+    // si el propio contenedor es enfocable (WCAG 2.1.1). outline-hidden (no outline-none) deja un
+    // contorno transparente que el modo de alto contraste sí muestra.
     <div
       data-slot="table-container"
       tabIndex={0}
-      className="relative w-full overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="relative w-full overflow-x-auto outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
     >
       <table
         data-slot="table"

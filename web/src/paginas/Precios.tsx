@@ -60,7 +60,7 @@ function ListaServicios({
                       type="button"
                       aria-pressed={s.codigo === seleccionado}
                       onClick={() => alElegir(s.codigo)}
-                      className="group w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted aria-pressed:bg-accent aria-pressed:text-accent-foreground"
+                      className="group w-full rounded-md px-2 py-1.5 text-left text-sm outline-hidden transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-pressed:focus-visible:ring-accent-foreground"
                     >
                       <span className="block">{s.nombre}</span>
                       <span className="font-mono text-xs text-muted-foreground group-aria-pressed:text-accent-foreground">

@@ -55,6 +55,19 @@ describe("Precios", () => {
     expect(screen.getByText("Elija un servicio")).toBeInTheDocument()
   })
 
+  // jsdom no pinta el foco: se revisan las clases. La lista tiene overflow-y-auto, que recorta el
+  // contorno por defecto, así que el anillo va hacia adentro; outline-hidden (y no outline-none)
+  // conserva un contorno transparente que el modo de alto contraste sí muestra.
+  it("los botones de la lista muestran un anillo de foco que el scroll no recorta", async () => {
+    conCatalogo()
+    renderizar()
+
+    const boton = await screen.findByRole("button", { name: /Consultoría SAP/ })
+
+    expect(boton).toHaveClass("outline-hidden", "focus-visible:ring-2", "focus-visible:ring-inset")
+    expect(boton).not.toHaveClass("outline-none")
+  })
+
   it("busca por nombre o código sin importar acentos ni mayúsculas", async () => {
     conCatalogo()
     renderizar()
