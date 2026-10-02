@@ -135,6 +135,8 @@ describe("ProveedorDetalle", () => {
     expect(await screen.findByText("CT-0001")).toBeInTheDocument()
     expect(screen.getByText("Nube pública")).toBeInTheDocument()
     expect(ubicacionActual()).toBe("/proveedores/p1?pestana=contratos")
+    // Con scroll horizontal y sin elementos enfocables, el teclado solo llega si el contenedor lo es.
+    expect(screen.getByRole("table").parentElement).toHaveAttribute("tabindex", "0")
   })
 
   it("avisa con una alerta cuando falla la consulta de contratos", async () => {
@@ -170,6 +172,7 @@ describe("ProveedorDetalle", () => {
     ).toBeInTheDocument()
     const tabla = screen.getByRole("table")
     expect(within(tabla).getAllByRole("row")).toHaveLength(3)
+    expect(tabla.parentElement).toHaveAttribute("tabindex", "0")
 
     await userEvent.click(screen.getByRole("combobox", { name: "Indicador" }))
     await userEvent.click(await screen.findByRole("option", { name: "Satisfacción" }))
