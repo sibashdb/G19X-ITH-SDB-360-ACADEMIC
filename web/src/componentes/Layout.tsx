@@ -27,7 +27,7 @@ export function Layout() {
     if (auth.error) console.error("Error de sesión:", auth.error)
   }, [auth.error])
 
-  // Cada página tiene su propio título (lo anuncian los lectores de pantalla al navegar).
+  // Cada página tiene su propio título en la pestaña y en el historial del navegador.
   useEffect(() => {
     const migas = migasDe(pathname)
     document.title = `${migas[migas.length - 1].titulo} · PluriOne`
