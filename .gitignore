@@ -16,6 +16,7 @@ infra/.env
 datos/
 # Documento base con datos de la empresa
 *.pdf
-# Editores
+# Editores y herramientas locales
 .vscode/
 .idea/
+.claude/

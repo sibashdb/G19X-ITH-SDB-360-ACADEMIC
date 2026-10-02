@@ -30,12 +30,32 @@ aprobador configuran OTP en su primer inicio de sesión. Verificación automáti
 ### Tema de inicio de sesión en un realm ya importado
 
 Keycloak importa el realm solo la primera vez. Si su volumen de PostgreSQL ya tenía el realm
-`plataforma`, aplique el tema de inicio de sesión una sola vez (no borra datos):
+`plataforma`, aplique el tema de inicio de sesión una sola vez (no borra datos). Primero, en
+cualquier terminal:
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d --wait keycloak
+```
+
+Después, el comando según su terminal. **Git Bash**: necesita `MSYS_NO_PATHCONV=1`; sin él
+convierte `/opt/…` y `/tmp/…` en rutas de Windows y el comando falla.
+
+```bash
+export MSYS_NO_PATHCONV=1
 docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
 ```
+
+**PowerShell**: pierde las comillas dobles internas al llamar a un programa externo y el comando
+anterior falla, así que se usa sin ellas (la contraseña `KEYCLOAK_ADMIN_PASSWORD` de
+`infra/.env` no debe tener espacios ni caracteres especiales del shell):
+
+```powershell
+docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin --password $KC_BOOTSTRAP_ADMIN_PASSWORD && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
+```
+
+**Sin línea de comandos**: abra <http://localhost:8080/auth/admin/>, entre como `admin` (contraseña
+`KEYCLOAK_ADMIN_PASSWORD` de `infra/.env`), elija el realm `plataforma` y vaya a
+*Realm settings → Themes → Login theme*, seleccione `plataforma` y guarde.
 
 ### Notas para Windows (Git Bash)
 
@@ -54,6 +74,14 @@ docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/
 | Pruebas del frontend | `cd web && npm test -- --run` |
 | Contrato OpenAPI de proveedores | <http://localhost:8080/api/proveedores/docs> |
 | Consola de RabbitMQ | <http://localhost:15672> |
+
+## Interfaz
+
+- Sistema de diseño: tokens claro/oscuro en `web/src/index.css` (los componentes solo usan tokens;
+  `npm run lint` rechaza colores literales y `src/tokens.node.test.ts` verifica el contraste WCAG).
+- Tema claro, oscuro o del sistema desde la barra superior; la preferencia se guarda en el navegador.
+- Fuentes Fira Sans y Fira Code servidas por la propia aplicación (sin CDN).
+- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md`.
 
 ## Estructura
 
