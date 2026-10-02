@@ -54,6 +54,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  vi.restoreAllMocks()
   localStorage.clear()
   document.documentElement.classList.remove("dark")
 })
