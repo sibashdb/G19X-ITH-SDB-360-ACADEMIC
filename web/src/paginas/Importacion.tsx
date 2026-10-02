@@ -140,7 +140,9 @@ function FlujoImportacion() {
 
   const indice = ENTIDADES.findIndex((e) => e.valor === entidad)
   const actual = ENTIDADES[indice]
-  const siguiente = ENTIDADES[indice + 1]
+  // El resultado describe lo que se importó (las variables de la mutación), no lo elegido ahora.
+  const importada = ENTIDADES.find((e) => e.valor === importacion.variables?.entidad) ?? actual
+  const siguiente = ENTIDADES[ENTIDADES.indexOf(importada) + 1]
 
   function elegir(nuevo: File | null) {
     setArchivo(nuevo)
@@ -255,7 +257,7 @@ function FlujoImportacion() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setPaso(1)}>
+              <Button variant="outline" disabled={importacion.isPending} onClick={() => setPaso(1)}>
                 <ArrowLeft aria-hidden />
                 Atrás
               </Button>
@@ -275,7 +277,7 @@ function FlujoImportacion() {
                 <CircleCheck aria-hidden className="text-success" />
                 <AlertTitle>Importación completada</AlertTitle>
                 <AlertDescription>
-                  Se importó {archivo?.name} ({actual.nombre}).
+                  Se importó {importacion.variables.archivo.name} ({importada.nombre}).
                 </AlertDescription>
               </Alert>
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -300,7 +302,7 @@ function FlujoImportacion() {
                     <ArrowRight aria-hidden />
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => empezar(entidad, 1)}>
+                <Button variant="outline" onClick={() => empezar(importada.valor, 1)}>
                   Importar otro archivo
                 </Button>
               </div>
@@ -309,7 +311,7 @@ function FlujoImportacion() {
           {importacion.isError && (
             <div className="space-y-4">
               <DetalleError error={importacion.error} />
-              <Button variant="outline" onClick={() => empezar(entidad, 2)}>
+              <Button variant="outline" onClick={() => empezar(importada.valor, 2)}>
                 Elegir otro archivo
               </Button>
             </div>

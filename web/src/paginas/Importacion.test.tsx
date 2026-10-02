@@ -76,6 +76,19 @@ describe("Importacion", () => {
     expect(zonaDeArchivo()).toBeInTheDocument()
   })
 
+  it("no permite volver atrás mientras la importación está en curso", async () => {
+    simularApi({ "/api/proveedores/importaciones/servicios": () => new Promise<Response>(() => {}) })
+    renderizarPagina(<Importacion />)
+    await irAlPasoDeArchivo()
+    await userEvent.upload(zonaDeArchivo(), new File(["x"], "servicios.csv", { type: "text/csv" }))
+
+    expect(screen.getByRole("button", { name: "Atrás" })).toBeEnabled()
+    await userEvent.click(screen.getByRole("button", { name: "Importar" }))
+
+    expect(await screen.findByRole("button", { name: "Importando…" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Atrás" })).toBeDisabled()
+  })
+
   it("invalida la lista y los detalles de proveedores tras importar", async () => {
     simularApi({
       "/api/proveedores/importaciones/servicios": () =>
