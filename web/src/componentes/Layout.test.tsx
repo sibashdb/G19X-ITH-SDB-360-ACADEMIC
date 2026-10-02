@@ -71,7 +71,7 @@ describe("Layout con la sesión en error", () => {
       removeUser,
       signinRedirect,
     }
-    renderizar()
+    renderizar("/proveedores/p1?pestana=contratos")
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Su sesión expiró o no se pudo iniciar sesión."
@@ -83,9 +83,28 @@ describe("Layout con la sesión en error", () => {
 
     expect(removeUser).toHaveBeenCalledOnce()
     expect(signinRedirect).toHaveBeenCalledOnce()
+    expect(signinRedirect).toHaveBeenCalledWith({ state: "/proveedores/p1?pestana=contratos" })
     expect(removeUser.mock.invocationCallOrder[0]).toBeLessThan(
       signinRedirect.mock.invocationCallOrder[0]
     )
+  })
+})
+
+describe("Layout sin sesión", () => {
+  it("redirige al inicio de sesión recordando la ruta y sus parámetros", () => {
+    estado.autenticacion = {
+      isAuthenticated: false,
+      isLoading: false,
+      activeNavigator: undefined,
+      error: undefined,
+      user: null,
+      removeUser,
+      signinRedirect,
+    }
+    renderizar("/proveedores/p1?pestana=desempeno")
+
+    expect(signinRedirect).toHaveBeenCalledOnce()
+    expect(signinRedirect).toHaveBeenCalledWith({ state: "/proveedores/p1?pestana=desempeno" })
   })
 })
 

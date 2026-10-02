@@ -10,13 +10,15 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 
 export function Layout() {
   const auth = useAuth()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  // Se guarda como `state` del inicio de sesión para volver a la misma página y sus parámetros.
+  const rutaActual = pathname + search
 
   useEffect(() => {
     const puedeRedirigir =
       !hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading
-    if (puedeRedirigir && !auth.error) void auth.signinRedirect()
-  }, [auth])
+    if (puedeRedirigir && !auth.error) void auth.signinRedirect({ state: rutaActual })
+  }, [auth, rutaActual])
 
   // El mensaje original de la librería suele venir en inglés: solo se registra, no se muestra.
   useEffect(() => {
@@ -33,7 +35,7 @@ export function Layout() {
     await auth
       .removeUser()
       .catch((error: unknown) => console.error("No se pudo limpiar la sesión:", error))
-    await auth.signinRedirect()
+    await auth.signinRedirect({ state: rutaActual })
   }
 
   if (auth.error) {

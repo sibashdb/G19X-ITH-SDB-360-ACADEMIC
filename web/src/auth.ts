@@ -10,6 +10,9 @@ export const NOMBRES_ROL: Record<Rol, string> = {
   aprobador: "Aprobación",
 }
 
+/** Empieza con una sola barra (ni "//" ni barra y barra invertida): nunca apunta a otro origen. */
+const RUTA_RELATIVA = /^\/(?![/\\])/
+
 export const configuracionOidc: AuthProviderProps = {
   authority:
     import.meta.env.VITE_OIDC_AUTHORITY ?? "http://localhost:8080/auth/realms/plataforma",
@@ -17,8 +20,14 @@ export const configuracionOidc: AuthProviderProps = {
   redirect_uri: `${window.location.origin}/`,
   post_logout_redirect_uri: `${window.location.origin}/`,
   automaticSilentRenew: true,
-  onSigninCallback: () => {
-    window.history.replaceState({}, document.title, window.location.pathname)
+  // Layout guarda la ruta pedida como `state` al iniciar sesión; aquí se restaura (si es relativa
+  // y segura) para que un enlace profundo llegue a su destino y no caiga siempre en el Tablero.
+  onSigninCallback: (usuario) => {
+    const estado = usuario?.state
+    const destino = typeof estado === "string" && RUTA_RELATIVA.test(estado) ? estado : null
+    window.history.replaceState({}, document.title, destino ?? window.location.pathname)
+    // createBrowserRouter solo se entera de un cambio de URL hecho a mano por el evento popstate.
+    if (destino) window.dispatchEvent(new PopStateEvent("popstate"))
   },
 }
 
