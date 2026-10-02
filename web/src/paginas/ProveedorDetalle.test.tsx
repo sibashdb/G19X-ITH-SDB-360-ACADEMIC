@@ -1,12 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { cleanup, render, screen } from "@testing-library/react"
-import { MemoryRouter, Route, Routes } from "react-router"
+import { cleanup, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ProveedorDetalle } from "@/paginas/ProveedorDetalle"
+import {
+  esperarSinViolaciones,
+  renderizarPagina,
+  respuestaJson,
+  simularApi,
+  ubicacionActual,
+} from "@/pruebas/utilidades"
+import { formatoPeriodo } from "@/tipos"
 
-vi.mock("react-oidc-context", () => ({
-  useAuth: () => ({ user: { access_token: "cabecera.e30=.firma" } }),
-}))
+vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
 
 const RUTA = "/api/proveedores/proveedores/p1"
 
@@ -44,36 +49,36 @@ const CONTRATO = {
   ],
 }
 
-function respuestaJson(cuerpo: unknown): Response {
-  return new Response(JSON.stringify(cuerpo), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
+const DESEMPENO = [
+  {
+    periodo: "2026-08-01",
+    sla_cumplimiento_pct: "99.10",
+    tiempo_resolucion_h: "4.50",
+    incidentes_criticos: 1,
+    entregas_a_tiempo_pct: "95.00",
+    satisfaccion: "4.40",
+  },
+  {
+    periodo: "2026-07-01",
+    sla_cumplimiento_pct: "98.70",
+    tiempo_resolucion_h: "5.20",
+    incidentes_criticos: 2,
+    entregas_a_tiempo_pct: "92.00",
+    satisfaccion: "4.10",
+  },
+]
+
+function api(cambios: Record<string, () => Response | Promise<Response>> = {}) {
+  return simularApi({
+    [RUTA]: () => respuestaJson(PROVEEDOR),
+    [`${RUTA}/contratos`]: () => respuestaJson([CONTRATO]),
+    [`${RUTA}/desempeno?meses=24`]: () => respuestaJson(DESEMPENO),
+    ...cambios,
   })
 }
 
-/** Responde cada URL con lo indicado; una respuesta nueva por llamada (el cuerpo se lee una vez). */
-function simularApi(rutas: Record<string, () => Response | Promise<Response>>) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((url: string) => {
-      const respuesta = rutas[url]
-      return Promise.resolve(respuesta ? respuesta() : new Response("", { status: 404 }))
-    }),
-  )
-}
-
-function renderizar(ruta = "/proveedores/p1") {
-  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={cliente}>
-      <MemoryRouter initialEntries={[ruta]}>
-        <Routes>
-          <Route path="/proveedores/:id" element={<ProveedorDetalle />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  )
-}
+const renderizar = (ruta = "/proveedores/p1") =>
+  renderizarPagina(<ProveedorDetalle />, { ruta, patron: "/proveedores/:id" })
 
 afterEach(() => {
   cleanup()
@@ -81,72 +86,141 @@ afterEach(() => {
 })
 
 describe("ProveedorDetalle", () => {
-  it("avisa con una alerta cuando falla la consulta de contratos", async () => {
-    simularApi({
-      [RUTA]: () => respuestaJson(PROVEEDOR),
-      [`${RUTA}/contratos`]: () => new Response("Bad Gateway", { status: 502 }),
-      [`${RUTA}/desempeno?meses=12`]: () => respuestaJson([]),
-    })
+  it("muestra la ficha del proveedor", async () => {
+    api()
     renderizar()
 
+    expect(await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })).toBeInTheDocument()
+    expect(screen.getByText("AAA010101AAA")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "ana@ejemplo.test" })).toHaveAttribute(
+      "href",
+      "mailto:ana@ejemplo.test"
+    )
+    expect(screen.getByText("Activo")).toBeInTheDocument()
+  })
+
+  it("el resumen muestra el desempeño del último mes", async () => {
+    api()
+    renderizar()
+
+    expect(
+      await screen.findByRole("heading", { name: `Desempeño de ${formatoPeriodo("2026-08-01")}` })
+    ).toBeInTheDocument()
+    expect(screen.getByText("99.10 %")).toBeInTheDocument()
+    expect(screen.getByText("4.40 de 5")).toBeInTheDocument()
+  })
+
+  it("muestra Cargando mientras llega el desempeño", async () => {
+    let liberar = () => {}
+    const espera = new Promise<void>((resolver) => {
+      liberar = resolver
+    })
+    api({ [`${RUTA}/desempeno?meses=24`]: () => espera.then(() => respuestaJson(DESEMPENO)) })
+    renderizar()
+
+    await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    expect(screen.getByRole("status")).toHaveTextContent("Cargando…")
+    liberar()
+    expect(await screen.findByText("99.10 %")).toBeInTheDocument()
+  })
+
+  it("la pestaña Contratos se refleja en la URL y lista las líneas", async () => {
+    api()
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+
+    await userEvent.click(screen.getByRole("tab", { name: "Contratos" }))
+
+    expect(await screen.findByText("CT-0001")).toBeInTheDocument()
+    expect(screen.getByText("Nube pública")).toBeInTheDocument()
+    expect(ubicacionActual()).toBe("/proveedores/p1?pestana=contratos")
+  })
+
+  it("avisa con una alerta cuando falla la consulta de contratos", async () => {
+    api({ [`${RUTA}/contratos`]: () => new Response("Bad Gateway", { status: 502 }) })
+    renderizar("/proveedores/p1?pestana=contratos")
+
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "El servicio no está disponible; intente más tarde.",
+      "El servicio no está disponible; intente más tarde."
     )
     expect(screen.queryByText("Sin contratos registrados")).not.toBeInTheDocument()
   })
 
+  it("muestra que no hay contratos cuando la lista llega vacía", async () => {
+    api({ [`${RUTA}/contratos`]: () => respuestaJson([]) })
+    renderizar("/proveedores/p1?pestana=contratos")
+
+    expect(await screen.findByText("Sin contratos registrados")).toBeInTheDocument()
+  })
+
   it("muestra que no hay datos cuando el desempeño llega vacío", async () => {
-    simularApi({
-      [RUTA]: () => respuestaJson(PROVEEDOR),
-      [`${RUTA}/contratos`]: () => respuestaJson([CONTRATO]),
-      [`${RUTA}/desempeno?meses=12`]: () => respuestaJson([]),
-    })
+    api({ [`${RUTA}/desempeno?meses=24`]: () => respuestaJson([]) })
     renderizar()
 
     expect(await screen.findByText("Sin datos de desempeño")).toBeInTheDocument()
-    expect(await screen.findByText("CT-0001")).toBeInTheDocument()
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
-  it("muestra que no hay contratos cuando la lista llega vacía", async () => {
-    simularApi({
-      [RUTA]: () => respuestaJson(PROVEEDOR),
-      [`${RUTA}/contratos`]: () => respuestaJson([]),
-      [`${RUTA}/desempeno?meses=12`]: () => respuestaJson([]),
-    })
-    renderizar()
+  it("la pestaña Desempeño muestra la gráfica y la tabla del indicador elegido", async () => {
+    api()
+    renderizar("/proveedores/p1?pestana=desempeno")
 
-    expect(await screen.findByText("Sin contratos registrados")).toBeInTheDocument()
+    expect(
+      await screen.findByRole("figure", { name: "Cumplimiento de SLA de los últimos 2 meses" })
+    ).toBeInTheDocument()
+    const tabla = screen.getByRole("table")
+    expect(within(tabla).getAllByRole("row")).toHaveLength(3)
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Indicador" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Satisfacción" }))
+
+    expect(screen.getByRole("figure", { name: "Satisfacción de los últimos 2 meses" })).toBeInTheDocument()
+  })
+
+  it("una pestaña desconocida en la URL muestra el resumen", async () => {
+    api()
+    renderizar("/proveedores/p1?pestana=inventada")
+
+    expect(await screen.findByRole("tab", { name: "Resumen" })).toHaveAttribute("aria-selected", "true")
   })
 
   it("codifica el id al construir la ruta de la API", async () => {
     simularApi({
       "/api/proveedores/proveedores/a%20b%3Fx": () => respuestaJson(PROVEEDOR),
       "/api/proveedores/proveedores/a%20b%3Fx/contratos": () => respuestaJson([]),
-      "/api/proveedores/proveedores/a%20b%3Fx/desempeno?meses=12": () => respuestaJson([]),
+      "/api/proveedores/proveedores/a%20b%3Fx/desempeno?meses=24": () => respuestaJson([]),
     })
     renderizar("/proveedores/a%20b%3Fx")
 
-    expect(await screen.findByText("Proveedor Uno")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })).toBeInTheDocument()
   })
 
-  it("muestra Cargando mientras llegan los contratos y el desempeño", async () => {
-    let liberar = () => {}
-    const espera = new Promise<void>((resolver) => {
-      liberar = resolver
-    })
-    simularApi({
-      [RUTA]: () => respuestaJson(PROVEEDOR),
-      [`${RUTA}/contratos`]: () => espera.then(() => respuestaJson([CONTRATO])),
-      [`${RUTA}/desempeno?meses=12`]: () => espera.then(() => respuestaJson([])),
-    })
+  it("un proveedor inexistente ofrece volver a la lista", async () => {
+    simularApi({})
     renderizar()
 
-    await screen.findByText("Proveedor Uno")
-    expect(screen.getAllByText("Cargando…")).toHaveLength(2)
-
-    liberar()
-    expect(await screen.findByText("Sin datos de desempeño")).toBeInTheDocument()
-    expect(screen.queryByText("Cargando…")).not.toBeInTheDocument()
+    expect(await screen.findByText("El proveedor no existe")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Volver a proveedores" })).toHaveAttribute("href", "/proveedores")
   })
+
+  it("un error al cargar la ficha permite reintentar", async () => {
+    let fallar = true
+    api({ [RUTA]: () => (fallar ? new Response("", { status: 503 }) : respuestaJson(PROVEEDOR)) })
+    renderizar()
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Servicio no disponible")
+    fallar = false
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }))
+    expect(await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })).toBeInTheDocument()
+  })
+
+  it.each(["resumen", "contratos", "desempeno"])(
+    "la pestaña %s no tiene violaciones de accesibilidad",
+    async (pestana) => {
+      api()
+      const { container } = renderizar(`/proveedores/p1?pestana=${pestana}`)
+      await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+      await screen.findByRole("tabpanel")
+      await esperarSinViolaciones(container)
+    }
+  )
 })
