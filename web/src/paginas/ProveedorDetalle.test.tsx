@@ -1,6 +1,7 @@
 import { cleanup, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { formatearValorTooltip } from "@/componentes/DesempenoProveedor"
 import { ProveedorDetalle } from "@/paginas/ProveedorDetalle"
 import {
   esperarSinViolaciones,
@@ -174,6 +175,15 @@ describe("ProveedorDetalle", () => {
     await userEvent.click(await screen.findByRole("option", { name: "Satisfacción" }))
 
     expect(screen.getByRole("figure", { name: "Satisfacción de los últimos 2 meses" })).toBeInTheDocument()
+  })
+
+  // Recharts no dibuja la gráfica en jsdom (el contenedor mide 0), así que la leyenda y el tooltip
+  // no se pueden consultar en el DOM; el formato del valor del tooltip se prueba directamente.
+  it("el tooltip de la gráfica muestra el valor con su unidad, igual que la tabla", () => {
+    expect(formatearValorTooltip(99.1, "99.10", "%")).toBe("99.10 %")
+    expect(formatearValorTooltip(4.4, "4.40", "de 5")).toBe("4.40 de 5")
+    expect(formatearValorTooltip(2, "2", "")).toBe("2")
+    expect(formatearValorTooltip(95, undefined, "%")).toBe("95 %")
   })
 
   it("una pestaña desconocida en la URL muestra el resumen", async () => {
