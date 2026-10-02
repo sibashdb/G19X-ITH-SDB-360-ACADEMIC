@@ -98,6 +98,24 @@ describe("Proveedores", () => {
     expect(ubicacionActual()).toBe("/proveedores?q=andina")
   })
 
+  it("el buscador conserva el foco tras pulsar Enter y se vacía con Limpiar filtros", async () => {
+    apiDeProveedores()
+    renderizar()
+    await screen.findByRole("table")
+    const campo = screen.getByLabelText("Buscar por nombre o RFC")
+
+    await userEvent.type(campo, "andina{Enter}")
+
+    await waitFor(() => expect(ubicacionActual()).toBe("/proveedores?q=andina"))
+    expect(campo).toHaveFocus()
+    expect(campo).toHaveValue("andina")
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Limpiar filtros" })[0])
+
+    await waitFor(() => expect(ubicacionActual()).toBe("/proveedores"))
+    expect(campo).toHaveValue("")
+  })
+
   it("pagina con Siguiente", async () => {
     const simulado = apiDeProveedores({ ...PAGINA, total: 60 })
     renderizar()

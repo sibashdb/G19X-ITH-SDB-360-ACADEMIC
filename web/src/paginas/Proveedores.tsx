@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { ArrowLeft, ArrowRight, Search, X } from "lucide-react"
-import type { FormEvent, ReactNode } from "react"
+import { useEffect, useRef, type FormEvent, type ReactNode } from "react"
 import { Link } from "react-router"
 import { pedir } from "@/api"
 import { useRoles, useToken } from "@/auth"
@@ -43,6 +43,14 @@ export function Proveedores() {
   const estado = unoDe(parametros.get("estado"), ESTADOS)
   const pagina = enteroPositivo(parametros.get("pagina"), 1, PAGINA_MAXIMA)
   const hayFiltros = Boolean(q || categoria || estado)
+
+  // El campo no es controlado ni se remonta (así conserva el foco tras Enter): cuando `q` cambia
+  // por Atrás/Adelante o por "Limpiar filtros", se copia al campo si el texto escrito difiere.
+  const campoBusqueda = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const campo = campoBusqueda.current
+    if (campo && campo.value.trim() !== q) campo.value = q
+  }, [q])
 
   const consulta = useQuery({
     queryKey: ["proveedores", { q, categoria, estado, pagina }],
@@ -215,7 +223,7 @@ export function Proveedores() {
               <Input
                 id="busqueda"
                 name="q"
-                key={q}
+                ref={campoBusqueda}
                 defaultValue={q}
                 placeholder="Nombre o RFC"
                 maxLength={100}
