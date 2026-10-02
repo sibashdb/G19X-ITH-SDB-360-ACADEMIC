@@ -1,30 +1,26 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Importacion } from "@/paginas/Importacion"
+import { sesionDePrueba } from "@/pruebas/sesion"
+import { esperarSinViolaciones, renderizarPagina, respuestaJson, simularApi } from "@/pruebas/utilidades"
 
-vi.mock("react-oidc-context", () => {
-  const carga = btoa(JSON.stringify({ realm_access: { roles: ["admin"] } }))
-  return { useAuth: () => ({ user: { access_token: `cabecera.${carga}.firma` } }) }
+vi.mock("react-oidc-context", async () => (await import("@/pruebas/sesion")).oidcSimulado())
+
+const zonaDeArchivo = () => screen.getByLabelText(/Arrasque el archivo CSV/)
+
+function soltar(...archivos: File[]) {
+  fireEvent.drop(zonaDeArchivo().closest("label")!, { dataTransfer: { files: archivos } })
+}
+
+async function irAlPasoDeArchivo(tipo = /Catálogo de servicios/) {
+  await userEvent.click(screen.getByRole("radio", { name: tipo }))
+  await userEvent.click(screen.getByRole("button", { name: "Continuar" }))
+}
+
+beforeEach(() => {
+  sesionDePrueba.roles = ["admin"]
 })
-
-function respuestaJson(cuerpo: object, estado: number): Response {
-  return new Response(JSON.stringify(cuerpo), {
-    status: estado,
-    headers: { "Content-Type": "application/json" },
-  })
-}
-
-function renderizar(
-  cliente = new QueryClient({ defaultOptions: { mutations: { retry: false } } }),
-) {
-  return render(
-    <QueryClientProvider client={cliente}>
-      <Importacion />
-    </QueryClientProvider>,
-  )
-}
 
 afterEach(() => {
   cleanup()
@@ -32,71 +28,128 @@ afterEach(() => {
 })
 
 describe("Importacion", () => {
-  it("muestra los errores por fila que devuelve la API", async () => {
-    const simulado = vi.fn().mockResolvedValue(
-      respuestaJson(
-        {
-          title: "Archivo con errores",
-          detail: "Se encontraron 1 error(es); no se importó ninguna fila.",
-          errores: [{ fila: 2, campo: "contacto_email", mensaje: "Formato inválido" }],
-        },
-        422,
-      ),
-    )
-    vi.stubGlobal("fetch", simulado)
-    renderizar()
+  it("guía la importación en tres pasos y muestra el resumen", async () => {
+    simularApi({
+      "/api/proveedores/importaciones/servicios": () =>
+        respuestaJson({ entidad: "servicios", filas: 40, registros: 40, omitidos: 0, eventos: 0 }),
+    })
+    renderizarPagina(<Importacion />)
 
-    await userEvent.selectOptions(screen.getByLabelText("Tipo de archivo"), "proveedores")
-    await userEvent.upload(
-      screen.getByLabelText("Archivo CSV"),
-      new File(["rfc\n"], "proveedores.csv", { type: "text/csv" }),
-    )
+    expect(screen.getByRole("radio", { name: /Catálogo de servicios/ })).toBeChecked()
+    expect(screen.getByText("Tipo de archivo").closest("li")).toHaveAttribute("aria-current", "step")
+    await irAlPasoDeArchivo()
+    await userEvent.upload(zonaDeArchivo(), new File(["x"], "servicios.csv", { type: "text/csv" }))
+    expect(screen.getByText(/servicios\.csv/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Importar" }))
+
+    expect(await screen.findByText("Importación completada")).toBeInTheDocument()
+    expect(screen.getByText("Resultado").closest("li")).toHaveAttribute("aria-current", "step")
+    expect(screen.getByText("Registros").nextElementSibling).toHaveTextContent("40")
+    expect(screen.getByRole("button", { name: /Importar Proveedores/ })).toBeInTheDocument()
+  })
+
+  it("muestra los errores por fila que devuelve la API y permite elegir otro archivo", async () => {
+    const simulado = simularApi({
+      "/api/proveedores/importaciones/proveedores": () =>
+        respuestaJson(
+          {
+            title: "Archivo con errores",
+            detail: "Se encontraron 1 error(es); no se importó ninguna fila.",
+            errores: [{ fila: 2, campo: "contacto_email", mensaje: "Formato inválido" }],
+          },
+          422
+        ),
+    })
+    renderizarPagina(<Importacion />)
+
+    await irAlPasoDeArchivo(/Proveedores/)
+    await userEvent.upload(zonaDeArchivo(), new File(["rfc\n"], "proveedores.csv", { type: "text/csv" }))
     await userEvent.click(screen.getByRole("button", { name: "Importar" }))
 
     expect(await screen.findByText("Formato inválido")).toBeInTheDocument()
     expect(screen.getByText("contacto_email")).toBeInTheDocument()
-    const [url, init] = simulado.mock.calls[0]
+    const [url, init] = simulado.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe("/api/proveedores/importaciones/proveedores")
     expect(init.method).toBe("POST")
-  })
 
-  it("muestra el resumen cuando la importación es correcta", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        respuestaJson({ entidad: "servicios", filas: 40, registros: 40, omitidos: 0, eventos: 0 }, 200),
-      ),
-    )
-    renderizar()
-
-    await userEvent.upload(
-      screen.getByLabelText("Archivo CSV"),
-      new File(["x"], "servicios.csv", { type: "text/csv" }),
-    )
-    await userEvent.click(screen.getByRole("button", { name: "Importar" }))
-
-    expect(await screen.findByText(/40 registros/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro archivo" }))
+    expect(zonaDeArchivo()).toBeInTheDocument()
   })
 
   it("invalida la lista y los detalles de proveedores tras importar", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        respuestaJson({ entidad: "contratos", filas: 1, registros: 1, omitidos: 0, eventos: 1 }, 200),
-      ),
-    )
-    const cliente = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    simularApi({
+      "/api/proveedores/importaciones/servicios": () =>
+        respuestaJson({ entidad: "servicios", filas: 1, registros: 1, omitidos: 0, eventos: 1 }),
+    })
+    const { cliente } = renderizarPagina(<Importacion />)
     const invalidar = vi.spyOn(cliente, "invalidateQueries")
-    renderizar(cliente)
 
-    await userEvent.upload(
-      screen.getByLabelText("Archivo CSV"),
-      new File(["x"], "contratos.csv", { type: "text/csv" }),
-    )
+    await irAlPasoDeArchivo()
+    await userEvent.upload(zonaDeArchivo(), new File(["x"], "servicios.csv", { type: "text/csv" }))
     await userEvent.click(screen.getByRole("button", { name: "Importar" }))
-    await screen.findByText(/1 registros/)
+    await screen.findByText("Importación completada")
 
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["proveedores"] })
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["proveedor"] })
+  })
+
+  it("rechaza en el navegador un archivo que no es CSV", async () => {
+    const simulado = simularApi({})
+    renderizarPagina(<Importacion />)
+    await irAlPasoDeArchivo()
+
+    soltar(new File(["x"], "datos.xlsx"))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("El archivo debe tener extensión .csv.")
+    expect(screen.getByRole("button", { name: "Importar" })).toBeDisabled()
+    expect(simulado).not.toHaveBeenCalled()
+  })
+
+  it("acepta la extensión .CSV en mayúsculas", async () => {
+    renderizarPagina(<Importacion />)
+    await irAlPasoDeArchivo()
+
+    soltar(new File(["x"], "DATOS.CSV"))
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Importar" })).toBeEnabled()
+  })
+
+  it("rechaza archivos de más de 10 MB y vacíos", async () => {
+    renderizarPagina(<Importacion />)
+    await irAlPasoDeArchivo()
+
+    const grande = new File(["x"], "grande.csv")
+    Object.defineProperty(grande, "size", { value: 10 * 1024 * 1024 + 1 })
+    soltar(grande)
+    expect(await screen.findByRole("alert")).toHaveTextContent("El archivo excede el límite de 10 MB.")
+
+    soltar(new File([], "vacio.csv"))
+    expect(screen.getByRole("alert")).toHaveTextContent("El archivo está vacío.")
+  })
+
+  it("pide soltar un solo archivo", async () => {
+    renderizarPagina(<Importacion />)
+    await irAlPasoDeArchivo()
+
+    soltar(new File(["x"], "a.csv"), new File(["y"], "b.csv"))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Suelte un solo archivo a la vez.")
+    expect(screen.getByRole("button", { name: "Importar" })).toBeDisabled()
+  })
+
+  it("solo los administradores pueden importar", () => {
+    sesionDePrueba.roles = ["comprador"]
+    renderizarPagina(<Importacion />)
+
+    expect(screen.getByText("Acceso restringido")).toBeInTheDocument()
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument()
+  })
+
+  it("no tiene violaciones de accesibilidad en los pasos", async () => {
+    const { container } = renderizarPagina(<Importacion />)
+    await esperarSinViolaciones(container)
+    await irAlPasoDeArchivo()
+    await esperarSinViolaciones(container)
   })
 })
