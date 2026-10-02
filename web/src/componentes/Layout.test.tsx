@@ -133,6 +133,13 @@ describe("Layout con sesión iniciada", () => {
     expect(screen.getByRole("button", { name: "Mostrar u ocultar el menú" })).toBeInTheDocument()
   })
 
+  // jsdom no mide el diseño: esta clase evita el scroll horizontal de página a 768 y 1024 px,
+  // porque el main es un elemento flex y sin ella no se encoge por debajo de su contenido.
+  it("deja que el main se encoja para que las tablas desplacen dentro de su contenedor", () => {
+    renderizar()
+    expect(screen.getByRole("main")).toHaveClass("min-w-0")
+  })
+
   it("cambia el tema desde la barra superior", async () => {
     renderizar()
     await userEvent.click(screen.getByRole("button", { name: "Tema: Sistema" }))

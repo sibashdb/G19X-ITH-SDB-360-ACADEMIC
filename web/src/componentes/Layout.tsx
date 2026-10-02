@@ -58,7 +58,7 @@ export function Layout() {
           Saltar al contenido
         </a>
         <BarraLateral />
-        <SidebarInset>
+        <SidebarInset className="min-w-0">
           <BarraSuperior />
           <div
             id="contenido"
