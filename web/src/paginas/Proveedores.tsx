@@ -88,25 +88,28 @@ export function Proveedores() {
     }
     const { total, elementos } = consulta.data
     if (elementos.length === 0) {
+      // Primero la página fuera de rango: con filtros también puede haber coincidencias en otras páginas.
+      if (pagina > 1 && total > 0) {
+        return (
+          <EstadoVacio
+            titulo="Esta página no tiene resultados"
+            descripcion={`Hay ${total.toLocaleString("es-MX")} proveedores ${
+              hayFiltros ? "que coinciden con la búsqueda o los filtros" : "en total"
+            }.`}
+            accion={
+              <Button variant="outline" onClick={() => actualizar({ pagina: null })}>
+                Ir a la primera página
+              </Button>
+            }
+          />
+        )
+      }
       if (hayFiltros) {
         return (
           <EstadoVacio
             titulo="Sin resultados"
             descripcion="Ningún proveedor coincide con la búsqueda o los filtros."
             accion={botonLimpiar}
-          />
-        )
-      }
-      if (pagina > 1) {
-        return (
-          <EstadoVacio
-            titulo="Esta página no tiene resultados"
-            descripcion={`Hay ${total.toLocaleString("es-MX")} proveedores en total.`}
-            accion={
-              <Button variant="outline" onClick={() => actualizar({ pagina: null })}>
-                Ir a la primera página
-              </Button>
-            }
           />
         )
       }

@@ -175,6 +175,24 @@ describe("Proveedores", () => {
     expect(ubicacionActual()).toBe("/proveedores")
   })
 
+  it.each([
+    ["con filtros", "/proveedores?categoria=nube&pagina=5", "Hay 30 proveedores que coinciden", "/proveedores?categoria=nube"],
+    ["sin filtros", "/proveedores?pagina=5", "Hay 30 proveedores en total", "/proveedores"],
+  ])(
+    "una página fuera de rango %s ofrece volver a la primera, no dice que no hay resultados",
+    async (_caso, ruta, descripcion, destino) => {
+      apiDeProveedores({ total: 30, elementos: [] })
+      renderizar(ruta)
+
+      expect(await screen.findByText("Esta página no tiene resultados")).toBeInTheDocument()
+      expect(screen.getByText(new RegExp(descripcion))).toBeInTheDocument()
+      expect(screen.queryByText("Sin resultados")).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole("button", { name: "Ir a la primera página" }))
+      expect(ubicacionActual()).toBe(destino)
+    }
+  )
+
   it("muestra el error en español y permite reintentar", async () => {
     let fallar = true
     simularApi(() => (fallar ? new Response("Bad Gateway", { status: 502 }) : respuestaJson(PAGINA)))
