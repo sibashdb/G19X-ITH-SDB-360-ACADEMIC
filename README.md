@@ -27,6 +27,16 @@ Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1
 aprobador configuran OTP en su primer inicio de sesión. Verificación automática:
 `uv run python infra/smoke_test.py`.
 
+### Tema de inicio de sesión en un realm ya importado
+
+Keycloak importa el realm solo la primera vez. Si su volumen de PostgreSQL ya tenía el realm
+`plataforma`, aplique el tema de inicio de sesión una sola vez (no borra datos):
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --wait keycloak
+docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
+```
+
 ### Notas para Windows (Git Bash)
 
 - Antes del último comando (`docker compose … exec … /datos`), ejecute `export MSYS_NO_PATHCONV=1`:

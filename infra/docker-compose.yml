@@ -52,6 +52,7 @@ services:
       KC_PROXY_HEADERS: xforwarded
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
+      - ./keycloak/themes/plataforma:/opt/keycloak/themes/plataforma:ro
     depends_on:
       postgres:
         condition: service_healthy

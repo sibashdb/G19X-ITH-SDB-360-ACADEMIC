@@ -5,6 +5,7 @@
   "internationalizationEnabled": true,
   "supportedLocales": ["es"],
   "defaultLocale": "es",
+  "loginTheme": "plataforma",
   "bruteForceProtected": true,
   "passwordPolicy": "length(12) and notUsername",
   "accessTokenLifespan": 300,

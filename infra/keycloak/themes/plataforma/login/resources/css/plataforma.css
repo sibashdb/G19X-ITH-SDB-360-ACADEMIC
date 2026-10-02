@@ -1,0 +1,89 @@
+/* Tema "plataforma": misma identidad que la SPA (dirección A, corporativa clara). Solo CSS. */
+
+@font-face {
+  font-family: "Fira Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/fira-sans-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Fira Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/fira-sans-latin-600-normal.woff2") format("woff2");
+}
+
+/* Mismos valores que los tokens de web/src/index.css. */
+:root {
+  --plataforma-fondo: #0F172A;
+  --plataforma-acento: #0369A1;
+  --plataforma-acento-hover: #075985;
+  --plataforma-sobre-acento: #FFFFFF;
+}
+
+.pf-v5-theme-dark {
+  --plataforma-fondo: #0B1220;
+  --plataforma-acento: #38BDF8;
+  --plataforma-acento-hover: #7DD3FC;
+  --plataforma-sobre-acento: #0B1220;
+}
+
+:root,
+.pf-v5-theme-dark {
+  --pf-v5-global--FontFamily--text: "Fira Sans", system-ui, sans-serif;
+  --pf-v5-global--FontFamily--heading: "Fira Sans", system-ui, sans-serif;
+  --pf-v5-global--primary-color--100: var(--plataforma-acento);
+  --pf-v5-global--primary-color--200: var(--plataforma-acento-hover);
+  --pf-v5-global--link--Color: var(--plataforma-acento);
+  --pf-v5-global--link--Color--hover: var(--plataforma-acento-hover);
+  --keycloak-card-top-color: var(--plataforma-acento);
+}
+
+/* Fondo marino en ambos temas, como el menú lateral de la SPA. */
+.login-pf body {
+  background: var(--plataforma-fondo);
+}
+
+/* Nombre del producto sobre el nombre del realm, sin mayúsculas forzadas. */
+#kc-header-wrapper {
+  font-family: "Fira Sans", system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #E2E8F0 !important;
+}
+
+#kc-header-wrapper::before {
+  content: "PluriOne";
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #94A3B8;
+}
+
+.pf-v5-c-login__main {
+  border-radius: 12px;
+}
+
+/* Botón principal: el texto sobre el acento cumple 4.5:1 en ambos temas. */
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--plataforma-acento);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--plataforma-acento-hover);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--plataforma-acento-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--plataforma-acento-hover);
+  --pf-v5-c-button--m-primary--Color: var(--plataforma-sobre-acento);
+  --pf-v5-c-button--m-primary--hover--Color: var(--plataforma-sobre-acento);
+  --pf-v5-c-button--m-primary--focus--Color: var(--plataforma-sobre-acento);
+  --pf-v5-c-button--m-primary--active--Color: var(--plataforma-sobre-acento);
+}
+
+/* Foco siempre visible. */
+:focus-visible {
+  outline: 2px solid var(--plataforma-acento);
+  outline-offset: 2px;
+}

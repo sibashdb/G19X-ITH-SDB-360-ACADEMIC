@@ -29,6 +29,21 @@ def main() -> int:
             "frame-ancestors 'none'" in spa.headers.get("content-security-policy", ""),
             "falta la cabecera CSP",
         )
+        acceso = cliente.get(
+            "/auth/realms/plataforma/protocol/openid-connect/auth",
+            params={
+                "client_id": "web",
+                "response_type": "code",
+                "scope": "openid",
+                "redirect_uri": f"{BASE}/",
+                "code_challenge": "A" * 43,
+                "code_challenge_method": "S256",
+            },
+        )
+        verificar(
+            acceso.status_code == 200 and "login/plataforma/css/plataforma.css" in acceso.text,
+            "Keycloak no aplica el tema de inicio de sesión 'plataforma'",
+        )
         sin_token = cliente.get("/api/proveedores/proveedores")
         verificar(sin_token.status_code == 401, f"sin token se esperaba 401: {sin_token.text}")
 
