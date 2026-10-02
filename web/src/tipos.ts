@@ -9,6 +9,21 @@ export const NOMBRES_CATEGORIA: Record<Categoria, string> = {
 
 export const CATEGORIAS = Object.keys(NOMBRES_CATEGORIA) as Categoria[]
 
+export type TipoAlerta = "vencimiento" | "sobreprecio" | "riesgo"
+export type Severidad = "alta" | "media" | "informativa"
+
+export const NOMBRES_TIPO_ALERTA: Record<TipoAlerta, string> = {
+  vencimiento: "Contrato por vencer",
+  sobreprecio: "Sobreprecio",
+  riesgo: "Proveedor en riesgo",
+}
+
+export const NOMBRES_SEVERIDAD: Record<Severidad, string> = {
+  alta: "Alta",
+  media: "Media",
+  informativa: "Informativa",
+}
+
 export const NOMBRES_TAMANO: Record<string, string> = {
   micro: "Micro",
   pequena: "Pequeña",
