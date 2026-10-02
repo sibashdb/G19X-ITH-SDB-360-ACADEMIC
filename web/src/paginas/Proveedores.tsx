@@ -1,33 +1,60 @@
-import { useState, type FormEvent } from "react"
-import { Link } from "react-router"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { ArrowLeft, ArrowRight, Search, X } from "lucide-react"
+import type { FormEvent, ReactNode } from "react"
+import { Link } from "react-router"
 import { pedir } from "@/api"
-import { useToken } from "@/auth"
+import { useRoles, useToken } from "@/auth"
+import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
+import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
+import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { NOMBRES_CATEGORIA, NOMBRES_TAMANO, type Categoria, type PaginaProveedores } from "@/tipos"
+import { enteroPositivo, unoDe, useParametros } from "@/parametros"
+import { CATEGORIAS, NOMBRES_CATEGORIA, NOMBRES_TAMANO, type PaginaProveedores } from "@/tipos"
 
 const POR_PAGINA = 25
+const PAGINA_MAXIMA = 40_000 // la API acepta desplazamientos de hasta 1,000,000
+const ESTADOS = ["activos", "inactivos"] as const
+
+function Filtro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={activo ? "default" : "outline"}
+      aria-pressed={activo}
+      className="rounded-full"
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  )
+}
 
 export function Proveedores() {
   const token = useToken()
-  const [texto, setTexto] = useState("")
-  const [q, setQ] = useState("")
-  const [categoria, setCategoria] = useState<Categoria | "">("")
-  const [pagina, setPagina] = useState(0)
+  const roles = useRoles()
+  const [parametros, actualizar] = useParametros()
+  const q = (parametros.get("q") ?? "").trim().slice(0, 100)
+  const categoria = unoDe(parametros.get("categoria"), CATEGORIAS)
+  const estado = unoDe(parametros.get("estado"), ESTADOS)
+  const pagina = enteroPositivo(parametros.get("pagina"), 1, PAGINA_MAXIMA)
+  const hayFiltros = Boolean(q || categoria || estado)
 
   const consulta = useQuery({
-    queryKey: ["proveedores", { q, categoria, pagina }],
+    queryKey: ["proveedores", { q, categoria, estado, pagina }],
     queryFn: () => {
-      const parametros = new URLSearchParams({
+      const busqueda = new URLSearchParams({
         limite: String(POR_PAGINA),
-        desplazamiento: String(pagina * POR_PAGINA),
+        desplazamiento: String((pagina - 1) * POR_PAGINA),
       })
-      if (q) parametros.set("q", q)
-      if (categoria) parametros.set("categoria", categoria)
-      return pedir<PaginaProveedores>(`/proveedores/proveedores?${parametros}`, token)
+      if (q) busqueda.set("q", q)
+      if (categoria) busqueda.set("categoria", categoria)
+      if (estado) busqueda.set("activo", String(estado === "activos"))
+      return pedir<PaginaProveedores>(`/proveedores/proveedores?${busqueda}`, token)
     },
     enabled: Boolean(token),
     placeholderData: keepPreviousData,
@@ -35,119 +62,205 @@ export function Proveedores() {
 
   function buscar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    setPagina(0)
-    setQ(texto.trim())
+    const texto = String(new FormData(evento.currentTarget).get("q") ?? "").trim()
+    actualizar({ q: texto || null, pagina: null })
   }
+  const limpiar = () => actualizar({ q: null, categoria: null, estado: null, pagina: null })
+  const botonLimpiar = (
+    <Button type="button" variant="ghost" onClick={limpiar}>
+      <X aria-hidden />
+      Limpiar filtros
+    </Button>
+  )
 
-  const total = consulta.data?.total ?? 0
-  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-
-  return (
-    <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Proveedores</h1>
-      <form role="search" onSubmit={buscar} className="flex flex-wrap items-center gap-2">
-        <label htmlFor="busqueda" className="sr-only">
-          Buscar por nombre o RFC
-        </label>
-        <Input
-          id="busqueda"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="Nombre o RFC"
-          maxLength={100}
-          className="max-w-xs"
+  function contenido() {
+    if (consulta.isPending) return <EstadoCarga />
+    if (consulta.isError) {
+      return <EstadoError error={consulta.error} alReintentar={() => void consulta.refetch()} />
+    }
+    const { total, elementos } = consulta.data
+    if (elementos.length === 0) {
+      if (hayFiltros) {
+        return (
+          <EstadoVacio
+            titulo="Sin resultados"
+            descripcion="Ningún proveedor coincide con la búsqueda o los filtros."
+            accion={botonLimpiar}
+          />
+        )
+      }
+      if (pagina > 1) {
+        return (
+          <EstadoVacio
+            titulo="Esta página no tiene resultados"
+            descripcion={`Hay ${total.toLocaleString("es-MX")} proveedores en total.`}
+            accion={
+              <Button variant="outline" onClick={() => actualizar({ pagina: null })}>
+                Ir a la primera página
+              </Button>
+            }
+          />
+        )
+      }
+      const esAdmin = roles.includes("admin")
+      return (
+        <EstadoVacio
+          titulo="Aún no hay proveedores"
+          descripcion={
+            esAdmin
+              ? "Importe el catálogo de proveedores del ERP para comenzar."
+              : "Pida a un administrador que importe el catálogo del ERP."
+          }
+          accion={
+            esAdmin && (
+              <Button asChild>
+                <Link to="/importacion">Ir a Importación</Link>
+              </Button>
+            )
+          }
         />
-        <label htmlFor="categoria" className="sr-only">
-          Categoría
-        </label>
-        <select
-          id="categoria"
-          value={categoria}
-          onChange={(e) => {
-            setPagina(0)
-            setCategoria(e.target.value as Categoria | "")
-          }}
-          className="h-9 rounded-md border bg-background px-2 text-sm"
-        >
-          <option value="">Todas las categorías</option>
-          {(Object.keys(NOMBRES_CATEGORIA) as Categoria[]).map((c) => (
-            <option key={c} value={c}>
-              {NOMBRES_CATEGORIA[c]}
-            </option>
-          ))}
-        </select>
-        <Button type="submit">Buscar</Button>
-      </form>
+      )
+    }
 
-      {consulta.isError && (
-        <p role="alert" className="text-destructive">
-          {consulta.error.message}
-        </p>
-      )}
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>RFC</TableHead>
-            <TableHead>Tamaño</TableHead>
-            <TableHead>Categorías</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {consulta.data?.elementos.map((p) => (
-            <TableRow key={p.id}>
-              <TableCell>
-                <Link to={`/proveedores/${p.id}`} className="font-medium hover:underline">
-                  {p.nombre}
-                </Link>
-              </TableCell>
-              <TableCell className="font-mono text-sm">{p.rfc}</TableCell>
-              <TableCell>{NOMBRES_TAMANO[p.tamano] ?? p.tamano}</TableCell>
-              <TableCell className="space-x-1">
-                {p.categorias.map((c) => (
-                  <Badge key={c} variant="secondary">
-                    {NOMBRES_CATEGORIA[c]}
-                  </Badge>
-                ))}
-              </TableCell>
-              <TableCell>{p.activo ? "Activo" : "Inactivo"}</TableCell>
-            </TableRow>
-          ))}
-          {consulta.data?.elementos.length === 0 && (
+    const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+    const desde = (pagina - 1) * POR_PAGINA + 1
+    const hasta = Math.min(pagina * POR_PAGINA, total)
+    return (
+      <div className="space-y-4">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
-                Sin resultados
-              </TableCell>
+              <TableHead>Proveedor</TableHead>
+              <TableHead>Categorías</TableHead>
+              <TableHead>Tamaño</TableHead>
+              <TableHead>Estado</TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
-      <div className="flex items-center justify-between text-sm">
-        <span>
-          {total} proveedores · página {pagina + 1} de {paginas}
-        </span>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={pagina === 0}
-            onClick={() => setPagina((n) => n - 1)}
-          >
-            Anterior
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={pagina + 1 >= paginas}
-            onClick={() => setPagina((n) => n + 1)}
-          >
-            Siguiente
-          </Button>
+          </TableHeader>
+          <TableBody>
+            {elementos.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell>
+                  <Link
+                    to={`/proveedores/${encodeURIComponent(p.id)}`}
+                    className="font-medium text-accent hover:underline"
+                  >
+                    {p.nombre}
+                  </Link>
+                  <div className="font-mono text-xs text-muted-foreground">{p.rfc}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {p.categorias.map((c) => (
+                      <Badge key={c} variant="secondary">
+                        {NOMBRES_CATEGORIA[c] ?? c}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>{NOMBRES_TAMANO[p.tamano] ?? p.tamano}</TableCell>
+                <TableCell>
+                  <EtiquetaEstado activo={p.activo} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span aria-live="polite">
+            Mostrando {desde.toLocaleString("es-MX")}–{hasta.toLocaleString("es-MX")} de{" "}
+            {total.toLocaleString("es-MX")} proveedores
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina <= 1}
+              onClick={() => actualizar({ pagina: String(pagina - 1) })}
+            >
+              <ArrowLeft aria-hidden />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina >= paginas}
+              onClick={() => actualizar({ pagina: String(pagina + 1) })}
+            >
+              Siguiente
+              <ArrowRight aria-hidden />
+            </Button>
+          </div>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <section className="space-y-6">
+      <EncabezadoPagina
+        titulo="Proveedores"
+        descripcion="Proveedores de servicios de TI con sus categorías y su estado."
+      />
+      <Card>
+        <CardContent className="space-y-4">
+          <form role="search" onSubmit={buscar} className="flex flex-wrap items-center gap-2">
+            <label htmlFor="busqueda" className="sr-only">
+              Buscar por nombre o RFC
+            </label>
+            <div className="relative w-full max-w-sm">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                id="busqueda"
+                name="q"
+                key={q}
+                defaultValue={q}
+                placeholder="Nombre o RFC"
+                maxLength={100}
+                className="pl-8"
+              />
+            </div>
+            <Button type="submit">Buscar</Button>
+            {hayFiltros && botonLimpiar}
+          </form>
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="group" aria-label="Filtrar por categoría" className="flex flex-wrap gap-2">
+              <Filtro activo={!categoria} onClick={() => actualizar({ categoria: null, pagina: null })}>
+                Todas
+              </Filtro>
+              {CATEGORIAS.map((c) => (
+                <Filtro
+                  key={c}
+                  activo={categoria === c}
+                  onClick={() => actualizar({ categoria: c, pagina: null })}
+                >
+                  {NOMBRES_CATEGORIA[c]}
+                </Filtro>
+              ))}
+            </div>
+            <div role="group" aria-label="Filtrar por estado" className="flex flex-wrap gap-2 md:ml-auto">
+              <Filtro activo={!estado} onClick={() => actualizar({ estado: null, pagina: null })}>
+                Todos
+              </Filtro>
+              <Filtro
+                activo={estado === "activos"}
+                onClick={() => actualizar({ estado: "activos", pagina: null })}
+              >
+                Activos
+              </Filtro>
+              <Filtro
+                activo={estado === "inactivos"}
+                onClick={() => actualizar({ estado: "inactivos", pagina: null })}
+              >
+                Inactivos
+              </Filtro>
+            </div>
+          </div>
+          {contenido()}
+        </CardContent>
+      </Card>
     </section>
   )
 }

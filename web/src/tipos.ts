@@ -7,6 +7,8 @@ export const NOMBRES_CATEGORIA: Record<Categoria, string> = {
   soporte: "Soporte",
 }
 
+export const CATEGORIAS = Object.keys(NOMBRES_CATEGORIA) as Categoria[]
+
 export const NOMBRES_TAMANO: Record<string, string> = {
   micro: "Micro",
   pequena: "Pequeña",
