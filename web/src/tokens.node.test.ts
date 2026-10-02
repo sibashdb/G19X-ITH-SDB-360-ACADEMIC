@@ -73,6 +73,9 @@ const PARES = [
   par("sidebar-accent-foreground", "sidebar-accent", TEXTO),
   par("sidebar-primary-foreground", "sidebar-primary", TEXTO),
   ...[1, 2, 3, 4, 5].map((n) => par(`chart-${n}`, "card", GRAFICO)),
+  // Los campos tienen fondo transparente: su borde es el único contorno (WCAG 1.4.11).
+  par("input", "card", GRAFICO),
+  par("input", "background", GRAFICO),
   par("ring", "background", GRAFICO),
   par("sidebar-ring", "sidebar", GRAFICO),
 ]
