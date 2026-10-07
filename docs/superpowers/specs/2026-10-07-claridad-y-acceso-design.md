@@ -93,7 +93,7 @@ Las decisiones se tomaron con maquetas en el navegador.
 
 **Contenido del panel** (marino en ambos temas; texto ≥ 4.5:1)
 - **Marca:** "PluriOne" y debajo "Negociación con proveedores de TI".
-- **Lema:** "Paga el precio justo y elige a los mejores proveedores".
+- **Lema:** "Pague el precio justo y elija a los mejores proveedores".
 - **Cuatro puntos**, cada uno con icono decorativo (SVG en línea, `aria-hidden`) y texto:
   1. **Precio de referencia:** cuánto se paga en el mercado por cada servicio.
   2. **Ranking de proveedores:** quién rinde mejor según su desempeño real.
@@ -121,7 +121,7 @@ Las decisiones se tomaron con maquetas en el navegador.
 | Paso | Texto | Se marca hecho cuando | Enlace si está pendiente |
 |---|---|---|---|
 | 1 | Importar contratos y proveedores | Hay al menos un proveedor (`GET /api/proveedores/proveedores?limite=1` con `total > 0`) | Admin: "Ir a Importación". Otros roles: "Administración importa los datos del ERP" (sin enlace) |
-| 2 | Conocer a tus proveedores | La persona visitó Proveedores | "Ver proveedores" |
+| 2 | Conocer a sus proveedores | La persona visitó Proveedores | "Ver proveedores" |
 | 3 | Ver el precio justo | La persona visitó Precios | "Ver precios" |
 | 4 | Negociar y aprobar | — (insignia "Próximamente") | — |
 
@@ -137,9 +137,9 @@ Las decisiones se tomaron con maquetas en el navegador.
 | Elemento | Descripción |
 |---|---|
 | Tablero | Resumen del gasto y lo urgente |
-| Proveedores | Quién te vende y cómo rinde |
+| Proveedores | Quién le vende y cómo rinde |
 | Ranking | Los mejores proveedores por categoría |
-| Precios | Cuánto deberías pagar |
+| Precios | Cuánto debería pagar |
 | Alertas | Qué atender hoy |
 | Importación | Cargar datos del ERP |
 | Configuración | Ajustes de puntuación y precios |
@@ -147,7 +147,7 @@ Las decisiones se tomaron con maquetas en el navegador.
 - Con el menú expandido, la descripción se muestra bajo el título, en texto secundario.
 - Con el menú colapsado, la ayuda emergente muestra el título y la descripción.
 - El nombre accesible del enlace sigue siendo el título.
-- El encabezado de cada página usa una frase de propósito en lenguaje llano. Ejemplo: Precios, "Compara lo que pagas con lo que se paga en el mercado".
+- El encabezado de cada página usa una frase de propósito en lenguaje llano. Ejemplo: Precios, "Compare lo que paga con lo que se paga en el mercado".
 
 ### 5.3 Lenguaje y términos
 
@@ -161,8 +161,8 @@ Las decisiones se tomaron con maquetas en el navegador.
 |---|---|
 | P25 · P50 · P75 | Precio bajo, típico y alto del mercado: el 25 %, 50 % y 75 % de los contratos comparables cuestan eso o menos. |
 | Precio de referencia | Lo que se paga normalmente en el mercado por el servicio, la cantidad y el plazo indicados. |
-| Sobreprecio | Pagas más que el 75 % de los contratos comparables. |
-| Ahorro potencial | Lo que ahorrarías al año si pagaras el precio típico del mercado (P50). |
+| Sobreprecio | Paga más que el 75 % de los contratos comparables. |
+| Ahorro potencial | Lo que ahorraría al año si pagara el precio típico del mercado (P50). |
 | Puntuación | Calificación de 0 a 100 del desempeño del proveedor en los últimos 12 meses, comparada con su categoría. |
 | SLA | Nivel de servicio comprometido en el contrato, como el porcentaje de disponibilidad. |
 | Desempeño | Cumplimiento del SLA, tiempo de resolución, incidentes críticos, entregas a tiempo y satisfacción. |
