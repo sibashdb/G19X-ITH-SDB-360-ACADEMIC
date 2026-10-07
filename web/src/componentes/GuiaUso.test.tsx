@@ -1,4 +1,4 @@
-import { cleanup, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { GuiaUso } from "@/componentes/GuiaUso"
@@ -43,7 +43,7 @@ describe("GuiaUso", () => {
     renderizarPagina(<GuiaUso />)
 
     expect(
-      screen.getByRole("heading", { name: "Cómo usar PluriOne" })
+      await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
     ).toBeInTheDocument()
     expect(await screen.findByText("1 de 3 listos")).toBeInTheDocument()
     expect(paso(1)).toHaveTextContent("Hecho")
@@ -68,8 +68,9 @@ describe("GuiaUso", () => {
   it("sin datos, el admin ve el enlace a Importación", async () => {
     conProveedores(0)
     renderizarPagina(<GuiaUso />)
+    await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
     expect(
-      await within(paso(1)).findByRole("link", { name: "Ir a Importación" })
+      within(paso(1)).getByRole("link", { name: "Ir a Importación" })
     ).toHaveAttribute("href", "/importacion")
   })
 
@@ -77,8 +78,9 @@ describe("GuiaUso", () => {
     sesionDePrueba.roles = ["comprador"]
     conProveedores(0)
     renderizarPagina(<GuiaUso />)
+    await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
     expect(
-      await within(paso(1)).findByText("Administración importa los datos del ERP.")
+      within(paso(1)).getByText("Administración importa los datos del ERP.")
     ).toBeInTheDocument()
     expect(
       within(paso(1)).queryByRole("link", { name: "Ir a Importación" })
@@ -88,11 +90,67 @@ describe("GuiaUso", () => {
   it("se oculta con 'Ocultar guía'", async () => {
     conProveedores(60)
     renderizarPagina(<GuiaUso />)
-    await userEvent.click(screen.getByRole("button", { name: "Ocultar guía" }))
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ocultar guía" })
+    )
     expect(
       screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
     ).not.toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(true)
+  })
+
+  it("al ocultarse, el foco pasa al contenido en vez de perderse", async () => {
+    conProveedores(60)
+    renderizarPagina(
+      <>
+        <div id="contenido" tabIndex={-1} />
+        <GuiaUso />
+      </>
+    )
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ocultar guía" })
+    )
+    expect(document.getElementById("contenido")).toHaveFocus()
+  })
+
+  it("mientras no llega la respuesta no muestra la guía ni un avance inventado", () => {
+    simularApi(() => new Promise<Response>(() => {}))
+    renderizarPagina(<GuiaUso />)
+    expect(
+      screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText("0 de 3 listos")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Ir a Importación" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("si la consulta falla, no muestra la guía ni un avance inventado", async () => {
+    simularApi(() => new Response("", { status: 500 }))
+    const { cliente } = renderizarPagina(<GuiaUso />)
+    await waitFor(() =>
+      expect(
+        cliente.getQueryState(["proveedores", "existencia"])?.status
+      ).toBe("error")
+    )
+    expect(
+      screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText("0 de 3 listos")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Ir a Importación" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("con la guía oculta no consulta al servidor", async () => {
+    localStorage.setItem(
+      CLAVE_GUIA,
+      JSON.stringify({ oculta: true, visitas: { proveedores: false, precios: false } })
+    )
+    const simulado = simularApi(() => respuestaJson({ total: 60, elementos: [] }))
+    renderizarPagina(<GuiaUso />)
+    await new Promise((resolver) => setTimeout(resolver, 50))
+    expect(simulado).not.toHaveBeenCalled()
   })
 
   it("con el almacenamiento bloqueado se muestra con los pasos 2 y 3 pendientes", async () => {

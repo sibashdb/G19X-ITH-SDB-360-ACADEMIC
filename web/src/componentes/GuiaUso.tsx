@@ -44,10 +44,11 @@ export function GuiaUso() {
         "/proveedores/proveedores?limite=1&desplazamiento=0",
         token
       ),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !guia.oculta,
   })
 
-  if (guia.oculta) return null
+  // Sin la respuesta, el paso 1 y el avance serían inventados (y luego cambiarían de golpe).
+  if (guia.oculta || !datos.isSuccess) return null
 
   const hayDatos = (datos.data?.total ?? 0) > 0
   const pasos: Paso[] = [
@@ -90,7 +91,15 @@ export function GuiaUso() {
           </h2>
           <p className="text-sm text-muted-foreground">{listos} de 3 listos</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={ocultarGuia}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            ocultarGuia()
+            // El botón desaparece con la guía: el foco pasa al contenido en vez de perderse.
+            document.getElementById("contenido")?.focus()
+          }}
+        >
           Ocultar guía
         </Button>
       </div>
