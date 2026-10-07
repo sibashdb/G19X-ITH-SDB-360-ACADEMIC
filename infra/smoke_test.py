@@ -44,6 +44,10 @@ def main() -> int:
             acceso.status_code == 200 and "login/plataforma/css/plataforma.css" in acceso.text,
             "Keycloak no aplica el tema de inicio de sesión 'plataforma'",
         )
+        verificar(
+            "Pague el precio justo y elija a los mejores proveedores" in acceso.text,
+            "el inicio de sesión no muestra el panel con el propósito del producto",
+        )
         sin_token = cliente.get("/api/proveedores/proveedores")
         verificar(sin_token.status_code == 401, f"sin token se esperaba 401: {sin_token.text}")
 

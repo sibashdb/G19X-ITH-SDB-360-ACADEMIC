@@ -1,4 +1,5 @@
-/* Tema "plataforma": misma identidad que la SPA (dirección A, corporativa clara). Solo CSS. */
+/* Tema "plataforma": misma identidad que la SPA (dirección A, corporativa clara).
+   Pantalla dividida: panel con el propósito del producto (template.ftl) y el formulario. */
 
 @font-face {
   font-family: "Fira Sans";
@@ -18,14 +19,21 @@
 
 /* Mismos valores que los tokens de web/src/index.css. */
 :root {
-  --plataforma-fondo: #0F172A;
+  --plataforma-pagina: #F8FAFC;
+  --plataforma-tarjeta: #FFFFFF;
+  --plataforma-panel: #0F172A;
+  --plataforma-panel-texto: #E2E8F0;
+  --plataforma-panel-secundario: #94A3B8;
+  --plataforma-panel-icono: #38BDF8;
+  --plataforma-logo: #0369A1;
   --plataforma-acento: #0369A1;
   --plataforma-acento-hover: #075985;
   --plataforma-sobre-acento: #FFFFFF;
 }
 
 .pf-v5-theme-dark {
-  --plataforma-fondo: #0B1220;
+  --plataforma-pagina: #0B1220;
+  --plataforma-tarjeta: #111A2E;
   --plataforma-acento: #38BDF8;
   --plataforma-acento-hover: #7DD3FC;
   --plataforma-sobre-acento: #0B1220;
@@ -42,32 +50,160 @@
   --keycloak-card-top-color: var(--plataforma-acento);
 }
 
-/* Fondo marino en ambos temas, como el menú lateral de la SPA. */
 .login-pf body {
-  background: var(--plataforma-fondo);
+  background: var(--plataforma-pagina);
 }
 
-/* Nombre del producto sobre el nombre del realm, sin mayúsculas forzadas. */
-#kc-header-wrapper {
+/* Móvil primero: el panel es un encabezado corto sobre el formulario. */
+.plataforma-login {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+}
+
+.plataforma-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: var(--plataforma-panel);
+  color: var(--plataforma-panel-texto);
   font-family: "Fira Sans", system-ui, sans-serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
-  color: #E2E8F0 !important;
 }
 
-#kc-header-wrapper::before {
-  content: "PluriOne";
+.pf-v5-theme-dark .plataforma-panel {
+  border-bottom: 1px solid #24324A;
+}
+
+.plataforma-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.plataforma-logo {
+  display: flex;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: var(--plataforma-logo);
+  color: #FFFFFF;
+}
+
+.plataforma-submarca {
   display: block;
-  margin-bottom: 0.25rem;
   font-size: 0.875rem;
   font-weight: 400;
-  color: #94A3B8;
+  color: var(--plataforma-panel-secundario);
 }
 
-.pf-v5-c-login__main {
+.plataforma-lema {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.plataforma-puntos {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plataforma-puntos li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.plataforma-puntos svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1rem;
+  color: var(--plataforma-panel-icono);
+}
+
+.plataforma-punto-texto {
+  display: none;
+  color: var(--plataforma-panel-secundario);
+}
+
+.plataforma-login .pf-v5-c-login {
+  display: flex;
+  min-height: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: transparent;
+}
+
+.plataforma-login .pf-v5-c-login__container {
+  width: 100%;
+  max-width: 28rem;
+  padding: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.plataforma-login .pf-v5-c-login__main {
+  --pf-v5-c-login__main--BackgroundColor: var(--plataforma-tarjeta);
   border-radius: 12px;
+}
+
+/* Tableta: dos columnas; los puntos muestran solo su título. */
+@media (min-width: 768px) {
+  .plataforma-login {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-rows: 1fr;
+  }
+
+  .plataforma-panel {
+    gap: 1.5rem;
+    padding: 3rem 2.5rem;
+  }
+
+  .pf-v5-theme-dark .plataforma-panel {
+    border-bottom: 0;
+    border-right: 1px solid #24324A;
+  }
+
+  .plataforma-lema {
+    font-size: 1.5rem;
+  }
+
+  .plataforma-puntos {
+    display: grid;
+    gap: 1rem;
+  }
+}
+
+/* Escritorio: panel de 45 % y descripción de cada punto. */
+@media (min-width: 1024px) {
+  .plataforma-login {
+    grid-template-columns: minmax(0, 45%) minmax(0, 55%);
+  }
+
+  .plataforma-panel {
+    padding: 4rem 3.5rem;
+  }
+
+  .plataforma-lema {
+    font-size: 2rem;
+  }
+
+  .plataforma-punto-texto {
+    display: inline;
+  }
 }
 
 /* Botón principal: el texto sobre el acento cumple 4.5:1 en ambos temas. */
