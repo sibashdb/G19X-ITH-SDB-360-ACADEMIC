@@ -37,10 +37,10 @@ function ElementoMenu({
         isActive={activa}
         tooltip={{
           children: (
-            <>
-              <span className="block font-medium">{titulo}</span>
-              <span className="block text-xs">{descripcion}</span>
-            </>
+            <span className="flex flex-col">
+              <span className="font-medium">{titulo}</span>
+              <span className="text-xs">{descripcion}</span>
+            </span>
           ),
         }}
         className="h-auto items-start py-2 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
@@ -57,7 +57,7 @@ function ElementoMenu({
             <span
               id={idDescripcion}
               aria-hidden
-              className="text-xs text-sidebar-foreground/70 group-data-[active=true]/menu-button:text-sidebar-primary-foreground/90"
+              className="text-xs whitespace-normal text-sidebar-foreground/70 group-data-[active=true]/menu-button:text-sidebar-primary-foreground/90"
             >
               {descripcion}
             </span>

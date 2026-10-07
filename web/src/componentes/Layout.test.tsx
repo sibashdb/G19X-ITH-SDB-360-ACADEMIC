@@ -179,6 +179,16 @@ describe("Layout con sesión iniciada", () => {
     expect(within(menu).getByText("Cuánto debería pagar")).toBeInTheDocument()
   })
 
+  // jsdom no mide el diseño: el botón del menú trunca su último span (nowrap heredado), así que
+  // la descripción larga de "Ranking" se cortaría sin esta clase en lugar de pasar a dos líneas.
+  it("deja que la descripción de cada opción pase a otra línea en vez de cortarse", () => {
+    renderizar()
+    const menu = screen.getByRole("navigation", { name: "Principal" })
+    expect(
+      within(menu).getByText("Los mejores proveedores por categoría")
+    ).toHaveClass("whitespace-normal")
+  })
+
   it("muestra al admin Importación y Configuración", () => {
     estado.autenticacion = sesionCon(["admin"])
     renderizar()
