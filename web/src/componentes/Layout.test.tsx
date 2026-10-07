@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Layout } from "@/componentes/Layout"
+import { CLAVE_GUIA } from "@/guia"
 import { tokenConRoles } from "@/pruebas/sesion"
 import { esperarSinViolaciones } from "@/pruebas/utilidades"
 import { CLAVE_TEMA, ProveedorTema } from "@/tema"
@@ -281,6 +282,26 @@ describe("Layout con sesión iniciada", () => {
     expect(
       screen.getByRole("menuitem", { name: "Ver todas las alertas" })
     ).toHaveAttribute("href", "/alertas")
+  })
+
+  it("visitar Proveedores lo marca como visto en la guía", () => {
+    renderizar("/proveedores")
+    expect(
+      JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").visitas.proveedores
+    ).toBe(true)
+  })
+
+  it("si la guía está oculta, el menú de usuario permite mostrarla y lleva al tablero", async () => {
+    localStorage.setItem(
+      CLAVE_GUIA,
+      JSON.stringify({ oculta: true, visitas: { proveedores: false, precios: false } })
+    )
+    renderizar("/ranking")
+    await userEvent.click(screen.getByRole("button", { name: "Cuenta de Ana López" }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Mostrar guía de uso" }))
+
+    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(false)
+    expect(document.title).toBe("Tablero · PluriOne")
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

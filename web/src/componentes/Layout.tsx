@@ -3,10 +3,11 @@ import { hasAuthParams, useAuth } from "react-oidc-context"
 import { Outlet, useLocation } from "react-router"
 import { BarraLateral } from "@/componentes/BarraLateral"
 import { BarraSuperior } from "@/componentes/BarraSuperior"
-import { migasDe } from "@/componentes/navegacion"
+import { estaActiva, migasDe } from "@/componentes/navegacion"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { marcarVisita } from "@/guia"
 
 export function Layout() {
   const auth = useAuth()
@@ -35,6 +36,12 @@ export function Layout() {
   useEffect(() => {
     const migas = migasDe(pathname)
     document.title = `${migas[migas.length - 1].titulo} · PluriOne`
+  }, [pathname])
+
+  // La guía del Tablero marca como vistos Proveedores y Precios cuando se visitan.
+  useEffect(() => {
+    if (estaActiva("/proveedores", pathname)) marcarVisita("proveedores")
+    if (estaActiva("/precios", pathname)) marcarVisita("precios")
   }, [pathname])
 
   async function volverAIniciarSesion() {

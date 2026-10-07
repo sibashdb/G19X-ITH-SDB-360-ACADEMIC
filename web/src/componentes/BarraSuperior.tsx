@@ -1,6 +1,7 @@
 import {
   Bell,
   BellOff,
+  CircleHelp,
   LogOut,
   Monitor,
   Moon,
@@ -9,7 +10,7 @@ import {
 } from "lucide-react"
 import { Fragment } from "react"
 import { useAuth } from "react-oidc-context"
-import { Link, useLocation } from "react-router"
+import { Link, useLocation, useNavigate } from "react-router"
 import { NOMBRES_ROL, useRoles } from "@/auth"
 import { migasDe } from "@/componentes/navegacion"
 import {
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { mostrarGuia, useGuia } from "@/guia"
 import { NOMBRES_TEMA, useTema, type Tema } from "@/tema"
 
 const ICONOS_TEMA: Record<Tema, LucideIcon> = {
@@ -135,6 +137,8 @@ function SelectorTema() {
 function MenuUsuario() {
   const auth = useAuth()
   const roles = useRoles()
+  const guia = useGuia()
+  const navegar = useNavigate()
   const perfil = auth.user?.profile
   const nombre =
     [perfil?.given_name, perfil?.family_name].filter(Boolean).join(" ") ||
@@ -172,6 +176,17 @@ function MenuUsuario() {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {guia.oculta && (
+          <DropdownMenuItem
+            onSelect={() => {
+              mostrarGuia()
+              void navegar("/")
+            }}
+          >
+            <CircleHelp aria-hidden />
+            Mostrar guía de uso
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => void auth.signoutRedirect()}>
           <LogOut aria-hidden />
           Cerrar sesión

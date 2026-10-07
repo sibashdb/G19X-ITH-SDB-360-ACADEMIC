@@ -15,6 +15,7 @@ import { useRoles } from "@/auth"
 import { AvisoInteligencia } from "@/componentes/AvisoInteligencia"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
+import { GuiaUso } from "@/componentes/GuiaUso"
 import { Seccion } from "@/componentes/Seccion"
 import { TarjetaKpi, type Tono } from "@/componentes/TarjetaKpi"
 
@@ -71,6 +72,7 @@ export function Tablero() {
         titulo="Tablero"
         descripcion={`${nombre ? `Hola, ${nombre}. ` : ""}Resumen de las compras de servicios de TI.`}
       />
+      <GuiaUso />
       <AvisoInteligencia />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {KPIS.map(({ clave, ...kpi }) => (

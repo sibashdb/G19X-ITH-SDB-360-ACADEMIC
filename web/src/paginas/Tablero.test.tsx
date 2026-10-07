@@ -1,19 +1,41 @@
 import { cleanup, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Tablero } from "@/paginas/Tablero"
 import { sesionDePrueba } from "@/pruebas/sesion"
-import { esperarSinViolaciones, renderizarPagina } from "@/pruebas/utilidades"
+import {
+  esperarSinViolaciones,
+  renderizarPagina,
+  respuestaJson,
+  simularApi,
+} from "@/pruebas/utilidades"
 
 vi.mock("react-oidc-context", async () =>
   (await import("@/pruebas/sesion")).oidcSimulado()
 )
 
+beforeEach(() => {
+  simularApi((url) =>
+    url.startsWith("/api/proveedores/proveedores?")
+      ? respuestaJson({ total: 60, elementos: [] })
+      : new Response("", { status: 404 })
+  )
+})
+
 afterEach(() => {
   cleanup()
   sesionDePrueba.roles = ["admin"]
+  vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 describe("Tablero", () => {
+  it("muestra la guía de uso arriba del tablero", async () => {
+    renderizarPagina(<Tablero />)
+    expect(
+      await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
+    ).toBeInTheDocument()
+  })
+
   it("saluda y muestra los cuatro indicadores sin datos con su enlace", () => {
     sesionDePrueba.roles = ["comprador"]
     renderizarPagina(<Tablero />)
