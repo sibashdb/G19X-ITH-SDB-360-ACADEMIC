@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query"
-import { ArrowLeft, ChartLine, FileQuestion } from "lucide-react"
+import { ArrowLeft, ChartLine, FileQuestion, Tags, Trophy } from "lucide-react"
 import { Link, useParams } from "react-router"
 import { ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
@@ -12,6 +12,7 @@ import {
 } from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
 import { Seccion } from "@/componentes/Seccion"
+import { SiguientePaso } from "@/componentes/SiguientePaso"
 import { TablaContratos } from "@/componentes/TablaContratos"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -197,6 +198,24 @@ export function ProveedorDetalle() {
           </Seccion>
         </TabsContent>
       </Tabs>
+      <SiguientePaso
+        enlaces={[
+          {
+            titulo: "Ver precios de sus servicios",
+            descripcion: "Compare lo que paga con el precio de referencia del mercado.",
+            ruta: "/precios",
+            icono: Tags,
+          },
+          {
+            titulo: "Compararlo en el ranking",
+            descripcion: "Vea cómo se ubica frente a otros proveedores de su categoría.",
+            ruta: detalle.data.categorias[0]
+              ? `/ranking?categoria=${detalle.data.categorias[0]}`
+              : "/ranking",
+            icono: Trophy,
+          },
+        ]}
+      />
     </section>
   )
 }

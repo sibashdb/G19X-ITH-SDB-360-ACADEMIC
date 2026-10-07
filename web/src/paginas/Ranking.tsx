@@ -1,8 +1,9 @@
-import { Trophy } from "lucide-react"
+import { Building2, Tags, Trophy } from "lucide-react"
 import { AvisoInteligencia } from "@/componentes/AvisoInteligencia"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
+import { SiguientePaso } from "@/componentes/SiguientePaso"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { unoDe, useParametros } from "@/parametros"
 import { CATEGORIAS, NOMBRES_CATEGORIA } from "@/tipos"
@@ -50,6 +51,22 @@ export function Ranking() {
           </TabsContent>
         ))}
       </Tabs>
+      <SiguientePaso
+        enlaces={[
+          {
+            titulo: "Ver proveedores",
+            descripcion: "Revise quién le vende y sus contratos.",
+            ruta: "/proveedores",
+            icono: Building2,
+          },
+          {
+            titulo: "Revisar precios",
+            descripcion: "Compare lo que paga con el mercado.",
+            ruta: "/precios",
+            icono: Tags,
+          },
+        ]}
+      />
     </section>
   )
 }

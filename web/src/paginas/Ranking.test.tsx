@@ -47,4 +47,16 @@ describe("Ranking", () => {
     const { container } = renderizarPagina(<Ranking />, { ruta: "/ranking" })
     await esperarSinViolaciones(container)
   })
+
+  it("sugiere ver proveedores y revisar precios", () => {
+    renderizarPagina(<Ranking />, { ruta: "/ranking" })
+    expect(screen.getByRole("link", { name: /Ver proveedores/ })).toHaveAttribute(
+      "href",
+      "/proveedores"
+    )
+    expect(screen.getByRole("link", { name: /Revisar precios/ })).toHaveAttribute(
+      "href",
+      "/precios"
+    )
+  })
 })

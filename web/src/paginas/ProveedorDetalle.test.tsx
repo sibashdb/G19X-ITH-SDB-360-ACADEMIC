@@ -305,4 +305,25 @@ describe("ProveedorDetalle", () => {
       await esperarSinViolaciones(container)
     }
   )
+
+  it("sugiere ver precios y compararlo en el ranking de su categoría", async () => {
+    api()
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    expect(
+      screen.getByRole("link", { name: /Ver precios de sus servicios/ })
+    ).toHaveAttribute("href", "/precios")
+    expect(
+      screen.getByRole("link", { name: /Compararlo en el ranking/ })
+    ).toHaveAttribute("href", "/ranking?categoria=nube")
+  })
+
+  it("un proveedor sin categorías lleva al ranking general", async () => {
+    api({ [RUTA]: () => respuestaJson({ ...PROVEEDOR, categorias: [] }) })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    expect(
+      screen.getByRole("link", { name: /Compararlo en el ranking/ })
+    ).toHaveAttribute("href", "/ranking")
+  })
 })

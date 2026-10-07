@@ -144,6 +144,9 @@ describe("Precios", () => {
     expect(
       screen.getByText("NUBE-01 · Nube · por mes · USD")
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: /Ver proveedores de esta categoría/ })
+    ).toHaveAttribute("href", "/proveedores?categoria=nube")
   })
 
   it("un servicio desconocido en la URL pide elegir uno", async () => {

@@ -1,9 +1,10 @@
-import { BellOff } from "lucide-react"
+import { BellOff, Building2, Tags } from "lucide-react"
 import { useId } from "react"
 import { AvisoInteligencia } from "@/componentes/AvisoInteligencia"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
+import { SiguientePaso } from "@/componentes/SiguientePaso"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -110,6 +111,22 @@ export function Alertas() {
           }
         />
       </Seccion>
+      <SiguientePaso
+        enlaces={[
+          {
+            titulo: "Ver proveedores",
+            descripcion: "Revise quién le vende y sus contratos.",
+            ruta: "/proveedores",
+            icono: Building2,
+          },
+          {
+            titulo: "Revisar precios",
+            descripcion: "Compare lo que paga con el mercado.",
+            ruta: "/precios",
+            icono: Tags,
+          },
+        ]}
+      />
     </section>
   )
 }

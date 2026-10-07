@@ -8,6 +8,7 @@ import {
   Upload,
 } from "lucide-react"
 import { useState, type DragEvent } from "react"
+import { Link } from "react-router"
 import { ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
@@ -368,6 +369,9 @@ function FlujoImportacion() {
                   onClick={() => empezar(importada.valor, 1)}
                 >
                   Importar otro archivo
+                </Button>
+                <Button asChild variant="ghost">
+                  <Link to="/">Ir al tablero</Link>
                 </Button>
               </div>
             </div>

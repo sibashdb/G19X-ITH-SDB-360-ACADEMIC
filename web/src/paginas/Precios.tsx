@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { ChartLine, Tags, TrendingUp } from "lucide-react"
+import { Building2, ChartLine, Tags, TrendingUp } from "lucide-react"
 import { useState } from "react"
 import { Link } from "react-router"
 import { pedir } from "@/api"
@@ -8,6 +8,7 @@ import { AvisoInteligencia } from "@/componentes/AvisoInteligencia"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { ContenidoConsulta, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
+import { SiguientePaso } from "@/componentes/SiguientePaso"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useParametros } from "@/parametros"
@@ -116,6 +117,16 @@ function DetalleServicio({ servicio }: { servicio: Servicio }) {
           descripcion="Aquí verá los contratos vigentes de este servicio por encima de P75 y su ahorro potencial anual."
         />
       </Seccion>
+      <SiguientePaso
+        enlaces={[
+          {
+            titulo: "Ver proveedores de esta categoría",
+            descripcion: `Proveedores de ${NOMBRES_CATEGORIA[servicio.categoria] ?? servicio.categoria} y sus contratos.`,
+            ruta: `/proveedores?categoria=${servicio.categoria}`,
+            icono: Building2,
+          },
+        ]}
+      />
     </div>
   )
 }

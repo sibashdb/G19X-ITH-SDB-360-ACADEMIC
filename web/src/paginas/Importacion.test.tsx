@@ -78,6 +78,10 @@ describe("Importacion", () => {
     expect(
       screen.getByRole("button", { name: /Importar Proveedores/ })
     ).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Ir al tablero" })).toHaveAttribute(
+      "href",
+      "/"
+    )
   })
 
   it("muestra los errores por fila que devuelve la API y permite elegir otro archivo", async () => {
