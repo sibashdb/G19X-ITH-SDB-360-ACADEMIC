@@ -408,7 +408,7 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 - **Usuarios internos:** Keycloak con OIDC *authorization code + PKCE* desde la SPA (`react-oidc-context`).
   - Token de acceso de 5 min y refresh con rotación.
   - Roles de realm: `admin`, `comprador`, `aprobador`.
-  - **OTP (TOTP) obligatorio** para admin y aprobador; protección contra fuerza bruta y política de contraseñas nativas de Keycloak.
+  - Inicio de sesión con usuario y contraseña; protección contra fuerza bruta y política de contraseñas nativas de Keycloak.
 - **Validación en servicios:** `libs/comun` valida el JWT (firma vía JWKS en caché, `iss`, `aud`, `exp`). La autorización se aplica con dependencias de FastAPI (`requiere_rol(...)`).
 - **Entre servicios:** token de Keycloak por *client credentials*; `ia` e `inteligencia` rechazan llamadas sin token de servicio. Además, `ia` solo es alcanzable por la red interna de Docker.
 - **Proveedores:**

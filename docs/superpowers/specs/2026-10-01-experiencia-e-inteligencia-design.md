@@ -49,7 +49,7 @@ Tras ver el Incremento 1 funcionando, el residente indicó que la plataforma **n
 - Servicio `inteligencia`: modelos de lectura, benchmark (línea base + ML), puntuación, alertas, KPIs, registro de modelos.
 - Cierre de las obligaciones R12 y R27 del Incremento 1: colas declaradas antes de publicar, reproceso del outbox, eventos de catálogo y tipo de cambio.
 
-**No incluye** (sub-proyectos posteriores): eventos de negociación y agente IA, simulador, adjudicación y aprobaciones, notificaciones por correo, Power BI, OTP por rol (sub-proyecto 4).
+**No incluye** (sub-proyectos posteriores): eventos de negociación y agente IA, simulador, adjudicación y aprobaciones, notificaciones por correo, Power BI.
 
 ---
 
