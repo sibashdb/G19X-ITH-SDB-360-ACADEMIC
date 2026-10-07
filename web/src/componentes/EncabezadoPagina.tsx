@@ -6,7 +6,7 @@ export function EncabezadoPagina({
   acciones,
 }: {
   titulo: string
-  descripcion?: string
+  descripcion?: ReactNode
   acciones?: ReactNode
 }) {
   return (

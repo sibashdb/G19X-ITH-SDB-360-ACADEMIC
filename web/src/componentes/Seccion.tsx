@@ -9,7 +9,7 @@ export function Seccion({
   className,
 }: {
   titulo: string
-  descripcion?: string
+  descripcion?: ReactNode
   acciones?: ReactNode
   children: ReactNode
   className?: string

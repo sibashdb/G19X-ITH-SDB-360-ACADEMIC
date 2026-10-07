@@ -31,7 +31,7 @@ export function EstadoVacio({
 }: {
   icono?: LucideIcon
   titulo: string
-  descripcion: string
+  descripcion: ReactNode
   accion?: ReactNode
 }) {
   return (
