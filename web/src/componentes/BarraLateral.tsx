@@ -1,7 +1,12 @@
 import { Hexagon } from "lucide-react"
+import { useId } from "react"
 import { Link, useLocation } from "react-router"
 import { useRoles } from "@/auth"
-import { estaActiva, navegacionPara } from "@/componentes/navegacion"
+import {
+  estaActiva,
+  navegacionPara,
+  type ElementoNavegacion,
+} from "@/componentes/navegacion"
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +19,54 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+
+function ElementoMenu({
+  elemento: { titulo, descripcion, ruta, icono: Icono },
+  activa,
+  alNavegar,
+}: {
+  elemento: ElementoNavegacion
+  activa: boolean
+  alNavegar: () => void
+}) {
+  const idDescripcion = useId()
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={activa}
+        tooltip={{
+          children: (
+            <>
+              <span className="block font-medium">{titulo}</span>
+              <span className="block text-xs">{descripcion}</span>
+            </>
+          ),
+        }}
+        className="h-auto items-start py-2 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+      >
+        <Link
+          to={ruta}
+          aria-current={activa ? "page" : undefined}
+          aria-describedby={idDescripcion}
+          onClick={alNavegar}
+        >
+          <Icono aria-hidden className="mt-0.5" />
+          <span className="grid leading-tight">
+            <span>{titulo}</span>
+            <span
+              id={idDescripcion}
+              aria-hidden
+              className="text-xs text-sidebar-foreground/70 group-data-[active=true]/menu-button:text-sidebar-primary-foreground/90"
+            >
+              {descripcion}
+            </span>
+          </span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
 
 export function BarraLateral() {
   const { pathname } = useLocation()
@@ -52,28 +105,14 @@ export function BarraLateral() {
               <SidebarGroupLabel>{seccion.titulo}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {seccion.elementos.map(({ titulo, ruta, icono: Icono }) => {
-                    const activa = estaActiva(ruta, pathname)
-                    return (
-                      <SidebarMenuItem key={ruta}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={activa}
-                          tooltip={titulo}
-                          className="data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
-                        >
-                          <Link
-                            to={ruta}
-                            aria-current={activa ? "page" : undefined}
-                            onClick={alNavegar}
-                          >
-                            <Icono aria-hidden />
-                            <span>{titulo}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
+                  {seccion.elementos.map((elemento) => (
+                    <ElementoMenu
+                      key={elemento.ruta}
+                      elemento={elemento}
+                      activa={estaActiva(elemento.ruta, pathname)}
+                      alNavegar={alNavegar}
+                    />
+                  ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

@@ -171,6 +171,14 @@ describe("Layout con sesión iniciada", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("cada opción del menú lleva su descripción sin cambiar su nombre accesible", () => {
+    renderizar()
+    const menu = screen.getByRole("navigation", { name: "Principal" })
+    const enlace = within(menu).getByRole("link", { name: "Precios" })
+    expect(enlace).toHaveAccessibleDescription("Cuánto debería pagar")
+    expect(within(menu).getByText("Cuánto debería pagar")).toBeInTheDocument()
+  })
+
   it("muestra al admin Importación y Configuración", () => {
     estado.autenticacion = sesionCon(["admin"])
     renderizar()

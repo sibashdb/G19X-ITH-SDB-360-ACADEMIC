@@ -68,3 +68,22 @@ describe("migasDe", () => {
     expect(migasDe(pathname)).toEqual(esperado)
   })
 })
+
+describe("descripciones del menú", () => {
+  it("cada elemento dice para qué sirve", () => {
+    const descripciones = Object.fromEntries(
+      navegacionPara(["admin"]).flatMap((s) =>
+        s.elementos.map((e) => [e.titulo, e.descripcion])
+      )
+    )
+    expect(descripciones).toEqual({
+      Tablero: "Resumen del gasto y lo urgente",
+      Proveedores: "Quién le vende y cómo rinde",
+      Ranking: "Los mejores proveedores por categoría",
+      Precios: "Cuánto debería pagar",
+      Alertas: "Qué atender hoy",
+      Importación: "Cargar datos del ERP",
+      Configuración: "Ajustes de puntuación y precios",
+    })
+  })
+})

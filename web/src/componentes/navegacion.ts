@@ -13,6 +13,7 @@ import type { Rol } from "@/auth"
 export type ElementoNavegacion = {
   titulo: string
   ruta: string
+  descripcion: string
   icono: LucideIcon
   soloAdmin?: boolean
 }
@@ -25,20 +26,47 @@ export type Miga = { titulo: string; ruta?: string }
 export const NAVEGACION: SeccionNavegacion[] = [
   {
     titulo: "Resumen",
-    elementos: [{ titulo: "Tablero", ruta: "/", icono: LayoutDashboard }],
+    elementos: [
+      {
+        titulo: "Tablero",
+        ruta: "/",
+        descripcion: "Resumen del gasto y lo urgente",
+        icono: LayoutDashboard,
+      },
+    ],
   },
   {
     titulo: "Proveedores",
     elementos: [
-      { titulo: "Proveedores", ruta: "/proveedores", icono: Building2 },
-      { titulo: "Ranking", ruta: "/ranking", icono: Trophy },
+      {
+        titulo: "Proveedores",
+        ruta: "/proveedores",
+        descripcion: "Quién le vende y cómo rinde",
+        icono: Building2,
+      },
+      {
+        titulo: "Ranking",
+        ruta: "/ranking",
+        descripcion: "Los mejores proveedores por categoría",
+        icono: Trophy,
+      },
     ],
   },
   {
     titulo: "Inteligencia",
     elementos: [
-      { titulo: "Precios", ruta: "/precios", icono: Tags },
-      { titulo: "Alertas", ruta: "/alertas", icono: Bell },
+      {
+        titulo: "Precios",
+        ruta: "/precios",
+        descripcion: "Cuánto debería pagar",
+        icono: Tags,
+      },
+      {
+        titulo: "Alertas",
+        ruta: "/alertas",
+        descripcion: "Qué atender hoy",
+        icono: Bell,
+      },
     ],
   },
   {
@@ -47,12 +75,14 @@ export const NAVEGACION: SeccionNavegacion[] = [
       {
         titulo: "Importación",
         ruta: "/importacion",
+        descripcion: "Cargar datos del ERP",
         icono: FileUp,
         soloAdmin: true,
       },
       {
         titulo: "Configuración",
         ruta: "/configuracion",
+        descripcion: "Ajustes de puntuación y precios",
         icono: Settings,
         soloAdmin: true,
       },
