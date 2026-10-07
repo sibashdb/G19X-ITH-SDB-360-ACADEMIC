@@ -33,6 +33,10 @@
     --color-warning: var(--warning);
     --color-destructive-foreground: var(--destructive-foreground);
     --color-destructive: var(--destructive);
+    --color-info-suave: var(--info-suave);
+    --color-exito-suave: var(--exito-suave);
+    --color-advertencia-suave: var(--advertencia-suave);
+    --color-riesgo-suave: var(--riesgo-suave);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -77,6 +81,10 @@
     --warning: #B45309;
     --destructive: #DC2626;
     --destructive-foreground: #FFFFFF;
+    --info-suave: #E0F2FE;
+    --exito-suave: #DCFCE7;
+    --advertencia-suave: #FEF3C7;
+    --riesgo-suave: #FEE2E2;
     --border: #E2E8F0;
     --input: #7F8EA3;
     --ring: #0369A1;
@@ -114,6 +122,10 @@
     --warning: #FBBF24;
     --destructive: #F87171;
     --destructive-foreground: #0B1220;
+    --info-suave: #0C2A44;
+    --exito-suave: #0F2E1F;
+    --advertencia-suave: #3A2A0B;
+    --riesgo-suave: #3B1515;
     --border: #24324A;
     --input: #64748B;
     --ring: #38BDF8;

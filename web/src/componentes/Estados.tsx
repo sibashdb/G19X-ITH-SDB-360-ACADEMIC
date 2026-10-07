@@ -36,7 +36,9 @@ export function EstadoVacio({
 }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center">
-      <Icono aria-hidden className="size-8 text-muted-foreground" />
+      <span className="flex size-12 items-center justify-center rounded-full bg-info-suave">
+        <Icono aria-hidden className="size-6 text-accent" />
+      </span>
       <p className="font-medium">{titulo}</p>
       <p className="max-w-prose text-sm text-muted-foreground">{descripcion}</p>
       {accion && <div className="mt-2">{accion}</div>}

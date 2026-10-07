@@ -82,6 +82,11 @@ const PARES = [
   // Los campos tienen fondo transparente: su borde es el único contorno (WCAG 1.4.11).
   par("input", "card", GRAFICO),
   par("input", "background", GRAFICO),
+  // Tintes del estilo refinado: el icono es gráfico (3:1); las iniciales son texto (4.5:1).
+  par("accent", "info-suave", TEXTO),
+  par("success", "exito-suave", GRAFICO),
+  par("warning", "advertencia-suave", GRAFICO),
+  par("destructive", "riesgo-suave", GRAFICO),
   par("ring", "background", GRAFICO),
   par("sidebar-ring", "sidebar", GRAFICO),
 ]
