@@ -79,8 +79,7 @@
       "firstName": "Andrea",
       "lastName": "Administradora",
       "credentials": [{ "type": "password", "value": "Admin-Dev-2026!", "temporary": false }],
-      "realmRoles": ["admin"],
-      "requiredActions": ["CONFIGURE_TOTP"]
+      "realmRoles": ["admin"]
     },
     {
       "username": "comprador1",
@@ -100,8 +99,7 @@
       "firstName": "Alicia",
       "lastName": "Aprobadora",
       "credentials": [{ "type": "password", "value": "Aprobador-Dev-2026!", "temporary": false }],
-      "realmRoles": ["aprobador"],
-      "requiredActions": ["CONFIGURE_TOTP"]
+      "realmRoles": ["aprobador"]
     }
   ]
 }

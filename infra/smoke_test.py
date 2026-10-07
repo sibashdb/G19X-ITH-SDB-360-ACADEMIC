@@ -59,6 +59,23 @@ def main() -> int:
         verificar(token.status_code == 200, f"Keycloak no emitió token: {token.text}")
         cabeceras = {"Authorization": f"Bearer {token.json()['access_token']}"}
 
+        # Sin OTP: admin y aprobador obtienen token solo con usuario y contraseña.
+        for usuario in ("admin1", "aprobador1"):
+            respuesta = cliente.post(
+                "/auth/realms/plataforma/protocol/openid-connect/token",
+                data={
+                    "grant_type": "password",
+                    "client_id": "pruebas-humo",
+                    "username": usuario,
+                    "password": contrasena_de_desarrollo(usuario),
+                },
+            )
+            verificar(
+                respuesta.status_code == 200,
+                f"{usuario} no obtuvo token solo con contraseña (¿OTP pendiente?): "
+                f"{respuesta.text}",
+            )
+
         lista = cliente.get("/api/proveedores/proveedores", headers=cabeceras)
         verificar(lista.status_code == 200, f"listar proveedores falló: {lista.text}")
         verificar(bool(lista.headers.get("x-request-id")), "falta X-Request-ID en la respuesta")

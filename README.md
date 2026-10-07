@@ -23,9 +23,8 @@ docker compose -f infra/docker-compose.yml exec proveedores python -m proveedore
 ```
 
 Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
-`aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; admin y
-aprobador configuran OTP en su primer inicio de sesión. Verificación automática:
-`uv run python infra/smoke_test.py`.
+`aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
+con usuario y contraseña. Verificación automática: `uv run python infra/smoke_test.py`.
 
 ### Tema de inicio de sesión en un realm ya importado
 
@@ -56,6 +55,20 @@ docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/
 **Sin línea de comandos**: abra <http://localhost:8080/auth/admin/>, entre como `admin` (contraseña
 `KEYCLOAK_ADMIN_PASSWORD` de `infra/.env`), elija el realm `plataforma` y vaya a
 *Realm settings → Themes → Login theme*, seleccione `plataforma` y guarde.
+
+### Quitar el OTP en un realm ya importado
+
+Las versiones anteriores pedían OTP a `admin1` y `aprobador1`. Si su realm se importó entonces,
+quíteselo una sola vez (no borra datos). El comando funciona igual en PowerShell y en Git Bash
+(en Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`):
+
+```bash
+docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/quitar-otp.sh
+```
+
+**Sin línea de comandos**: en <http://localhost:8080/auth/admin/>, realm `plataforma` →
+*Users* → `admin1` → deje vacío *Required user actions* y, en *Credentials*, borre la de tipo
+`otp`; repita con `aprobador1`.
 
 ### Notas para Windows (Git Bash)
 
@@ -95,9 +108,6 @@ docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/
 
 ## Limitaciones conocidas (Incremento 1)
 
-- **OTP por usuario, no por rol.** Keycloak exige OTP solo a los usuarios sembrados
-  `admin1` y `aprobador1`, no a todo usuario con esos roles. Antes de cualquier despliegue no
-  local hay que configurar en Keycloak un flujo de autenticación condicional por rol.
 - **Eventos sin cola enlazada.** Un evento que se publica en RabbitMQ sin colas enlazadas al
   exchange se descarta; el outbox conserva el registro. El Incremento 2 declarará las colas
   antes de publicar y agregará el reproceso.
