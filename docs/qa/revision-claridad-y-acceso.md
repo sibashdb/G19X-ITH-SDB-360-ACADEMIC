@@ -92,7 +92,11 @@ Repetida en el navegador por el controlador sobre los commits de las correccione
   menú colapsado (Ctrl+B) y en el panel móvil de 375 px (allí el enlace de la marca también queda
   dentro de la navegación "Principal"). Con una ventana de 500 px de alto, el contenido del menú
   sigue desplazándose (`overflow: auto`, 555 > 436 px).
-- **H3 (`690d5d9`):** pendiente de verificación en navegador por el controlador.
+- **H3 (`690d5d9`):** corregido. En la variante de re-autenticación (usuario intentado `admin1`,
+  `prompt=login`) a 1440 claro, 1024 oscuro, 768 claro y 375 oscuro: 0 violaciones de axe y sin
+  scroll horizontal (`scrollWidth` igual al ancho de la ventana: 1440, 1024, 768 y 375). El campo
+  `#kc-attempted-username` tiene `aria-label` "Usuario o correo electrónico" y `#reset-login` tiene
+  `title` "Reiniciar el inicio de sesión".
 
 ## No revisado
 
