@@ -7,6 +7,7 @@ import { useRoles, useToken } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
+import { Iniciales } from "@/componentes/Iniciales"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -187,14 +188,19 @@ export function Proveedores() {
             {elementos.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>
-                  <Link
-                    to={`/proveedores/${encodeURIComponent(p.id)}`}
-                    className="font-medium text-accent hover:underline"
-                  >
-                    {p.nombre}
-                  </Link>
-                  <div className="font-mono text-xs text-muted-foreground">
-                    {p.rfc}
+                  <div className="flex items-center gap-3">
+                    <Iniciales nombre={p.nombre} />
+                    <div>
+                      <Link
+                        to={`/proveedores/${encodeURIComponent(p.id)}`}
+                        className="font-medium text-accent hover:underline"
+                      >
+                        {p.nombre}
+                      </Link>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {p.rfc}
+                      </div>
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -249,7 +255,7 @@ export function Proveedores() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Proveedores"
-        descripcion="Proveedores de servicios de TI con sus categorías y su estado."
+        descripcion="Quién le vende servicios de TI, en qué categorías y si sigue activo."
       />
       <Card>
         <CardContent className="space-y-4">

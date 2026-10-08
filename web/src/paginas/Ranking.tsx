@@ -4,6 +4,7 @@ import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { SiguientePaso } from "@/componentes/SiguientePaso"
+import { Termino } from "@/componentes/Termino"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { unoDe, useParametros } from "@/parametros"
 import { CATEGORIAS, NOMBRES_CATEGORIA } from "@/tipos"
@@ -21,7 +22,12 @@ export function Ranking() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Ranking de proveedores"
-        descripcion="Proveedores ordenados por su puntuación ajustada dentro de cada categoría."
+        descripcion={
+          <>
+            Los proveedores mejor calificados de cada categoría según su{" "}
+            <Termino clave="puntuacion">puntuación</Termino>.
+          </>
+        }
       />
       <AvisoInteligencia />
       <Tabs
@@ -45,7 +51,14 @@ export function Ranking() {
               <EstadoVacio
                 icono={Trophy}
                 titulo="Sin puntuaciones todavía"
-                descripcion='El ranking ordenará a los proveedores por SLA, resolución, incidentes, entregas a tiempo y satisfacción; los que tengan menos de 6 meses de historial se marcarán como "Historial corto".'
+                descripcion={
+                  <>
+                    El ranking ordenará a los proveedores por su{" "}
+                    <Termino clave="desempeno">desempeño</Termino>. Los que
+                    tengan menos de 6 meses de datos llevarán la etiqueta{" "}
+                    <Termino clave="historialCorto">Historial corto</Termino>.
+                  </>
+                }
               />
             </Seccion>
           </TabsContent>

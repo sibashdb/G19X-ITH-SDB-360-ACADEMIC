@@ -11,9 +11,11 @@ import {
   EstadoVacio,
 } from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
+import { Iniciales } from "@/componentes/Iniciales"
 import { Seccion } from "@/componentes/Seccion"
 import { SiguientePaso } from "@/componentes/SiguientePaso"
 import { TablaContratos } from "@/componentes/TablaContratos"
+import { Termino } from "@/componentes/Termino"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,7 +39,12 @@ function Encabezado({ proveedor: p }: { proveedor: Detalle }) {
     <Card>
       <CardContent className="flex flex-wrap items-start justify-between gap-6">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{p.nombre}</h1>
+          <div className="flex items-center gap-3">
+            <Iniciales nombre={p.nombre} tamano="lg" />
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {p.nombre}
+            </h1>
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span className="font-mono">{p.rfc}</span>
             <span aria-hidden>·</span>
@@ -92,7 +99,13 @@ function Resumen({ consulta }: { consulta: UseQueryResult<Desempeno[]> }) {
         return (
           <Seccion
             titulo={`Desempeño de ${formatoPeriodo(ultimo.periodo)}`}
-            descripcion="Último mes registrado."
+            descripcion={
+              <>
+                Último mes registrado del{" "}
+                <Termino clave="desempeno">desempeño</Termino> del proveedor,
+                incluido el cumplimiento del <Termino clave="sla">SLA</Termino>.
+              </>
+            }
           >
             <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {KPIS_DESEMPENO.map((kpi) => (
@@ -191,7 +204,15 @@ export function ProveedorDetalle() {
           </Seccion>
         </TabsContent>
         <TabsContent value="desempeno" className="mt-4">
-          <Seccion titulo="Desempeño de los últimos 24 meses">
+          <Seccion
+            titulo="Desempeño de los últimos 24 meses"
+            descripcion={
+              <>
+                Cómo ha cumplido mes a mes, incluido el{" "}
+                <Termino clave="sla">SLA</Termino>.
+              </>
+            }
+          >
             <ContenidoConsulta consulta={desempeno}>
               {(registros) => <DesempenoProveedor registros={registros} />}
             </ContenidoConsulta>
@@ -202,13 +223,15 @@ export function ProveedorDetalle() {
         enlaces={[
           {
             titulo: "Ver precios de sus servicios",
-            descripcion: "Compare lo que paga con el precio de referencia del mercado.",
+            descripcion:
+              "Compare lo que paga con el precio de referencia del mercado.",
             ruta: "/precios",
             icono: Tags,
           },
           {
             titulo: "Compararlo en el ranking",
-            descripcion: "Vea cómo se ubica frente a otros proveedores de su categoría.",
+            descripcion:
+              "Vea cómo se ubica frente a otros proveedores de su categoría.",
             ruta: detalle.data.categorias[0]
               ? `/ranking?categoria=${detalle.data.categorias[0]}`
               : "/ranking",

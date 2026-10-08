@@ -221,7 +221,7 @@ function FlujoImportacion() {
     <section className="max-w-3xl space-y-6">
       <EncabezadoPagina
         titulo="Importar datos del ERP"
-        descripcion="Cargue los archivos CSV exportados del ERP. Si un archivo tiene errores, no se importa ninguna fila."
+        descripcion="Cargue los archivos CSV que exporta el ERP, en el orden indicado. Si un archivo tiene errores, no se guarda ninguna fila y verá cuáles corregir."
       />
       <Pasos actual={paso} />
 

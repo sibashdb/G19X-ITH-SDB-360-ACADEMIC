@@ -5,6 +5,7 @@ import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { SiguientePaso } from "@/componentes/SiguientePaso"
+import { Termino } from "@/componentes/Termino"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -68,7 +69,7 @@ export function Alertas() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Alertas"
-        descripcion="Contratos por vencer, sobreprecios y proveedores en riesgo."
+        descripcion="Lo que conviene atender hoy: contratos por vencer, precios altos y proveedores que bajan su desempeño."
       />
       <AvisoInteligencia />
       <div className="flex flex-wrap gap-4">
@@ -98,7 +99,13 @@ export function Alertas() {
         <EstadoVacio
           icono={BellOff}
           titulo="No hay alertas activas"
-          descripcion="Aquí aparecerán los contratos por vencer en 90, 60 y 30 días, los precios sobre P75 y los proveedores con puntuación baja o en caída."
+          descripcion={
+            <>
+              Aquí aparecerán los contratos que vencen en 90, 60 y 30 días, los
+              precios con <Termino clave="sobreprecio">sobreprecio</Termino> y
+              los proveedores con puntuación baja o en caída.
+            </>
+          }
           accion={
             hayFiltros && (
               <Button

@@ -4,6 +4,7 @@ import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoVacio } from "@/componentes/Estados"
 import { RequiereRol } from "@/componentes/RequiereRol"
 import { Seccion } from "@/componentes/Seccion"
+import { Termino } from "@/componentes/Termino"
 
 export function Configuracion() {
   return (
@@ -11,7 +12,7 @@ export function Configuracion() {
       <section className="space-y-6">
         <EncabezadoPagina
           titulo="Configuración"
-          descripcion="Parámetros de la puntuación de proveedores y del modelo de precios."
+          descripcion="Ajuste cómo se califica a los proveedores y cómo se calcula el precio de referencia."
         />
         <AvisoInteligencia />
         <div className="grid gap-4 lg:grid-cols-2">
@@ -19,7 +20,14 @@ export function Configuracion() {
             <EstadoVacio
               icono={SlidersHorizontal}
               titulo="Sin configuración todavía"
-              descripcion="Podrá ajustar los pesos de SLA, resolución, incidentes, entregas y satisfacción (deben sumar 100), el umbral de riesgo y la inflación anual."
+              descripcion={
+                <>
+                  Podrá decidir cuánto pesa cada aspecto del{" "}
+                  <Termino clave="desempeno">desempeño</Termino> (deben sumar
+                  100), desde qué puntuación un proveedor está en riesgo y la
+                  inflación anual.
+                </>
+              }
             />
           </Seccion>
           <Seccion titulo="Modelo de precios">

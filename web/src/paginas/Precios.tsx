@@ -9,6 +9,7 @@ import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { ContenidoConsulta, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { SiguientePaso } from "@/componentes/SiguientePaso"
+import { Termino } from "@/componentes/Termino"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useParametros } from "@/parametros"
@@ -100,21 +101,33 @@ function DetalleServicio({ servicio }: { servicio: Servicio }) {
         <EstadoVacio
           icono={Tags}
           titulo="Sin precio de referencia todavía"
-          descripcion="Aquí verá P25, P50 y P75 para la cantidad y el plazo que indique, con el método usado, su confianza y el número de observaciones."
+          descripcion={
+            <>
+              Aquí verá el precio bajo, típico y alto del mercado (
+              <Termino clave="percentiles">P25, P50 y P75</Termino>) para la
+              cantidad y el plazo que indique, con cuántos contratos se calculó.
+            </>
+          }
         />
       </Seccion>
       <Seccion titulo="Historial de precios">
         <EstadoVacio
           icono={ChartLine}
           titulo="Sin historial todavía"
-          descripcion="Aquí verá los precios de los contratos en el tiempo sobre la banda P25–P75."
+          descripcion="Aquí verá cómo han cambiado los precios de este servicio en el tiempo, junto al rango típico del mercado."
         />
       </Seccion>
-      <Seccion titulo="Contratos sobre P75">
+      <Seccion titulo="Contratos con sobreprecio">
         <EstadoVacio
           icono={TrendingUp}
           titulo="Sin sobreprecios detectados todavía"
-          descripcion="Aquí verá los contratos vigentes de este servicio por encima de P75 y su ahorro potencial anual."
+          descripcion={
+            <>
+              Aquí verá los contratos vigentes de este servicio que pagan de más
+              y su <Termino clave="ahorroPotencial">ahorro potencial</Termino>{" "}
+              al año.
+            </>
+          }
         />
       </Seccion>
       <SiguientePaso
@@ -149,7 +162,14 @@ export function Precios() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Precios"
-        descripcion="Precio de referencia por servicio (P25, P50 y P75) y contratos por encima del mercado."
+        descripcion={
+          <>
+            Compare lo que paga con lo que se paga en el mercado: el{" "}
+            <Termino clave="precioReferencia">precio de referencia</Termino> de
+            cada servicio y los contratos con{" "}
+            <Termino clave="sobreprecio">sobreprecio</Termino>.
+          </>
+        }
         acciones={
           <div role="group" aria-label="Vista" className="flex gap-2">
             <Button
@@ -175,7 +195,7 @@ export function Precios() {
           <EstadoVacio
             icono={TrendingUp}
             titulo="Sin sobreprecios detectados todavía"
-            descripcion="Aquí verá los contratos vigentes por encima de P75, ordenados por ahorro potencial."
+            descripcion="Aquí verá todos los contratos vigentes que pagan de más, ordenados por cuánto podría ahorrar."
           />
         </Seccion>
       ) : (

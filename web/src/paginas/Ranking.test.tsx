@@ -50,13 +50,11 @@ describe("Ranking", () => {
 
   it("sugiere ver proveedores y revisar precios", () => {
     renderizarPagina(<Ranking />, { ruta: "/ranking" })
-    expect(screen.getByRole("link", { name: /Ver proveedores/ })).toHaveAttribute(
-      "href",
-      "/proveedores"
-    )
-    expect(screen.getByRole("link", { name: /Revisar precios/ })).toHaveAttribute(
-      "href",
-      "/precios"
-    )
+    expect(
+      screen.getByRole("link", { name: /Ver proveedores/ })
+    ).toHaveAttribute("href", "/proveedores")
+    expect(
+      screen.getByRole("link", { name: /Revisar precios/ })
+    ).toHaveAttribute("href", "/precios")
   })
 })

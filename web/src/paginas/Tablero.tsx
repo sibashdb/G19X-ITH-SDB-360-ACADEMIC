@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   Wallet,
 } from "lucide-react"
+import type { ReactNode } from "react"
 import { useAuth } from "react-oidc-context"
 import { Link } from "react-router"
 import { useRoles } from "@/auth"
@@ -18,10 +19,11 @@ import { EstadoVacio } from "@/componentes/Estados"
 import { GuiaUso } from "@/componentes/GuiaUso"
 import { Seccion } from "@/componentes/Seccion"
 import { TarjetaKpi, type Tono } from "@/componentes/TarjetaKpi"
+import { Termino } from "@/componentes/Termino"
 
 const KPIS: {
   clave: string
-  titulo: string
+  titulo: ReactNode
   icono: LucideIcon
   enlace: string
   textoEnlace: string
@@ -53,7 +55,7 @@ const KPIS: {
   },
   {
     clave: "ahorro",
-    titulo: "Ahorro potencial",
+    titulo: <Termino clave="ahorroPotencial">Ahorro potencial</Termino>,
     icono: PiggyBank,
     enlace: "/precios?vista=sobreprecios",
     textoEnlace: "Ver sobreprecios",
@@ -70,7 +72,7 @@ export function Tablero() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Tablero"
-        descripcion={`${nombre ? `Hola, ${nombre}. ` : ""}Resumen de las compras de servicios de TI.`}
+        descripcion={`${nombre ? `Hola, ${nombre}. ` : ""}Esto es lo que gasta en servicios de TI y lo que conviene atender.`}
       />
       <GuiaUso />
       <AvisoInteligencia />

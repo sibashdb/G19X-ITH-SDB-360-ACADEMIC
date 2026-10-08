@@ -62,13 +62,11 @@ describe("Alertas", () => {
 
   it("sugiere ver proveedores y revisar precios", () => {
     renderizarPagina(<Alertas />, { ruta: "/alertas" })
-    expect(screen.getByRole("link", { name: /Ver proveedores/ })).toHaveAttribute(
-      "href",
-      "/proveedores"
-    )
-    expect(screen.getByRole("link", { name: /Revisar precios/ })).toHaveAttribute(
-      "href",
-      "/precios"
-    )
+    expect(
+      screen.getByRole("link", { name: /Ver proveedores/ })
+    ).toHaveAttribute("href", "/proveedores")
+    expect(
+      screen.getByRole("link", { name: /Revisar precios/ })
+    ).toHaveAttribute("href", "/precios")
   })
 })
