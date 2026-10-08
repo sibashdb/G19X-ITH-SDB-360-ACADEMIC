@@ -29,8 +29,9 @@ export function Configuracion() {
                 <>
                   Podrá decidir cuánto pesa cada aspecto del{" "}
                   <Termino clave="desempeno">desempeño</Termino> (deben sumar
-                  100), desde qué <Termino clave="puntuacion">puntuación</Termino>{" "}
-                  un proveedor está en riesgo y la inflación anual.
+                  100), desde qué{" "}
+                  <Termino clave="puntuacion">puntuación</Termino> un proveedor
+                  está en riesgo y la inflación anual.
                 </>
               }
             />

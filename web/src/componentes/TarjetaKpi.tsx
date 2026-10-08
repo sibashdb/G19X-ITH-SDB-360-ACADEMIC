@@ -1,4 +1,9 @@
-import { ArrowRight, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react"
+import {
+  ArrowRight,
+  TrendingDown,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react"
 import type { ReactNode } from "react"
 import { Link } from "react-router"
 import { Card, CardContent } from "@/components/ui/card"

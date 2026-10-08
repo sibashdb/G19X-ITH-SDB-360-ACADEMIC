@@ -28,7 +28,9 @@ describe("Termino", () => {
     disparador.focus()
 
     await userEvent.keyboard("{Enter}")
-    expect(await screen.findByRole("dialog", { name: "SLA" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("dialog", { name: "SLA" })
+    ).toBeInTheDocument()
 
     await userEvent.keyboard("{Escape}")
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
@@ -52,7 +54,9 @@ describe("Termino", () => {
   it("no tiene violaciones de accesibilidad abierto ni cerrado", async () => {
     const { container } = renderizarPagina(<Termino clave="ahorroPotencial" />)
     await esperarSinViolaciones(container)
-    await userEvent.click(screen.getByRole("button", { name: "Ahorro potencial" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ahorro potencial" })
+    )
     await esperarSinViolaciones(document.body)
   })
 })

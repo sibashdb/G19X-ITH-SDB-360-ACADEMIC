@@ -54,36 +54,48 @@ export function GuiaUso() {
   const pasos: Paso[] = [
     {
       titulo: "Importar contratos y proveedores",
-      descripcion: "Cargue los datos del ERP: catálogo, proveedores, contratos y desempeño.",
+      descripcion:
+        "Cargue los datos del ERP: catálogo, proveedores, contratos y desempeño.",
       estado: hayDatos ? "hecho" : "pendiente",
-      accion: hayDatos
-        ? undefined
-        : roles.includes("admin")
-          ? enlace("Ir a Importación", "/importacion")
-          : <span className="text-sm text-muted-foreground">Administración importa los datos del ERP.</span>,
+      accion: hayDatos ? undefined : roles.includes("admin") ? (
+        enlace("Ir a Importación", "/importacion")
+      ) : (
+        <span className="text-sm text-muted-foreground">
+          Administración importa los datos del ERP.
+        </span>
+      ),
     },
     {
       titulo: "Conocer a sus proveedores",
       descripcion: "Revise quién le vende, sus contratos y cómo rinde.",
       estado: guia.visitas.proveedores ? "hecho" : "pendiente",
-      accion: guia.visitas.proveedores ? undefined : enlace("Ver proveedores", "/proveedores"),
+      accion: guia.visitas.proveedores
+        ? undefined
+        : enlace("Ver proveedores", "/proveedores"),
     },
     {
       titulo: "Ver el precio justo",
-      descripcion: "Compare lo que paga con el precio de referencia del mercado.",
+      descripcion:
+        "Compare lo que paga con el precio de referencia del mercado.",
       estado: guia.visitas.precios ? "hecho" : "pendiente",
-      accion: guia.visitas.precios ? undefined : enlace("Ver precios", "/precios"),
+      accion: guia.visitas.precios
+        ? undefined
+        : enlace("Ver precios", "/precios"),
     },
     {
       titulo: "Negociar y aprobar",
-      descripcion: "La IA negocia dentro de sus límites y usted aprueba el cierre.",
+      descripcion:
+        "La IA negocia dentro de sus límites y usted aprueba el cierre.",
       estado: "proximamente",
     },
   ]
   const listos = pasos.filter((p) => p.estado === "hecho").length
 
   return (
-    <section aria-labelledby={idTitulo} className="space-y-4 rounded-xl border bg-card p-4">
+    <section
+      aria-labelledby={idTitulo}
+      className="space-y-4 rounded-xl border bg-card p-4"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <h2 id={idTitulo} className="text-base font-semibold">
@@ -116,7 +128,11 @@ export function GuiaUso() {
                     : "bg-info-suave text-accent"
                 )}
               >
-                {paso.estado === "hecho" ? <Check className="size-3.5" /> : i + 1}
+                {paso.estado === "hecho" ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  i + 1
+                )}
               </span>
               <span className="font-medium">{paso.titulo}</span>
             </div>

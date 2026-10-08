@@ -17,10 +17,9 @@ describe("TarjetaKpi", () => {
   it("sin valor muestra un guion y 'Sin datos' para lectores de pantalla", () => {
     renderizarPagina(<TarjetaKpi {...base} valor={null} />)
     expect(screen.getByText("Sin datos")).toHaveClass("sr-only")
-    expect(screen.getByRole("link", { name: "Ver proveedores" })).toHaveAttribute(
-      "href",
-      "/proveedores"
-    )
+    expect(
+      screen.getByRole("link", { name: "Ver proveedores" })
+    ).toHaveAttribute("href", "/proveedores")
   })
 
   it("pinta el icono con el tinte de su tono y marca con un acento los estados de atención", () => {
@@ -52,10 +51,15 @@ describe("TarjetaKpi", () => {
       <TarjetaKpi
         {...base}
         valor="$48.2 M"
-        variacion={{ texto: "3.1 % más que el año anterior", direccion: "sube" }}
+        variacion={{
+          texto: "3.1 % más que el año anterior",
+          direccion: "sube",
+        }}
       />
     )
-    expect(screen.getByText("3.1 % más que el año anterior")).toBeInTheDocument()
+    expect(
+      screen.getByText("3.1 % más que el año anterior")
+    ).toBeInTheDocument()
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

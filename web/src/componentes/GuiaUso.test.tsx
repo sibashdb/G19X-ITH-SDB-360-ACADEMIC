@@ -23,8 +23,7 @@ function conProveedores(total: number) {
   )
 }
 
-const paso = (numero: number) =>
-  screen.getAllByRole("listitem")[numero - 1]
+const paso = (numero: number) => screen.getAllByRole("listitem")[numero - 1]
 
 beforeEach(() => {
   sesionDePrueba.roles = ["admin"]
@@ -48,10 +47,9 @@ describe("GuiaUso", () => {
     expect(await screen.findByText("1 de 3 listos")).toBeInTheDocument()
     expect(paso(1)).toHaveTextContent("Hecho")
     expect(paso(2)).toHaveTextContent("Pendiente")
-    expect(within(paso(2)).getByRole("link", { name: "Ver proveedores" })).toHaveAttribute(
-      "href",
-      "/proveedores"
-    )
+    expect(
+      within(paso(2)).getByRole("link", { name: "Ver proveedores" })
+    ).toHaveAttribute("href", "/proveedores")
     expect(paso(4)).toHaveTextContent("Próximamente")
   })
 
@@ -59,7 +57,10 @@ describe("GuiaUso", () => {
     conProveedores(60)
     localStorage.setItem(
       CLAVE_GUIA,
-      JSON.stringify({ oculta: false, visitas: { proveedores: true, precios: true } })
+      JSON.stringify({
+        oculta: false,
+        visitas: { proveedores: true, precios: true },
+      })
     )
     renderizarPagina(<GuiaUso />)
     expect(await screen.findByText("3 de 3 listos")).toBeInTheDocument()
@@ -96,7 +97,9 @@ describe("GuiaUso", () => {
     expect(
       screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
     ).not.toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(true)
+    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(
+      true
+    )
   })
 
   it("al ocultarse, el foco pasa al contenido en vez de perderse", async () => {
@@ -129,9 +132,9 @@ describe("GuiaUso", () => {
     simularApi(() => new Response("", { status: 500 }))
     const { cliente } = renderizarPagina(<GuiaUso />)
     await waitFor(() =>
-      expect(
-        cliente.getQueryState(["proveedores", "existencia"])?.status
-      ).toBe("error")
+      expect(cliente.getQueryState(["proveedores", "existencia"])?.status).toBe(
+        "error"
+      )
     )
     expect(
       screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
@@ -145,9 +148,14 @@ describe("GuiaUso", () => {
   it("con la guía oculta no consulta al servidor", async () => {
     localStorage.setItem(
       CLAVE_GUIA,
-      JSON.stringify({ oculta: true, visitas: { proveedores: false, precios: false } })
+      JSON.stringify({
+        oculta: true,
+        visitas: { proveedores: false, precios: false },
+      })
     )
-    const simulado = simularApi(() => respuestaJson({ total: 60, elementos: [] }))
+    const simulado = simularApi(() =>
+      respuestaJson({ total: 60, elementos: [] })
+    )
     renderizarPagina(<GuiaUso />)
     await new Promise((resolver) => setTimeout(resolver, 50))
     expect(simulado).not.toHaveBeenCalled()

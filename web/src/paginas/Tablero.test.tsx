@@ -85,14 +85,12 @@ describe("Tablero", () => {
     expect(
       screen.getByRole("link", { name: "Ver alertas de vencimiento" })
     ).toHaveAttribute("href", "/alertas?tipo=vencimiento")
-    expect(screen.getByRole("link", { name: "Ver todas las alertas" })).toHaveAttribute(
-      "href",
-      "/alertas"
-    )
-    expect(screen.getByRole("link", { name: "Ver ranking completo" })).toHaveAttribute(
-      "href",
-      "/ranking"
-    )
+    expect(
+      screen.getByRole("link", { name: "Ver todas las alertas" })
+    ).toHaveAttribute("href", "/alertas")
+    expect(
+      screen.getByRole("link", { name: "Ver ranking completo" })
+    ).toHaveAttribute("href", "/ranking")
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

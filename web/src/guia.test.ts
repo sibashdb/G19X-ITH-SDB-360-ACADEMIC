@@ -1,6 +1,12 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { CLAVE_GUIA, marcarVisita, mostrarGuia, ocultarGuia, useGuia } from "@/guia"
+import {
+  CLAVE_GUIA,
+  marcarVisita,
+  mostrarGuia,
+  ocultarGuia,
+  useGuia,
+} from "@/guia"
 
 afterEach(() => {
   localStorage.clear()
@@ -20,7 +26,9 @@ describe("guía de uso", () => {
     const { result } = renderHook(() => useGuia())
     act(() => marcarVisita("proveedores"))
     expect(result.current.visitas.proveedores).toBe(true)
-    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").visitas.proveedores).toBe(true)
+    expect(
+      JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").visitas.proveedores
+    ).toBe(true)
   })
 
   it("se oculta y se vuelve a mostrar", () => {
