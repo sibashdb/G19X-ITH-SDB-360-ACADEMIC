@@ -8,9 +8,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en infra/.env}
       PROVEEDORES_DB_PASSWORD: ${PROVEEDORES_DB_PASSWORD:?Defina PROVEEDORES_DB_PASSWORD en infra/.env}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Defina KEYCLOAK_DB_PASSWORD en infra/.env}
+      ADMINISTRACION_DB_PASSWORD: ${ADMINISTRACION_DB_PASSWORD:?Defina ADMINISTRACION_DB_PASSWORD en infra/.env}
+      ADMINISTRACION_DUENO_DB_PASSWORD: ${ADMINISTRACION_DUENO_DB_PASSWORD:?Defina ADMINISTRACION_DUENO_DB_PASSWORD en infra/.env}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sh:/docker-entrypoint-initdb.d/10-bases.sh:ro
+      - ./postgres/administracion.sh:/docker-entrypoint-initdb.d/20-administracion.sh:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -97,6 +100,30 @@ services:
       retries: 12
       start_period: 20s
 
+  administracion:
+    build:
+      context: ..
+      dockerfile: services/administracion/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://administracion:${ADMINISTRACION_DB_PASSWORD}@postgres:5432/administracion_db
+      DATABASE_URL_MIGRACIONES: postgresql+asyncpg://administracion_dueno:${ADMINISTRACION_DUENO_DB_PASSWORD}@postgres:5432/administracion_db
+      OIDC_ISSUER: http://localhost:8080/auth/realms/plataforma
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/plataforma/protocol/openid-connect/certs
+      ROOT_PATH: /api/administracion
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/salud/listo', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   gateway:
     build:
       context: ..
@@ -105,6 +132,8 @@ services:
       - "127.0.0.1:8080:8080"
     depends_on:
       proveedores:
+        condition: service_healthy
+      administracion:
         condition: service_healthy
       keycloak:
         condition: service_healthy

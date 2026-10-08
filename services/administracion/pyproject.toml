@@ -1,0 +1,22 @@
+[project]
+name = "administracion"
+version = "0.1.0"
+description = "Usuarios, bitácora de actividad, correos y estado del sistema"
+requires-python = ">=3.13"
+dependencies = [
+    "comun",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "httpx>=0.28",
+    "tzdata>=2024.1",  # base IANA para ZoneInfo en Windows e imágenes slim
+]
+
+[tool.uv.sources]
+comun = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
