@@ -160,6 +160,12 @@
   border-radius: 12px;
 }
 
+/* La rejilla 70/30 del encabezado de Keycloak reserva una columna para el selector de idioma,
+   que este tema no muestra: el título usa todo el ancho y no se parte en dos líneas. */
+.plataforma-login .pf-v5-c-login__main-header {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Tableta: dos columnas; los puntos muestran solo su título. */
 @media (min-width: 768px) {
   .plataforma-login {
