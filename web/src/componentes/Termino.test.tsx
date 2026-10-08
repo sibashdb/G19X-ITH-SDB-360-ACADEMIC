@@ -19,6 +19,7 @@ describe("Termino", () => {
 
     const ayuda = await screen.findByRole("dialog", { name: "Sobreprecio" })
     expect(ayuda).toHaveTextContent(GLOSARIO.sobreprecio.definicion)
+    expect(ayuda).toHaveAccessibleDescription(GLOSARIO.sobreprecio.definicion)
   })
 
   it("se abre con Enter, se cierra con Escape y devuelve el foco al término", async () => {

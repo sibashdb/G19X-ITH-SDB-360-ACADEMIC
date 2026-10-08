@@ -51,7 +51,10 @@ function ElementoMenu({
           aria-describedby={idDescripcion}
           onClick={alNavegar}
         >
-          <Icono aria-hidden className="mt-0.5" />
+          <Icono
+            aria-hidden
+            className="mt-0.5 group-data-[collapsible=icon]:mt-0"
+          />
           <span className="grid leading-tight">
             <span>{titulo}</span>
             <span

@@ -16,6 +16,7 @@ export function Termino({
 }) {
   const { termino, definicion } = GLOSARIO[clave]
   const idTitulo = useId()
+  const idDefinicion = useId()
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -26,11 +27,17 @@ export function Termino({
           {children ?? termino}
         </button>
       </PopoverTrigger>
-      <PopoverContent aria-labelledby={idTitulo} className="w-72 space-y-1 text-sm">
+      <PopoverContent
+        aria-labelledby={idTitulo}
+        aria-describedby={idDefinicion}
+        className="w-72 space-y-1 text-sm"
+      >
         <p id={idTitulo} className="font-medium">
           {termino}
         </p>
-        <p className="text-muted-foreground">{definicion}</p>
+        <p id={idDefinicion} className="text-muted-foreground">
+          {definicion}
+        </p>
       </PopoverContent>
     </Popover>
   )
