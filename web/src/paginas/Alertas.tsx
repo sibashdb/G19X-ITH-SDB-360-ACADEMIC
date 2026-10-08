@@ -69,7 +69,13 @@ export function Alertas() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Alertas"
-        descripcion="Lo que conviene atender hoy: contratos por vencer, precios altos y proveedores que bajan su desempeño."
+        descripcion={
+          <>
+            Lo que conviene atender hoy: contratos por vencer, precios altos y
+            proveedores que bajan su{" "}
+            <Termino clave="desempeno">desempeño</Termino>.
+          </>
+        }
       />
       <AvisoInteligencia />
       <div className="flex flex-wrap gap-4">
@@ -103,7 +109,8 @@ export function Alertas() {
             <>
               Aquí aparecerán los contratos que vencen en 90, 60 y 30 días, los
               precios con <Termino clave="sobreprecio">sobreprecio</Termino> y
-              los proveedores con puntuación baja o en caída.
+              los proveedores con{" "}
+              <Termino clave="puntuacion">puntuación</Termino> baja o en caída.
             </>
           }
           accion={

@@ -22,6 +22,9 @@ describe("Configuracion", () => {
     expect(
       screen.getByRole("heading", { name: "Modelo de precios" })
     ).toBeInTheDocument()
+    for (const termino of ["precio de referencia", "puntuación", "desempeño"]) {
+      expect(screen.getByRole("button", { name: termino })).toBeInTheDocument()
+    }
   })
 
   it("bloquea a quien no es administrador", () => {

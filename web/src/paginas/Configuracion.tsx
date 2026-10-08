@@ -12,7 +12,12 @@ export function Configuracion() {
       <section className="space-y-6">
         <EncabezadoPagina
           titulo="Configuración"
-          descripcion="Ajuste cómo se califica a los proveedores y cómo se calcula el precio de referencia."
+          descripcion={
+            <>
+              Ajuste cómo se califica a los proveedores y cómo se calcula el{" "}
+              <Termino clave="precioReferencia">precio de referencia</Termino>.
+            </>
+          }
         />
         <AvisoInteligencia />
         <div className="grid gap-4 lg:grid-cols-2">
@@ -24,8 +29,8 @@ export function Configuracion() {
                 <>
                   Podrá decidir cuánto pesa cada aspecto del{" "}
                   <Termino clave="desempeno">desempeño</Termino> (deben sumar
-                  100), desde qué puntuación un proveedor está en riesgo y la
-                  inflación anual.
+                  100), desde qué <Termino clave="puntuacion">puntuación</Termino>{" "}
+                  un proveedor está en riesgo y la inflación anual.
                 </>
               }
             />

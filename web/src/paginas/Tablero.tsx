@@ -127,7 +127,12 @@ export function Tablero() {
           <EstadoVacio
             icono={TriangleAlert}
             titulo="Sin datos todavía"
-            descripcion="Aquí verá las alertas más severas: vencimientos, sobreprecios y riesgos."
+            descripcion={
+              <>
+                Aquí verá las alertas más severas: vencimientos,{" "}
+                <Termino clave="sobreprecio">sobreprecios</Termino> y riesgos.
+              </>
+            }
           />
         </Seccion>
       </div>
@@ -145,7 +150,12 @@ export function Tablero() {
         <EstadoVacio
           icono={ListOrdered}
           titulo="Sin datos todavía"
-          descripcion="Aquí verá los 5 proveedores con mejor y peor puntuación."
+          descripcion={
+            <>
+              Aquí verá los 5 proveedores con mejor y peor{" "}
+              <Termino clave="puntuacion">puntuación</Termino>.
+            </>
+          }
         />
       </Seccion>
       {roles.includes("admin") && (

@@ -27,6 +27,12 @@ describe("Alertas", () => {
       screen.getByRole("combobox", { name: "Severidad" })
     ).toHaveTextContent("Alta")
     expect(screen.getByText("No hay alertas activas")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "desempeño" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "puntuación" })
+    ).toBeInTheDocument()
 
     await userEvent.click(
       screen.getByRole("button", { name: "Quitar filtros" })

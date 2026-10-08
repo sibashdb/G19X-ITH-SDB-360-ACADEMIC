@@ -58,6 +58,12 @@ describe("Tablero", () => {
     expect(screen.getByRole("note")).toHaveTextContent(
       "Inteligencia en preparación"
     )
+    expect(
+      screen.getByRole("button", { name: "sobreprecios" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "puntuación" })
+    ).toBeInTheDocument()
   })
 
   it("solo el administrador ve el estado de los datos", () => {
