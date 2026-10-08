@@ -190,6 +190,15 @@ describe("Layout con sesión iniciada", () => {
     ).toHaveClass("whitespace-normal")
   })
 
+  // axe `region`: la marca del menú lateral debe quedar dentro de una región, no suelta fuera de ella.
+  it("deja la marca del menú lateral dentro de la navegación principal", () => {
+    renderizar()
+    const menu = screen.getByRole("navigation", { name: "Principal" })
+    expect(
+      within(menu).getByRole("link", { name: /PluriOne/ })
+    ).toHaveAttribute("href", "/")
+  })
+
   it("muestra al admin Importación y Configuración", () => {
     estado.autenticacion = sesionCon(["admin"])
     renderizar()
@@ -294,13 +303,22 @@ describe("Layout con sesión iniciada", () => {
   it("si la guía está oculta, el menú de usuario permite mostrarla y lleva al tablero", async () => {
     localStorage.setItem(
       CLAVE_GUIA,
-      JSON.stringify({ oculta: true, visitas: { proveedores: false, precios: false } })
+      JSON.stringify({
+        oculta: true,
+        visitas: { proveedores: false, precios: false },
+      })
     )
     renderizar("/ranking")
-    await userEvent.click(screen.getByRole("button", { name: "Cuenta de Ana López" }))
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Mostrar guía de uso" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cuenta de Ana López" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Mostrar guía de uso" })
+    )
 
-    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(false)
+    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(
+      false
+    )
     expect(document.title).toBe("Tablero · PluriOne")
   })
 

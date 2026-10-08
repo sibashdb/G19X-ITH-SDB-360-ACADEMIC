@@ -79,27 +79,28 @@ export function BarraLateral() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link to="/" onClick={alNavegar}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Hexagon aria-hidden className="size-4" />
-                </span>
-                <span className="grid leading-tight">
-                  <span className="font-semibold">PluriOne</span>
-                  <span className="text-xs text-sidebar-foreground/70">
-                    Negociación con proveedores
+      {/* La marca también va dentro de la navegación: axe exige que todo contenido esté en una región. */}
+      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild>
+                <Link to="/" onClick={alNavegar}>
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                    <Hexagon aria-hidden className="size-4" />
                   </span>
-                </span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent>
-        <nav aria-label="Principal">
+                  <span className="grid leading-tight">
+                    <span className="font-semibold">PluriOne</span>
+                    <span className="text-xs text-sidebar-foreground/70">
+                      Negociación con proveedores
+                    </span>
+                  </span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
           {navegacionPara(roles).map((seccion) => (
             <SidebarGroup key={seccion.titulo}>
               <SidebarGroupLabel>{seccion.titulo}</SidebarGroupLabel>
@@ -117,8 +118,8 @@ export function BarraLateral() {
               </SidebarGroupContent>
             </SidebarGroup>
           ))}
-        </nav>
-      </SidebarContent>
+        </SidebarContent>
+      </nav>
     </Sidebar>
   )
 }
