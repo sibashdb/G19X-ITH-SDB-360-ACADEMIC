@@ -8,7 +8,7 @@ export function iniciales(nombre: string): string {
     .slice(0, 2)
     .map((palabra) => palabra[0])
     .join("")
-  return letras || "?"
+  return letras || nombre.match(/[\p{L}\p{N}]/u)?.[0]?.toUpperCase() || "?"
 }
 
 export function Iniciales({

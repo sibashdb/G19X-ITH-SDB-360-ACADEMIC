@@ -7,6 +7,8 @@ describe("iniciales", () => {
     ["Nube Andina", "NA"],
     ["Consultores", "C"],
     ["Ñandú Digital S. de R.L.", "ÑD"],
+    ["iTrust", "I"],
+    ["3M", "3"],
     ["", "?"],
   ])("%s → %s", (nombre, esperado) => {
     expect(iniciales(nombre)).toBe(esperado)
