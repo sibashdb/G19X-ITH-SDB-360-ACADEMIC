@@ -46,6 +46,8 @@ Violaciones de axe con contraste, en claro / oscuro:
 Violaciones de axe con contraste, en claro / oscuro. "1" es siempre la misma violación, `region`
 (hallazgo H2); en ninguna celda hubo otra regla ni `color-contrast`.
 
+Estado en `e0ea3e8`, antes de las correcciones; `region` desaparece con `ebe5d60` (ver «Verificación tras las correcciones»).
+
 | Página | 1440 px | 1024 px | 768 px | 375 px | Scroll horizontal |
 |---|---|---|---|---|---|
 | Tablero (con la guía) | 1 / 1 | 1 / 1 | 1 / 1 | 0 / 0 | No |

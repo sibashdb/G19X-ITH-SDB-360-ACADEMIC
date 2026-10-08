@@ -59,8 +59,9 @@ docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/
 ### Quitar el OTP en un realm ya importado
 
 Las versiones anteriores pedían OTP a `admin1` y `aprobador1`. Si su realm se importó entonces,
-quíteselo una sola vez (no borra datos). El comando funciona igual en PowerShell y en Git Bash
-(en Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`):
+quíteselo una sola vez (solo retira la acción pendiente y la credencial OTP; no toca contraseñas
+ni otros datos). El comando funciona igual en PowerShell y en Git Bash (en Git Bash, ejecute antes
+`export MSYS_NO_PATHCONV=1`):
 
 ```bash
 docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/quitar-otp.sh

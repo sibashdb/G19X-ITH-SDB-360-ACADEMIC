@@ -1,3 +1,4 @@
+<#-- Basada en keycloak.v2/login/template.ftl de Keycloak 26.5.7; revisar al cambiar de imagen. -->
 <#import "field.ftl" as field>
 <#import "footer.ftl" as loginFooter>
 <#macro username>
@@ -142,7 +143,7 @@
       <span class="plataforma-logo" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       </span>
-      <span>PluriOne<span class="plataforma-submarca">${msg("plataformaSubmarca")}</span></span>
+      <span>PluriOne <span class="plataforma-submarca">${msg("plataformaSubmarca")}</span></span>
     </p>
     <p class="plataforma-lema">${msg("plataformaLema")}</p>
     <ul class="plataforma-puntos">

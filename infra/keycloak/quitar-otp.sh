@@ -8,8 +8,8 @@ set -euo pipefail
 kcadm=/opt/keycloak/bin/kcadm.sh
 config=/tmp/kcadm.config
 
-"$kcadm" config credentials --config "$config" --server http://localhost:8080/auth \
-  --realm master --user admin --password "$KC_BOOTSTRAP_ADMIN_PASSWORD"
+KC_CLI_PASSWORD="$KC_BOOTSTRAP_ADMIN_PASSWORD" "$kcadm" config credentials --config "$config" \
+  --server http://localhost:8080/auth --realm master --user admin
 
 for usuario in admin1 aprobador1; do
   id=$("$kcadm" get users --config "$config" -r plataforma -q exact=true -q "username=$usuario" \
