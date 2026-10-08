@@ -20,4 +20,4 @@ USER servicio
 EXPOSE 8000
 
 # ponytail: migra al arrancar; con varias réplicas, mover a un job de migración previo al despliegue.
-CMD ["sh", "-c", "alembic -c services/administracion/alembic.ini upgrade head && exec uvicorn administracion.main:crear_app --factory --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "alembic -c services/administracion/alembic.ini upgrade head && exec env -u DATABASE_URL_MIGRACIONES uvicorn administracion.main:crear_app --factory --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
