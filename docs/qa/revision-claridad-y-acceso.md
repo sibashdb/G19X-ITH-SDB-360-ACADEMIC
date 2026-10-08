@@ -75,11 +75,24 @@ Violaciones de axe con contraste, en claro / oscuro. "1" es siempre la misma vio
 |---|---|---|---|---|
 | H1 | En el inicio de sesión, el título "Inicie sesión en su cuenta" se parte en 2 líneas (73 px de alto) en los 4 anchos. Es un pendiente de la Tarea 2. | El encabezado del formulario de Keycloak es una rejilla 70/30 que reserva la columna estrecha para el selector de idioma, que este tema no muestra. | `.plataforma-login .pf-v5-c-login__main-header { grid-template-columns: minmax(0, 1fr); }` en `plataforma.css`: el título usa todo el ancho. No es comprobable en jsdom, así que no lleva prueba. | `04b5805` |
 | H2 | axe `region` a 768 px o más, en ambos temas: la marca "PluriOne / Negociación con proveedores" del encabezado del menú lateral queda fuera de toda región. Es anterior a este plan (viene del Plan A). | `<nav aria-label="Principal">` envolvía solo los grupos de `SidebarContent`; `SidebarHeader` quedaba suelto en el contenedor del menú. | En `BarraLateral.tsx`, el `<nav aria-label="Principal">` envuelve `SidebarHeader` y `SidebarContent`, con `className="flex min-h-0 flex-1 flex-col"` para conservar la columna flex del menú (encabezado fijo, contenido con scroll). No se tocó `web/src/components/ui/`. Prueba en `Layout.test.tsx`: el enlace "PluriOne" está dentro de la navegación "Principal" (falló antes de la corrección). | `ebe5d60` |
+| H3 | En la variante de re-autenticación del inicio de sesión (hay sesión SSO y Keycloak muestra el usuario intentado, por ejemplo con `prompt=login`): (1) axe `label`, porque el campo del usuario no tiene etiqueta; (2) scroll horizontal de página en todos los anchos (a 375 px la página medía 565 px). Se encontró después de la primera pasada y se corrige en esta misma tarea. | Ambos vienen del marcado copiado de `keycloak.v2` en `template.ftl`: (1) `<input id="kc-attempted-username" … readonly>` no tiene `aria-label`; (2) el `<span class="kc-tooltip-text">` dentro de `#reset-login` está `visibility: hidden` pero se sigue maquetando (`left: 160 %`, `white-space: nowrap`, unos 209 px de ancho) y ensancha la página. | (1) `aria-label="${msg("usernameOrEmail")}"` en ese campo. (2) `.plataforma-login .kc-tooltip-text { display: none; }` en `plataforma.css`; el botón conserva su `aria-label` y se le agrega `title="${msg('restartLoginTooltip')}"` para que quien usa ratón siga viendo la ayuda al pasar encima. El resto de la plantilla queda igual. No es comprobable en jsdom, así que no lleva prueba. | `690d5d9` |
 
 Pruebas tras las correcciones: 22 archivos, 265 pruebas, todas pasan; `npm run lint` y
 `npm run build` sin errores (el aviso de Vite por el tamaño del chunk principal ya existía).
 
-Verificación tras las correcciones: pendiente de la revisión del controlador.
+## Verificación tras las correcciones
+
+Repetida en el navegador por el controlador sobre los commits de las correcciones.
+
+- **H1 (`04b5805`):** corregido. El título normal del inicio de sesión ocupa una línea (36 px de
+  alto, 352 px de ancho) a 1024 y 1440 px. A 768 y 375 px se parte en dos líneas solo porque el
+  ancho de texto de la tarjeta es de 294 y 279 px (menos de 352 px): ajuste natural de línea,
+  aceptado. axe: 0 violaciones a 1440 claro, 1024 claro, 768 claro y 375 claro.
+- **H2 (`ebe5d60`):** corregido. axe: 0 violaciones a 1440 claro, 1024 oscuro y 768 claro, con el
+  menú colapsado (Ctrl+B) y en el panel móvil de 375 px (allí el enlace de la marca también queda
+  dentro de la navegación "Principal"). Con una ventana de 500 px de alto, el contenido del menú
+  sigue desplazándose (`overflow: auto`, 555 > 436 px).
+- **H3 (`690d5d9`):** pendiente de verificación en navegador por el controlador.
 
 ## No revisado
 
