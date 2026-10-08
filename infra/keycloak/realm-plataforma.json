@@ -12,6 +12,20 @@
   "ssoSessionIdleTimeout": 1800,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
+  "eventsEnabled": true,
+  "eventsExpiration": 2592000,
+  "eventsListeners": ["jboss-logging"],
+  "enabledEventTypes": ["LOGIN", "LOGIN_ERROR", "LOGOUT"],
+  "emailTheme": "plataforma",
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-responder@pluri.one.test",
+    "fromDisplayName": "PluriOne",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
   "roles": {
     "realm": [
       { "name": "admin", "description": "Configura catálogos, pesos, umbrales, usuarios e importaciones" },
@@ -68,6 +82,18 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "administracion",
+      "name": "Servicio de administración",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_ADMINISTRACION_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
     }
   ],
   "users": [
@@ -100,6 +126,14 @@
       "lastName": "Aprobadora",
       "credentials": [{ "type": "password", "value": "Aprobador-Dev-2026!", "temporary": false }],
       "realmRoles": ["aprobador"]
+    },
+    {
+      "username": "service-account-administracion",
+      "enabled": true,
+      "serviceAccountClientId": "administracion",
+      "clientRoles": {
+        "realm-management": ["view-users", "manage-users", "view-events"]
+      }
     }
   ]
 }
