@@ -97,6 +97,7 @@ describe("Tablero", () => {
 
   it("no tiene violaciones de accesibilidad", async () => {
     const { container } = renderizarPagina(<Tablero />)
+    await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
     await esperarSinViolaciones(container)
   })
 })

@@ -31,13 +31,15 @@ function interpretar(crudo: string | null): EstadoGuia {
 // useSyncExternalStore exige devolver el mismo objeto mientras el estado no cambie.
 let ultimoCrudo: string | null | undefined
 let ultimo: EstadoGuia = INICIAL
+// Respaldo cuando el almacenamiento falla: la preferencia dura mientras la página siga abierta.
+let memoria: string | null = null
 
 function instantanea(): EstadoGuia {
   let crudo: string | null
   try {
     crudo = localStorage.getItem(CLAVE_GUIA)
   } catch {
-    return INICIAL
+    crudo = memoria
   }
   if (crudo !== ultimoCrudo) {
     ultimoCrudo = crudo
@@ -58,10 +60,11 @@ function suscribir(oyente: () => void) {
 }
 
 function guardar(cambiar: (estado: EstadoGuia) => EstadoGuia) {
+  const valor = JSON.stringify(cambiar(instantanea()))
   try {
-    localStorage.setItem(CLAVE_GUIA, JSON.stringify(cambiar(instantanea())))
+    localStorage.setItem(CLAVE_GUIA, valor)
   } catch {
-    // Sin almacenamiento: la guía sigue visible y sin visitas registradas.
+    memoria = valor
   }
   oyentes.forEach((oyente) => oyente())
 }

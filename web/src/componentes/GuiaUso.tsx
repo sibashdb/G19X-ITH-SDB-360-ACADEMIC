@@ -103,7 +103,7 @@ export function GuiaUso() {
           Ocultar guía
         </Button>
       </div>
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {pasos.map((paso, i) => (
           <li key={paso.titulo} className="space-y-2 rounded-lg border p-3">
             <div className="flex items-center gap-2">

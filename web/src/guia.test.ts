@@ -51,4 +51,19 @@ describe("guía de uso", () => {
     expect(result.current.oculta).toBe(false)
     expect(() => act(() => marcarVisita("precios"))).not.toThrow()
   })
+
+  it("se oculta aunque el navegador bloquee localStorage", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("bloqueado")
+    })
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("bloqueado")
+    })
+    const { result } = renderHook(() => useGuia())
+    act(() => ocultarGuia())
+    expect(result.current.oculta).toBe(true)
+    // Deja el respaldo en memoria como estaba para las demás pruebas.
+    act(() => mostrarGuia())
+    expect(result.current.oculta).toBe(false)
+  })
 })
