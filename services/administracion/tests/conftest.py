@@ -10,6 +10,7 @@ from administracion.main import crear_app
 from alembic import command
 from alembic.config import Config
 from comun.pruebas import ClavesPrueba
+from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -77,18 +78,22 @@ def identidad() -> IdentidadFalsa:
 
 
 @pytest.fixture
-async def cliente(
+def app(
     urls_bd: tuple[str, str],
     fabrica: async_sessionmaker[AsyncSession],
     claves: ClavesPrueba,
     identidad: IdentidadFalsa,
-) -> AsyncIterator[httpx.AsyncClient]:
-    app = crear_app(
+) -> FastAPI:
+    return crear_app(
         Configuracion(database_url=urls_bd[1], buzon_url="http://buzon:8025"),
         claves.validador(),
         fabrica,
         identidad,
     )
+
+
+@pytest.fixture
+async def cliente(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
     transporte = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as cliente:
         yield cliente

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -8,6 +9,7 @@ from administracion.bitacora import Actor, registrar
 from administracion.identidad import DatosRechazados, IdentidadNoDisponible, UsuarioIdentidad
 from administracion.identidad_falsa import IdentidadFalsa
 from comun.pruebas import ClavesPrueba
+from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -40,10 +42,23 @@ async def _bitacora(fabrica: async_sessionmaker[AsyncSession]) -> list[dict[str,
         return [dict(f._mapping) for f in filas]
 
 
-async def test_solo_admin(cliente: httpx.AsyncClient, claves: ClavesPrueba) -> None:
+async def test_todas_las_rutas_exigen_el_rol_admin(
+    app: FastAPI, cliente: httpx.AsyncClient, claves: ClavesPrueba
+) -> None:
     comprador = {"Authorization": f"Bearer {claves.token('comprador')}"}
-    assert (await cliente.get("/usuarios", headers=comprador)).status_code == 403
-    assert (await cliente.get("/usuarios")).status_code == 401
+    # app.routes no aplana los routers incluidos (FastAPI los envuelve): se usa el esquema OpenAPI.
+    rutas = [
+        (metodo, re.sub(r"\{[^}]+\}", "x", ruta))
+        for ruta, metodos in app.openapi()["paths"].items()
+        if not ruta.startswith("/salud")
+        for metodo in metodos
+    ]
+    assert len(rutas) >= 10  # que el recorrido no quede vacío si cambia cómo se declaran
+    for metodo, ruta in rutas:
+        sin_token = await cliente.request(metodo, ruta)
+        assert sin_token.status_code == 401, (metodo, ruta)
+        de_comprador = await cliente.request(metodo, ruta, headers=comprador)
+        assert de_comprador.status_code == 403, (metodo, ruta)
 
 
 async def test_lista_filtra_busca_sin_acentos_y_pagina(
