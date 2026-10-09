@@ -1,5 +1,10 @@
 """Aplicación FastAPI del servicio de administración."""
 
+import asyncio
+import contextlib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from comun.auth import ValidadorJWT, validador_desde_jwks
 from comun.errores import registrar_manejadores
 from comun.logs import configurar_logs, middleware_correlacion
@@ -12,6 +17,7 @@ from administracion.api.rutas import router
 from administracion.config import Configuracion
 from administracion.identidad import ProveedorIdentidad
 from administracion.keycloak import IdentidadKeycloak
+from administracion.sesiones import ejecutar_periodicamente
 
 
 def crear_app(
@@ -33,7 +39,25 @@ def crear_app(
         config.keycloak_secreto,
         config.url_app,
     )
-    app = FastAPI(title="Servicio de administración", version="0.1.0", root_path=config.root_path)
+
+    @asynccontextmanager
+    async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
+        tarea = asyncio.create_task(
+            ejecutar_periodicamente(proveedor, sesiones, config.intervalo_eventos_s)
+        )
+        yield
+        tarea.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await tarea
+        if isinstance(proveedor, IdentidadKeycloak):
+            await proveedor.cerrar()
+
+    app = FastAPI(
+        title="Servicio de administración",
+        version="0.1.0",
+        root_path=config.root_path,
+        lifespan=ciclo_de_vida,
+    )
     app.state.fabrica = sesiones
     app.state.config = config
     app.state.identidad = proveedor

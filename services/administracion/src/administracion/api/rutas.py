@@ -5,8 +5,9 @@ import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Literal
+from zoneinfo import ZoneInfo
 
 from comun.auth import Usuario, requiere_rol
 from comun.errores import ErrorDominio
@@ -16,7 +17,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from administracion.api import esquemas
-from administracion.bitacora import Actor, Objeto, registrar, ultimos_accesos
+from administracion.bitacora import (
+    Actor,
+    FiltroActividad,
+    GrupoTipo,
+    Objeto,
+    consultar,
+    registrar,
+    ultimos_accesos,
+)
 from administracion.db import obtener_sesion
 from administracion.identidad import (
     ROLES_ASIGNABLES,
@@ -522,4 +531,45 @@ async def listar_correos(
         total=total,
         elementos=[esquemas.CorreoSalida.model_validate(f) for f in filas],
         buzon_url=request.app.state.config.buzon_url or None,
+    )
+
+
+ZONA = ZoneInfo("America/Mexico_City")
+
+
+def _inicio_del_dia(dia: date) -> datetime:
+    return datetime.combine(dia, time.min, tzinfo=ZONA)
+
+
+@router.get("/actividad", tags=["actividad"])
+async def listar_actividad(
+    sesion: Sesion,
+    _: Admin,
+    persona: Annotated[str | None, Query(max_length=64)] = None,
+    tipo: GrupoTipo | None = None,
+    desde: date | None = None,
+    hasta: date | None = None,
+    pagina: Annotated[int, Query(ge=1, le=10_000)] = 1,
+    tamano: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> esquemas.PaginaActividad:
+    if desde and hasta and hasta < desde:
+        raise ErrorDominio(
+            422,
+            "Solicitud inválida",
+            "Revise los campos indicados.",
+            {
+                "errores": [
+                    {"campo": "hasta", "mensaje": "Debe ser igual o posterior a la fecha inicial"}
+                ]
+            },
+        )
+    filtro = FiltroActividad(
+        persona=persona,
+        tipo=tipo,
+        desde=_inicio_del_dia(desde) if desde else None,
+        hasta=_inicio_del_dia(hasta + timedelta(days=1)) if hasta else None,
+    )
+    total, filas = await consultar(sesion, filtro, (pagina - 1) * tamano, tamano)
+    return esquemas.PaginaActividad(
+        total=total, elementos=[esquemas.ActividadSalida.model_validate(f) for f in filas]
     )
