@@ -5,6 +5,7 @@ from pathlib import Path
 import httpx
 import pytest
 from administracion.config import Configuracion
+from administracion.identidad_falsa import IdentidadFalsa
 from administracion.main import crear_app
 from alembic import command
 from alembic.config import Config
@@ -68,12 +69,26 @@ def claves() -> ClavesPrueba:
 
 
 @pytest.fixture
+def identidad() -> IdentidadFalsa:
+    falsa = IdentidadFalsa()
+    falsa.agregar("admin-1", ["admin"], nombre="Andrea", apellidos="Administradora")
+    falsa.agregar("comprador-1", ["comprador"], nombre="Carlos", apellidos="Comprador")
+    return falsa
+
+
+@pytest.fixture
 async def cliente(
     urls_bd: tuple[str, str],
     fabrica: async_sessionmaker[AsyncSession],
     claves: ClavesPrueba,
+    identidad: IdentidadFalsa,
 ) -> AsyncIterator[httpx.AsyncClient]:
-    app = crear_app(Configuracion(database_url=urls_bd[1]), claves.validador(), fabrica)
+    app = crear_app(
+        Configuracion(database_url=urls_bd[1], buzon_url="http://buzon:8025"),
+        claves.validador(),
+        fabrica,
+        identidad,
+    )
     transporte = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as cliente:
         yield cliente
