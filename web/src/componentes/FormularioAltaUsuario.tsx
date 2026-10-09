@@ -55,6 +55,8 @@ export function FormularioAltaUsuario({
   const [roles, setRoles] = useState<Rol[]>([])
   const [metodo, setMetodo] = useState<MetodoAlta>("invitacion")
   const mutacion = useMutation({
+    // La respuesta puede traer la contraseña temporal: no debe quedar en la caché al reiniciar.
+    gcTime: 0,
     mutationFn: (datos: object) =>
       pedir<ResultadoAlta>(
         "/administracion/usuarios",

@@ -136,6 +136,8 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
   const errores = erroresPorCampo(guardar.error)
 
   const accion = useMutation({
+    // La respuesta puede traer la contraseña temporal: no debe quedar en la caché al cerrar el diálogo.
+    gcTime: 0,
     mutationFn: ({ sufijo, cuerpo }: { sufijo: string; cuerpo?: object }) =>
       pedir<UsuarioAdmin | ResultadoContrasena | undefined>(
         `${ruta}/${sufijo}`,
@@ -379,7 +381,10 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
       <ActividadReciente usuarioId={usuario.id} />
       <DialogoContrasenaTemporal
         datos={temporal ? { nombre, contrasena: temporal } : null}
-        alCerrar={() => setTemporal(null)}
+        alCerrar={() => {
+          setTemporal(null)
+          accion.reset()
+        }}
         devolverFoco={botonTemporal}
       />
     </section>

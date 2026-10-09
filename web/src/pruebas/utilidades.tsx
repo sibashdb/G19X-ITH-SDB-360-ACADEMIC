@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import axe from "axe-core"
 import type { ReactNode } from "react"
 import { MemoryRouter, Route, Routes, useLocation } from "react-router"
@@ -41,6 +41,20 @@ export function simularApi(
   })
   vi.stubGlobal("fetch", simulado)
   return simulado
+}
+
+/** Espera a que ninguna mutación en caché conserve el texto (el gcTime de la mutación debe ser 0). */
+export async function esperarSinEnMutaciones(
+  cliente: QueryClient,
+  texto: string
+): Promise<void> {
+  await waitFor(() => {
+    const estados = cliente
+      .getMutationCache()
+      .getAll()
+      .map((mutacion) => JSON.stringify(mutacion.state))
+    expect(estados.join()).not.toContain(texto)
+  })
 }
 
 /** URL de una llamada a fetch simulada (por defecto, la última), para revisar sus parámetros. */

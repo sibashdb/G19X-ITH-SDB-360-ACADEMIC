@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { UsuarioDetalle } from "@/paginas/UsuarioDetalle"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
+  esperarSinEnMutaciones,
   esperarSinViolaciones,
   renderizarPagina,
   respuestaDiferida,
@@ -136,7 +137,7 @@ describe("UsuarioDetalle", () => {
       [`${RUTA}/contrasena`]: () =>
         respuestaJson({ contrasena_temporal: "Ab1#cdefghijklmn" }),
     })
-    renderizar()
+    const { cliente } = renderizar()
     await screen.findByRole("heading", { level: 1, name: "Ana López" })
     await userEvent.click(
       screen.getByRole("button", { name: "Asignar contraseña temporal" })
@@ -150,6 +151,12 @@ describe("UsuarioDetalle", () => {
       name: "Contraseña temporal de Ana López",
     })
     expect(within(dialogo).getByText("Ab1#cdefghijklmn")).toBeInTheDocument()
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Listo" })
+    )
+    expect(screen.queryByText("Ab1#cdefghijklmn")).not.toBeInTheDocument()
+    // Tampoco queda en el estado de la app: ninguna mutación en caché la conserva.
+    await esperarSinEnMutaciones(cliente, "Ab1#cdefghijklmn")
   })
 
   it("al cerrar la contraseña temporal, el foco vuelve a «Asignar contraseña temporal»", async () => {

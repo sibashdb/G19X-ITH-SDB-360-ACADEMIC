@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Usuarios } from "@/paginas/Usuarios"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
+  esperarSinEnMutaciones,
   esperarSinViolaciones,
   renderizarPagina,
   respuestaDiferida,
@@ -138,7 +139,9 @@ describe("Usuarios", () => {
         201
       )
     )
-    renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })
+    const { cliente } = renderizarPagina(<Usuarios />, {
+      ruta: "/sistema/usuarios",
+    })
     await screen.findByRole("link", { name: "Ana López" })
     const panel = await llenarAlta("temporal")
     await userEvent.click(
@@ -155,6 +158,8 @@ describe("Usuarios", () => {
       within(dialogo).getByRole("button", { name: "Listo" })
     )
     expect(screen.queryByText("Xy7#abcdefghijkl")).not.toBeInTheDocument()
+    // Tampoco queda en el estado de la app: ninguna mutación en caché la conserva.
+    await esperarSinEnMutaciones(cliente, "Xy7#abcdefghijkl")
     await userEvent.click(screen.getByRole("button", { name: "Nuevo usuario" }))
     expect(screen.queryByText("Xy7#abcdefghijkl")).not.toBeInTheDocument()
   })
