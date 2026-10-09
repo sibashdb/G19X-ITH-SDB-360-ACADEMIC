@@ -94,6 +94,24 @@ async def test_el_cursor_avanza(fabrica: async_sessionmaker[AsyncSession]) -> No
     assert hasta == AHORA - timedelta(minutes=10)
 
 
+async def test_un_usuario_de_255_caracteres_no_detiene_la_copia(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    # Keycloak registra tal cual lo escrito en el login (hasta 255); la columna mide 200.
+    largo = "x" * 255
+    falsa = IdentidadFalsa()
+    falsa.eventos = [
+        _evento("e1", "LOGIN_ERROR", 5, usuario_id=None, usuario=largo, error="user_not_found")
+    ]
+    assert await sincronizar(falsa, fabrica) == 1
+    assert [f[1] for f in await _filas(fabrica)] == ["x" * 200]
+    async with fabrica() as sesion:
+        hasta = await sesion.scalar(
+            text("SELECT hasta FROM cursor_eventos WHERE nombre = 'keycloak'")
+        )
+    assert hasta == AHORA - timedelta(minutes=5)
+
+
 async def _esperar_filas(fabrica: async_sessionmaker[AsyncSession], cuantas: int) -> None:
     for _ in range(200):
         if len(await _filas(fabrica)) >= cuantas:

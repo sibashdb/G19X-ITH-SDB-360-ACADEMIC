@@ -18,6 +18,7 @@ PREFIJOS_GRUPO: dict[str, str] = {
     "importaciones": "importacion.",
     "catalogo": "servicio.",
 }
+MAX_NOMBRE = 200  # largo de actor_nombre y objeto_nombre; Keycloak admite usuarios de hasta 255
 
 
 @dataclass(frozen=True)
@@ -57,11 +58,11 @@ async def registrar(
     """Agrega un registro a la transacción en curso; una clave de origen repetida no hace nada."""
     valores: dict[str, Any] = {
         "actor_id": actor.id,
-        "actor_nombre": actor.nombre,
+        "actor_nombre": actor.nombre[:MAX_NOMBRE],
         "tipo": tipo,
         "objeto_tipo": objeto.tipo if objeto else None,
         "objeto_id": objeto.id if objeto else None,
-        "objeto_nombre": objeto.nombre if objeto else None,
+        "objeto_nombre": objeto.nombre[:MAX_NOMBRE] if objeto else None,
         "detalle": detalle or {},
         "resultado": resultado,
         "ip": actor.ip,

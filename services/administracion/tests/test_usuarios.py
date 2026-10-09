@@ -106,6 +106,18 @@ async def test_alta_por_invitacion(
     assert correos["elementos"][0]["estado"] == "enviado"
 
 
+async def test_alta_con_nombre_y_apellidos_de_100_caracteres_queda_en_la_bitacora(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    # "nombre apellidos" mide 201 y la columna objeto_nombre 200.
+    datos = {**NUEVO, "nombre": "N" * 100, "apellidos": "A" * 100}
+    respuesta = await cliente.post("/usuarios", json=datos, headers=admin)
+    assert respuesta.status_code == 201, respuesta.text
+    assert {len(str(f["objeto_nombre"])) for f in await _bitacora(fabrica)} == {200}
+
+
 async def test_alta_con_contrasena_temporal_no_la_guarda(
     cliente: httpx.AsyncClient,
     admin: dict[str, str],
