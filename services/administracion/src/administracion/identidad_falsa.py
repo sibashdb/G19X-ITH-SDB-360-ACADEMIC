@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from administracion.identidad import (
+    PREFIJO_CUENTA_SERVICIO,
     CorreoNoEnviado,
     DatoDuplicado,
     DatosUsuarioNuevo,
@@ -64,7 +65,10 @@ class IdentidadFalsa:
         return list(self.usuarios.values())
 
     async def obtener_usuario(self, usuario_id: str) -> UsuarioIdentidad:
-        return self._buscar(usuario_id)
+        usuario = self._buscar(usuario_id)
+        if usuario.usuario.startswith(PREFIJO_CUENTA_SERVICIO):
+            raise UsuarioNoEncontrado(usuario_id)  # igual que el adaptador de Keycloak
+        return usuario
 
     async def crear_usuario(self, datos: DatosUsuarioNuevo) -> str:
         self._disponible()

@@ -379,6 +379,30 @@ async def test_usuario_inexistente(cliente: httpx.AsyncClient, admin: dict[str, 
     assert respuesta.json()["codigo"] == "usuario_no_encontrado"
 
 
+@pytest.mark.parametrize("id_", ["%2E%2E", "abc%3Fx=1", "a%20b", "a.b", "a" * 65])
+async def test_un_id_con_caracteres_raros_es_un_422(
+    cliente: httpx.AsyncClient, admin: dict[str, str], id_: str
+) -> None:
+    for respuesta in (
+        await cliente.get(f"/usuarios/{id_}", headers=admin),
+        await cliente.post(f"/usuarios/{id_}/desactivar", headers=admin),
+    ):
+        assert respuesta.status_code == 422
+        assert "path.usuario_id" in [e["campo"] for e in respuesta.json()["errores"]]
+
+
+async def test_la_cuenta_de_servicio_no_se_puede_tocar(
+    cliente: httpx.AsyncClient, admin: dict[str, str], identidad: IdentidadFalsa
+) -> None:
+    identidad.agregar("service-account-administracion", ["admin"])
+    respuesta = await cliente.post(
+        "/usuarios/service-account-administracion/desactivar", headers=admin
+    )
+    assert respuesta.status_code == 404
+    assert respuesta.json()["codigo"] == "usuario_no_encontrado"
+    assert identidad.usuarios["service-account-administracion"].activo is True
+
+
 async def test_si_la_bitacora_falla_lo_dice(
     cliente: httpx.AsyncClient, admin: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

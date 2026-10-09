@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from comun.auth import Usuario, requiere_rol
 from comun.errores import ErrorDominio
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +54,8 @@ VIGENCIA_RESTABLECIMIENTO_S = 24 * 3600
 
 Sesion = Annotated[AsyncSession, Depends(obtener_sesion)]
 Admin = Annotated[Usuario, Depends(requiere_rol("admin"))]
+# El id va dentro de la URL de Keycloak: solo los caracteres de un UUID, sin "..", "?" ni "/".
+UsuarioId = Annotated[str, Path(pattern=r"^[A-Za-z0-9-]{1,64}$")]
 
 
 def _identidad(request: Request) -> ProveedorIdentidad:
@@ -306,7 +308,7 @@ async def crear_usuario(
 
 @router.get("/usuarios/{usuario_id}", tags=["usuarios"])
 async def obtener_usuario(
-    usuario_id: str, sesion: Sesion, identidad: Identidad, _: Admin
+    usuario_id: UsuarioId, sesion: Sesion, identidad: Identidad, _: Admin
 ) -> esquemas.UsuarioSalida:
     with _traducir_errores():
         usuario = await identidad.obtener_usuario(usuario_id)
@@ -316,7 +318,7 @@ async def obtener_usuario(
 
 @router.patch("/usuarios/{usuario_id}", tags=["usuarios"])
 async def editar_usuario(
-    usuario_id: str,
+    usuario_id: UsuarioId,
     datos: esquemas.CambioUsuario,
     request: Request,
     sesion: Sesion,
@@ -435,21 +437,21 @@ async def _cambiar_activo(
 
 @router.post("/usuarios/{usuario_id}/desactivar", tags=["usuarios"])
 async def desactivar_usuario(
-    usuario_id: str, request: Request, sesion: Sesion, identidad: Identidad, admin: Admin
+    usuario_id: UsuarioId, request: Request, sesion: Sesion, identidad: Identidad, admin: Admin
 ) -> esquemas.UsuarioSalida:
     return await _cambiar_activo(usuario_id, False, request, sesion, identidad, admin)
 
 
 @router.post("/usuarios/{usuario_id}/activar", tags=["usuarios"])
 async def activar_usuario(
-    usuario_id: str, request: Request, sesion: Sesion, identidad: Identidad, admin: Admin
+    usuario_id: UsuarioId, request: Request, sesion: Sesion, identidad: Identidad, admin: Admin
 ) -> esquemas.UsuarioSalida:
     return await _cambiar_activo(usuario_id, True, request, sesion, identidad, admin)
 
 
 @router.post("/usuarios/{usuario_id}/contrasena", tags=["usuarios"])
 async def contrasena_usuario(
-    usuario_id: str,
+    usuario_id: UsuarioId,
     datos: esquemas.MetodoContrasena,
     request: Request,
     sesion: Sesion,
@@ -511,7 +513,7 @@ async def contrasena_usuario(
 
 @router.post("/usuarios/{usuario_id}/cerrar-sesiones", status_code=204, tags=["usuarios"])
 async def cerrar_sesiones(
-    usuario_id: str, request: Request, sesion: Sesion, identidad: Identidad, admin: Admin
+    usuario_id: UsuarioId, request: Request, sesion: Sesion, identidad: Identidad, admin: Admin
 ) -> Response:
     actor = _actor(admin, request)
     with _traducir_errores():

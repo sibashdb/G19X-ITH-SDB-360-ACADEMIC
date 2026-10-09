@@ -163,8 +163,11 @@ class IdentidadKeycloak:
     async def obtener_usuario(self, usuario_id: str) -> UsuarioIdentidad:
         respuesta = await self._pedir("GET", f"/users/{usuario_id}")
         self._exigir_exito(respuesta)
+        datos = respuesta.json()
+        if str(datos["username"]).startswith(PREFIJO_CUENTA_SERVICIO):
+            raise UsuarioNoEncontrado(usuario_id)  # no es una persona: no se lista ni se toca
         roles = {str(r["name"]) for r in await self._roles_de(usuario_id)}
-        return self._a_usuario(respuesta.json(), roles)
+        return self._a_usuario(datos, roles)
 
     @staticmethod
     def _duplicado(respuesta: httpx.Response) -> DatoDuplicado:

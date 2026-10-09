@@ -140,6 +140,21 @@ async def test_obtener_inexistente() -> None:
         await identidad.obtener_usuario("nadie")
 
 
+async def test_obtener_una_cuenta_de_servicio_es_no_encontrado() -> None:
+    identidad, _ = _keycloak(
+        {
+            ("GET", f"{ADMIN}/users/s1"): lambda _: httpx.Response(
+                200, json=_usuario("s1", "service-account-administracion")
+            ),
+            ("GET", f"{ADMIN}/users/s1/role-mappings/realm"): lambda _: httpx.Response(
+                200, json=[]
+            ),
+        }
+    )
+    with pytest.raises(UsuarioNoEncontrado):
+        await identidad.obtener_usuario("s1")
+
+
 async def test_crear_usuario_devuelve_el_id_de_location() -> None:
     def crear(peticion: httpx.Request) -> httpx.Response:
         cuerpo = json.loads(peticion.content)

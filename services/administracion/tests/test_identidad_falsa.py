@@ -1,5 +1,10 @@
 import pytest
-from administracion.identidad import DatoDuplicado, DatosUsuarioNuevo, IdentidadNoDisponible
+from administracion.identidad import (
+    DatoDuplicado,
+    DatosUsuarioNuevo,
+    IdentidadNoDisponible,
+    UsuarioNoEncontrado,
+)
 from administracion.identidad_falsa import IdentidadFalsa
 
 
@@ -14,6 +19,13 @@ async def test_crear_y_duplicados() -> None:
     with pytest.raises(DatoDuplicado) as correo:
         await falsa.crear_usuario(DatosUsuarioNuevo("carla", "C", "D", "ana@x.mx"))
     assert correo.value.campo == "correo"
+
+
+async def test_no_entrega_cuentas_de_servicio_por_id() -> None:
+    falsa = IdentidadFalsa()
+    falsa.agregar("service-account-administracion", ["admin"])
+    with pytest.raises(UsuarioNoEncontrado):
+        await falsa.obtener_usuario("service-account-administracion")
 
 
 async def test_caida() -> None:
