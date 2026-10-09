@@ -27,8 +27,11 @@ from administracion.identidad import (
 log = logging.getLogger(__name__)
 
 TIEMPO_LIMITE_S = 5
-# ponytail: la lista completa cabe en memoria (hasta 1,000 usuarios); paginar en Keycloak si crece.
+# ponytail: la lista completa cabe en memoria y los roles se leen con una consulta por usuario;
+# razonable hasta 1,000 usuarios. Pasado eso, paginar en Keycloak y pedir view-realm para volver a
+# /roles/{rol}/users.
 MAX_USUARIOS = 1000
+CONSULTAS_DE_ROLES_A_LA_VEZ = 20
 TAMANO_PAGINA_EVENTOS = 200
 MAX_PAGINAS_EVENTOS = 50
 TIPOS_EVENTO = ("LOGIN", "LOGIN_ERROR", "LOGOUT")
@@ -137,10 +140,15 @@ class IdentidadKeycloak:
             if not str(u["username"]).startswith(PREFIJO_CUENTA_SERVICIO)
         ]
         # Los endpoints /roles piden view-realm, que la cuenta de servicio no tiene (solo
-        # view-users, manage-users y view-events): los roles se leen por usuario, en paralelo.
-        # ponytail: una consulta por usuario; con cientos de usuarios, pedir view-realm y volver a
-        # /roles/{rol}/users.
-        roles = await asyncio.gather(*(self._roles_de(str(u["id"])) for u in usuarios))
+        # view-users, manage-users y view-events): los roles se leen por usuario, en paralelo pero
+        # con un tope para no saturar Keycloak (ver MAX_USUARIOS para el techo).
+        turno = asyncio.Semaphore(CONSULTAS_DE_ROLES_A_LA_VEZ)
+
+        async def roles_de(usuario_id: str) -> list[dict[str, Any]]:
+            async with turno:
+                return await self._roles_de(usuario_id)
+
+        roles = await asyncio.gather(*(roles_de(str(u["id"])) for u in usuarios))
         return [
             self._a_usuario(u, {str(r["name"]) for r in asignados})
             for u, asignados in zip(usuarios, roles, strict=True)

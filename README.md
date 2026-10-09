@@ -38,17 +38,34 @@ Los secretos van en `infra/.env` (cópielo desde `infra/.env.example`). Los de l
 ### Activar la administración en un entorno ya creado
 
 El volumen de PostgreSQL y el realm de Keycloak solo se inicializan la primera vez. Si su entorno
-ya existía antes de la administración, agregue en `infra/.env` las tres variables de arriba, levante
-el stack y ejecute estos dos comandos, en este orden (en Git Bash, ejecute antes
-`export MSYS_NO_PATHCONV=1`):
+ya existía antes de la administración, siga estos tres pasos, en este orden (en Git Bash, ejecute
+antes `export MSYS_NO_PATHCONV=1`).
 
-```bash
-docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/20-administracion.sh
-docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/configurar-administracion.sh
-```
+1. Agregue en `infra/.env` las tres variables de arriba y vuelva a crear PostgreSQL y Keycloak para
+   que las reciban:
 
-Ambos son idempotentes: puede repetirlos sin riesgo. El primero crea la base y sus dos usuarios.
-El segundo configura en Keycloak el cliente, los eventos, el correo y el tema.
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --wait postgres keycloak
+   ```
+
+2. Cree la base y configure Keycloak. Ambos comandos son idempotentes: puede repetirlos sin riesgo.
+   El primero crea la base y sus dos usuarios. El segundo configura en Keycloak el cliente, los
+   eventos, el correo y el tema.
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/20-administracion.sh
+   ```
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/configurar-administracion.sh
+   ```
+
+3. Levante el resto del stack. Antes del paso 2, este comando falla porque la base de
+   administración todavía no existe:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --build --wait
+   ```
 
 ### Tema de inicio de sesión en un realm ya importado
 

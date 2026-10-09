@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -11,7 +12,7 @@ from administracion.identidad import (
     IdentidadNoDisponible,
     UsuarioNoEncontrado,
 )
-from administracion.keycloak import IdentidadKeycloak
+from administracion.keycloak import CONSULTAS_DE_ROLES_A_LA_VEZ, IdentidadKeycloak
 
 BASE = "http://kc/auth"
 ADMIN = "/auth/admin/realms/plataforma"
@@ -101,6 +102,35 @@ async def test_listar_lee_los_roles_de_cada_usuario_y_omite_cuentas_de_servicio(
     assert lista["beto"].roles == {"comprador"}
     assert lista["beto"].activo is False
     assert lista["ana"].creado_en == datetime.fromtimestamp(1_790_000_000, UTC)
+
+
+async def test_listar_limita_las_consultas_de_roles_simultaneas() -> None:
+    usuarios = [_usuario(f"u{i}", f"usuario{i}") for i in range(50)]
+    en_vuelo = 0
+    maximo = 0
+
+    async def manejar(peticion: httpx.Request) -> httpx.Response:
+        nonlocal en_vuelo, maximo
+        if peticion.url.path == TOKEN:
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 300})
+        if peticion.url.path == f"{ADMIN}/users":
+            return httpx.Response(200, json=usuarios)
+        en_vuelo += 1
+        maximo = max(maximo, en_vuelo)
+        await asyncio.sleep(0)  # cede el turno: las demás consultas intentan entrar
+        en_vuelo -= 1
+        return httpx.Response(200, json=[])
+
+    identidad = IdentidadKeycloak(
+        BASE,
+        "plataforma",
+        "administracion",
+        "secreto",
+        "http://app/",
+        transporte=httpx.MockTransport(manejar),
+    )
+    assert len(await identidad.listar_usuarios()) == 50
+    assert maximo == CONSULTAS_DE_ROLES_A_LA_VEZ
 
 
 async def test_obtener_inexistente() -> None:

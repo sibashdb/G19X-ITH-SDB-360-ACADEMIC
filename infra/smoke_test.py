@@ -9,6 +9,8 @@ import httpx
 
 BASE = "http://localhost:8080"
 BUZON = "http://localhost:8025"
+CORREO_HUMO = "humo.prueba@plataforma.example"
+ASUNTO_CORREO = "Defina su contraseña de PluriOne"
 REALM = Path(__file__).parent / "keycloak" / "realm-plataforma.json"
 
 
@@ -37,6 +39,26 @@ def token_de(cliente: httpx.Client, usuario: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {respuesta.json()['access_token']}"}
 
 
+def correos_de_humo() -> dict[str, str]:
+    """ID -> asunto de los correos que Mailpit tiene para el usuario de humo."""
+    respuesta = httpx.get(
+        f"{BUZON}/api/v1/search", params={"query": f"to:{CORREO_HUMO}"}, timeout=10
+    )
+    verificar(respuesta.status_code == 200, f"Mailpit no respondió: {respuesta.text}")
+    return {m["ID"]: m["Subject"] for m in respuesta.json().get("messages", [])}
+
+
+def sesiones_de_admin1(cliente: httpx.Client, admin: dict[str, str]) -> set[str]:
+    """IDs de los inicios de sesión de admin1 en las 100 entradas más recientes de la bitácora."""
+    respuesta = cliente.get(
+        "/api/administracion/actividad",
+        params={"tipo": "sesiones", "tamano": 100},
+        headers=admin,
+    )
+    verificar(respuesta.status_code == 200, f"consultar la actividad falló: {respuesta.text}")
+    return {e["id"] for e in respuesta.json()["elementos"] if e["actor_nombre"] == "admin1"}
+
+
 def verificar_administracion(cliente: httpx.Client) -> None:
     admin = token_de(cliente, "admin1")
     comprador = token_de(cliente, "comprador1")
@@ -53,15 +75,18 @@ def verificar_administracion(cliente: httpx.Client) -> None:
         "usuario": "humo.prueba",
         "nombre": "Humo",
         "apellidos": "Prueba",
-        "correo": "humo.prueba@plataforma.example",
+        "correo": CORREO_HUMO,
         "roles": ["comprador"],
         "metodo": "invitacion",
     }
+    # Los correos de corridas anteriores siguen en Mailpit: solo cuenta uno nuevo.
+    correos_antes = set(correos_de_humo())
     alta = cliente.post(f"{api}/usuarios", json=datos, headers=admin)
     if alta.status_code == 201:
         usuario_id = alta.json()["usuario"]["id"]
         verificar(alta.json()["correo_enviado"] is True, "la invitación no se envió")
     else:
+        verificar(alta.status_code == 409, f"alta falló: {alta.text}")
         # Con usuario y correo repetidos, Keycloak reporta primero el correo.
         verificar(
             alta.json().get("codigo") in ("usuario_duplicado", "correo_duplicado"),
@@ -71,19 +96,17 @@ def verificar_administracion(cliente: httpx.Client) -> None:
             f"{api}/usuarios", params={"busqueda": "humo.prueba"}, headers=admin
         ).json()["elementos"]
         usuario_id = existente["id"]
-        cliente.post(f"{api}/usuarios/{usuario_id}/activar", headers=admin)
+        activar = cliente.post(f"{api}/usuarios/{usuario_id}/activar", headers=admin)
+        verificar(activar.status_code == 200, f"activar falló: {activar.text}")
         correo = cliente.post(
             f"{api}/usuarios/{usuario_id}/contrasena", json={"metodo": "correo"}, headers=admin
         )
         verificar(correo.status_code == 200, f"el correo no se envió: {correo.text}")
 
-    mensajes = httpx.get(
-        f"{BUZON}/api/v1/search", params={"query": "to:humo.prueba@plataforma.example"}, timeout=10
-    )
-    asuntos = [m["Subject"] for m in mensajes.json().get("messages", [])]
+    nuevos = [a for id_, a in correos_de_humo().items() if id_ not in correos_antes]
     verificar(
-        "Defina su contraseña de PluriOne" in asuntos,
-        f"el correo no llegó a Mailpit con el asunto esperado: {asuntos}",
+        ASUNTO_CORREO in nuevos,
+        f"no llegó a Mailpit un correo nuevo con el asunto esperado: {nuevos}",
     )
 
     baja = cliente.post(f"{api}/usuarios/{usuario_id}/desactivar", headers=admin)
@@ -101,13 +124,13 @@ def verificar_administracion(cliente: httpx.Client) -> None:
         f"la bitácora no registró las acciones: {tipos}",
     )
 
-    # Los inicios de sesión llegan a la bitácora en menos de un minuto (lectura cada 30 s).
+    # Un inicio de sesión nuevo llega a la bitácora en menos de un minuto (lectura cada 30 s).
+    # Los de corridas anteriores no cuentan: se compara contra los que ya estaban.
+    sesiones_antes = sesiones_de_admin1(cliente, admin)
+    admin = token_de(cliente, "admin1")
     limite = time.monotonic() + 75
     while time.monotonic() < limite:
-        sesiones = cliente.get(
-            f"{api}/actividad", params={"tipo": "sesiones"}, headers=admin
-        ).json()["elementos"]
-        if any(e["actor_nombre"] == "admin1" for e in sesiones):
+        if sesiones_de_admin1(cliente, admin) - sesiones_antes:
             return
         time.sleep(5)
     raise SystemExit("FALLA: los inicios de sesión no llegaron a la bitácora en 75 s")
