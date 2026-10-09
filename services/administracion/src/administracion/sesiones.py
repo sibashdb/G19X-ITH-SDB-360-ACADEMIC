@@ -15,6 +15,9 @@ log = logging.getLogger(__name__)
 TIPOS = {"LOGIN": "sesion.iniciada", "LOGIN_ERROR": "sesion.fallida", "LOGOUT": "sesion.cerrada"}
 CURSOR = "keycloak"
 RETENCION_KEYCLOAK = timedelta(days=30)
+# Un evento puede confirmarse en Keycloak después de otro más nuevo (dos inicios de sesión a la
+# vez): se relee un poco antes del cursor. Las inserciones son idempotentes por clave_origen.
+MARGEN_DEL_CURSOR = timedelta(minutes=2)
 
 
 async def sincronizar(
@@ -24,7 +27,11 @@ async def sincronizar(
     async with fabrica() as sesion:
         cursor = await sesion.get(CursorEventos, CURSOR)
         desde = cursor.hasta if cursor else datetime.now(UTC) - RETENCION_KEYCLOAK
-        eventos = [e for e in await identidad.eventos_de_sesion(desde) if e.tipo in TIPOS]
+        # ponytail: Keycloak devuelve primero lo más nuevo y cada lectura trae hasta 10,000 eventos
+        # (50 páginas de 200); si se pone al día tras una caída larga, se saltan los más viejos.
+        # Mejora: dateFrom en milisegundos y direction=asc, para traer solo lo nuevo y en orden.
+        pedidos = await identidad.eventos_de_sesion(desde - MARGEN_DEL_CURSOR)
+        eventos = [e for e in pedidos if e.tipo in TIPOS]
         nombres: dict[str, str] = {}
         if any(e.usuario is None and e.usuario_id for e in eventos):
             nombres = {u.id: u.usuario for u in await identidad.listar_usuarios()}

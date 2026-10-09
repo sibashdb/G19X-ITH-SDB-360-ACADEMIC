@@ -94,6 +94,25 @@ async def test_el_cursor_avanza(fabrica: async_sessionmaker[AsyncSession]) -> No
     assert hasta == AHORA - timedelta(minutes=10)
 
 
+async def test_un_evento_anterior_al_cursor_que_llega_tarde_se_inserta(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    falsa = IdentidadFalsa()
+    falsa.eventos = [_evento("e2", "LOGIN", 10)]
+    await sincronizar(falsa, fabrica)  # el cursor queda en e2
+    falsa.eventos.append(_evento("e1", "LOGIN", 11))  # un minuto antes del cursor, llega después
+    await sincronizar(falsa, fabrica)
+    async with fabrica() as sesion:
+        claves = (
+            await sesion.scalars(text("SELECT clave_origen FROM actividad ORDER BY fecha"))
+        ).all()
+        hasta = await sesion.scalar(
+            text("SELECT hasta FROM cursor_eventos WHERE nombre = 'keycloak'")
+        )
+    assert claves == ["keycloak:e1", "keycloak:e2"]
+    assert hasta == AHORA - timedelta(minutes=10)
+
+
 async def test_un_usuario_de_255_caracteres_no_detiene_la_copia(
     fabrica: async_sessionmaker[AsyncSession],
 ) -> None:
