@@ -9,7 +9,14 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react"
-import { useId, useRef, useState, type FormEvent, type ReactNode } from "react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react"
 import { Link, useParams } from "react-router"
 import { describirActividad } from "@/actividad"
 import { enviarJson, erroresPorCampo, ErrorApi, pedir } from "@/api"
@@ -96,6 +103,14 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
   const [mensaje, setMensaje] = useState<Mensaje>(null)
   const [temporal, setTemporal] = useState<string | null>(null)
   const botonTemporal = useRef<HTMLButtonElement>(null)
+  // Activar y Desactivar se reemplazan entre sí: el botón pulsado se desmonta y el foco pasa al nuevo.
+  const botonEstado = useRef<HTMLButtonElement>(null)
+  const enfocarEstado = useRef(false)
+  useEffect(() => {
+    if (!enfocarEstado.current) return
+    enfocarEstado.current = false
+    botonEstado.current?.focus()
+  }, [usuario.activo])
   // El formulario parte de los datos cargados; tras guardar ya coincide con lo que guardó el servidor.
 
   function actualizarCache(siguiente: UsuarioAdmin) {
@@ -157,7 +172,11 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
               setTemporal(resultado.contrasena_temporal)
             else setMensaje({ tipo: "exito", texto: exito })
           } else {
-            if (resultado) actualizarCache(resultado)
+            if (resultado) {
+              if (resultado.activo !== usuario.activo)
+                enfocarEstado.current = true
+              actualizarCache(resultado)
+            }
             setMensaje({ tipo: "exito", texto: exito })
           }
           void cliente.invalidateQueries({
@@ -332,13 +351,18 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
                 ejecutar("desactivar", "La cuenta quedó desactivada.")
               }
             >
-              <Button variant="outline" disabled={accion.isPending}>
+              <Button
+                ref={botonEstado}
+                variant="outline"
+                disabled={accion.isPending}
+              >
                 <UserX aria-hidden />
                 Desactivar
               </Button>
             </ConfirmarAccion>
           ) : (
             <Button
+              ref={botonEstado}
               variant="outline"
               disabled={accion.isPending}
               onClick={() => ejecutar("activar", "La cuenta quedó activa.")}

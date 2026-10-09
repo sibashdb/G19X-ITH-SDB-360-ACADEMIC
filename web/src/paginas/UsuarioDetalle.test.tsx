@@ -179,6 +179,36 @@ describe("UsuarioDetalle", () => {
     )
   })
 
+  it("tras desactivar, el foco pasa a «Activar»", async () => {
+    api({
+      [`${RUTA}/desactivar`]: () => respuestaJson({ ...ANA, activo: false }),
+    })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Ana López" })
+    await userEvent.click(screen.getByRole("button", { name: "Desactivar" }))
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Desactivar la cuenta",
+      })
+    )
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Activar" })).toHaveFocus()
+    )
+  })
+
+  it("tras activar, el foco pasa a «Desactivar»", async () => {
+    api({
+      [RUTA]: () => respuestaJson({ ...ANA, activo: false }),
+      [`${RUTA}/activar`]: () => respuestaJson(ANA),
+    })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Ana López" })
+    await userEvent.click(screen.getByRole("button", { name: "Activar" }))
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Desactivar" })).toHaveFocus()
+    )
+  })
+
   it("si el correo no sale, ofrece la contraseña temporal", async () => {
     api({
       [`${RUTA}/contrasena`]: () =>
