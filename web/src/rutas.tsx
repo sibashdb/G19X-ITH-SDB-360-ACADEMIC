@@ -9,6 +9,7 @@ import { ProveedorDetalle } from "@/paginas/ProveedorDetalle"
 import { Proveedores } from "@/paginas/Proveedores"
 import { Ranking } from "@/paginas/Ranking"
 import { Tablero } from "@/paginas/Tablero"
+import { Usuarios } from "@/paginas/Usuarios"
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: "alertas", Component: Alertas },
       { path: "importacion", Component: Importacion },
       { path: "configuracion", Component: Configuracion },
+      { path: "sistema/usuarios", Component: Usuarios },
       { path: "*", Component: NoEncontrado },
     ],
   },

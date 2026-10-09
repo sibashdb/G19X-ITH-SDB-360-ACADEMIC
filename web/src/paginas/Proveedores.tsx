@@ -1,13 +1,15 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { ArrowLeft, ArrowRight, Search, X } from "lucide-react"
-import { useEffect, useRef, type FormEvent, type ReactNode } from "react"
+import { Search, X } from "lucide-react"
+import { useEffect, useRef, type FormEvent } from "react"
 import { Link } from "react-router"
 import { pedir } from "@/api"
 import { useRoles, useToken } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
+import { Filtro } from "@/componentes/Filtro"
 import { Iniciales } from "@/componentes/Iniciales"
+import { Paginacion } from "@/componentes/Paginacion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -31,29 +33,6 @@ import {
 const POR_PAGINA = 25
 const PAGINA_MAXIMA = 40_000 // la API acepta desplazamientos de hasta 1,000,000
 const ESTADOS = ["activos", "inactivos"] as const
-
-function Filtro({
-  activo,
-  onClick,
-  children,
-}: {
-  activo: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <Button
-      type="button"
-      size="sm"
-      variant={activo ? "default" : "outline"}
-      aria-pressed={activo}
-      className="rounded-full"
-      onClick={onClick}
-    >
-      {children}
-    </Button>
-  )
-}
 
 export function Proveedores() {
   const token = useToken()
@@ -170,9 +149,6 @@ export function Proveedores() {
       )
     }
 
-    const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-    const desde = (pagina - 1) * POR_PAGINA + 1
-    const hasta = Math.min(pagina * POR_PAGINA, total)
     return (
       <div className="space-y-4">
         <Table>
@@ -220,33 +196,13 @@ export function Proveedores() {
             ))}
           </TableBody>
         </Table>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-          <span aria-live="polite">
-            Mostrando {desde.toLocaleString("es-MX")}–
-            {hasta.toLocaleString("es-MX")} de {total.toLocaleString("es-MX")}{" "}
-            proveedores
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => actualizar({ pagina: String(pagina - 1) })}
-            >
-              <ArrowLeft aria-hidden />
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagina >= paginas}
-              onClick={() => actualizar({ pagina: String(pagina + 1) })}
-            >
-              Siguiente
-              <ArrowRight aria-hidden />
-            </Button>
-          </div>
-        </div>
+        <Paginacion
+          pagina={pagina}
+          total={total}
+          porPagina={POR_PAGINA}
+          nombre="proveedores"
+          alCambiar={(p) => actualizar({ pagina: String(p) })}
+        />
       </div>
     )
   }
