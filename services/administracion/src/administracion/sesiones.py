@@ -63,8 +63,8 @@ async def ejecutar_periodicamente(
     while True:
         try:
             await sincronizar(identidad, fabrica)
-        except IdentidadNoDisponible:
-            log.warning("No se pudieron leer los eventos de Keycloak; se reintentará")
+        except IdentidadNoDisponible as exc:
+            log.warning("No se pudieron leer los eventos de Keycloak; se reintentará: %s", exc)
         except Exception:
             log.exception("Error al copiar los eventos de inicio de sesión; se reintentará")
         await asyncio.sleep(intervalo_s)
