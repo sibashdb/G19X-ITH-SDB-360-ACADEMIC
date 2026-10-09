@@ -339,6 +339,32 @@ async def test_contrasena_temporal_y_correo_caido(
     assert correos["elementos"][0]["estado"] == "fallido"
 
 
+async def test_correo_a_una_cuenta_desactivada_se_rechaza_sin_dejar_rastro(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    identidad.agregar("baja", ["comprador"], activo=False)
+    respuesta = await cliente.post(
+        "/usuarios/baja/contrasena", json={"metodo": "correo"}, headers=admin
+    )
+    assert respuesta.status_code == 409
+    assert respuesta.json()["codigo"] == "cuenta_inactiva"
+    assert respuesta.json()["detail"] == (
+        "La cuenta está desactivada; actívela antes de enviarle el correo."
+    )
+    assert identidad.correos == []
+    assert await _bitacora(fabrica) == []
+    async with fabrica() as sesion:
+        assert await sesion.scalar(text("SELECT count(*) FROM correo_enviado")) == 0
+    # La contraseña temporal sí se puede asignar a una cuenta desactivada.
+    temporal = await cliente.post(
+        "/usuarios/baja/contrasena", json={"metodo": "temporal"}, headers=admin
+    )
+    assert temporal.status_code == 200
+
+
 async def test_cerrar_sesiones(
     cliente: httpx.AsyncClient, admin: dict[str, str], identidad: IdentidadFalsa
 ) -> None:

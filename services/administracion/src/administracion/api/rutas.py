@@ -466,6 +466,13 @@ async def contrasena_usuario(
             temporal = generar_contrasena_temporal()
             await identidad.fijar_contrasena_temporal(usuario_id, temporal)
         else:
+            if not objetivo.activo:  # Keycloak no envía el correo a una cuenta desactivada
+                raise ErrorDominio(
+                    409,
+                    "Conflicto",
+                    "La cuenta está desactivada; actívela antes de enviarle el correo.",
+                    {"codigo": "cuenta_inactiva"},
+                )
             if not objetivo.correo:
                 raise ErrorDominio(
                     409,
