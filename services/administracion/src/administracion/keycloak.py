@@ -4,6 +4,7 @@ Usa la cuenta de servicio del cliente "administracion" (client credentials), con
 realm-management limitados a view-users, manage-users y view-events.
 """
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime
@@ -130,18 +131,19 @@ class IdentidadKeycloak:
             params={"first": 0, "max": MAX_USUARIOS, "briefRepresentation": "false"},
         )
         self._exigir_exito(respuesta)
-        roles: dict[str, set[str]] = {}
-        for rol in ROLES_ASIGNABLES:  # tres consultas por rol, no una por usuario
-            miembros = await self._pedir(
-                "GET", f"/roles/{rol}/users", params={"first": 0, "max": MAX_USUARIOS}
-            )
-            self._exigir_exito(miembros)
-            for miembro in miembros.json():
-                roles.setdefault(str(miembro["id"]), set()).add(rol)
-        return [
-            self._a_usuario(u, roles.get(str(u["id"]), set()))
+        usuarios = [
+            u
             for u in respuesta.json()
             if not str(u["username"]).startswith(PREFIJO_CUENTA_SERVICIO)
+        ]
+        # Los endpoints /roles piden view-realm, que la cuenta de servicio no tiene (solo
+        # view-users, manage-users y view-events): los roles se leen por usuario, en paralelo.
+        # ponytail: una consulta por usuario; con cientos de usuarios, pedir view-realm y volver a
+        # /roles/{rol}/users.
+        roles = await asyncio.gather(*(self._roles_de(str(u["id"])) for u in usuarios))
+        return [
+            self._a_usuario(u, {str(r["name"]) for r in asignados})
+            for u, asignados in zip(usuarios, roles, strict=True)
         ]
 
     async def _roles_de(self, usuario_id: str) -> list[dict[str, Any]]:
@@ -194,11 +196,17 @@ class IdentidadKeycloak:
         actuales = await self._roles_de(usuario_id)
         nombres_actuales = {str(r["name"]) for r in actuales}
         quitar = [r for r in actuales if r["name"] not in roles]
+        faltantes = roles - nombres_actuales
         agregar: list[dict[str, Any]] = []
-        for nombre in sorted(roles - nombres_actuales):
-            rol = await self._pedir("GET", f"/roles/{nombre}")
-            self._exigir_exito(rol)
-            agregar.append(rol.json())
+        if faltantes:
+            # GET /roles/{nombre} pide view-realm; "available" solo pide view-users.
+            disponibles = await self._pedir(
+                "GET", f"/users/{usuario_id}/role-mappings/realm/available"
+            )
+            self._exigir_exito(disponibles)
+            agregar = [r for r in disponibles.json() if r.get("name") in faltantes]
+            if len(agregar) != len(faltantes):
+                raise IdentidadNoDisponible("Keycloak no tiene todos los roles pedidos")
         if agregar:
             self._exigir_exito(
                 await self._pedir("POST", f"/users/{usuario_id}/role-mappings/realm", json=agregar)

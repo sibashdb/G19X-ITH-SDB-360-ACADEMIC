@@ -71,7 +71,9 @@ async def test_el_token_se_reutiliza() -> None:
     assert peticiones[1].headers["Authorization"] == "Bearer t"
 
 
-async def test_listar_combina_roles_por_rol_y_omite_cuentas_de_servicio() -> None:
+async def test_listar_lee_los_roles_de_cada_usuario_y_omite_cuentas_de_servicio() -> None:
+    # Los endpoints /roles piden view-realm, que la cuenta de servicio no tiene: sin rutas para
+    # ellos ni para la cuenta de servicio, la prueba falla si el adaptador los consulta.
     usuarios = [
         _usuario("u1", "ana"),
         _usuario("u2", "beto", activo=False),
@@ -80,13 +82,17 @@ async def test_listar_combina_roles_por_rol_y_omite_cuentas_de_servicio() -> Non
     identidad, _ = _keycloak(
         {
             ("GET", f"{ADMIN}/users"): lambda _: httpx.Response(200, json=usuarios),
-            ("GET", f"{ADMIN}/roles/admin/users"): lambda _: httpx.Response(
-                200, json=[{"id": "u1"}]
+            ("GET", f"{ADMIN}/users/u1/role-mappings/realm"): lambda _: httpx.Response(
+                200,
+                json=[
+                    {"id": "r1", "name": "admin"},
+                    {"id": "r2", "name": "comprador"},
+                    {"id": "r3", "name": "default-roles-plataforma"},
+                ],
             ),
-            ("GET", f"{ADMIN}/roles/comprador/users"): lambda _: httpx.Response(
-                200, json=[{"id": "u1"}, {"id": "u2"}]
+            ("GET", f"{ADMIN}/users/u2/role-mappings/realm"): lambda _: httpx.Response(
+                200, json=[{"id": "r2", "name": "comprador"}]
             ),
-            ("GET", f"{ADMIN}/roles/aprobador/users"): lambda _: httpx.Response(200, json=[]),
         }
     )
     lista = {u.usuario: u for u in await identidad.listar_usuarios()}
@@ -148,8 +154,14 @@ async def test_fijar_roles_solo_agrega_y_quita_lo_necesario() -> None:
             ("GET", f"{ADMIN}/users/u1/role-mappings/realm"): lambda _: httpx.Response(
                 200, json=actuales
             ),
-            ("GET", f"{ADMIN}/roles/admin"): lambda _: httpx.Response(
-                200, json={"id": "r-admin", "name": "admin"}
+            # /roles/{nombre} pide view-realm; "available" solo pide view-users.
+            ("GET", f"{ADMIN}/users/u1/role-mappings/realm/available"): lambda _: httpx.Response(
+                200,
+                json=[
+                    {"id": "r-admin", "name": "admin"},
+                    {"id": "r-aprobador", "name": "aprobador"},
+                    {"id": "r-uma", "name": "uma_authorization"},
+                ],
             ),
             ("POST", f"{ADMIN}/users/u1/role-mappings/realm"): lambda _: httpx.Response(204),
             ("DELETE", f"{ADMIN}/users/u1/role-mappings/realm"): lambda _: httpx.Response(204),
@@ -160,6 +172,21 @@ async def test_fijar_roles_solo_agrega_y_quita_lo_necesario() -> None:
     quitados = next(p for p in peticiones if p.method == "DELETE")
     assert [r["name"] for r in json.loads(agregados.content)] == ["admin"]
     assert [r["name"] for r in json.loads(quitados.content)] == ["comprador"]
+
+
+async def test_fijar_roles_con_un_rol_que_keycloak_no_tiene() -> None:
+    identidad, _ = _keycloak(
+        {
+            ("GET", f"{ADMIN}/users/u1/role-mappings/realm"): lambda _: httpx.Response(
+                200, json=[]
+            ),
+            ("GET", f"{ADMIN}/users/u1/role-mappings/realm/available"): lambda _: httpx.Response(
+                200, json=[{"id": "r-admin", "name": "admin"}]
+            ),
+        }
+    )
+    with pytest.raises(IdentidadNoDisponible):
+        await identidad.fijar_roles("u1", frozenset({"admin", "aprobador"}))
 
 
 async def test_enviar_correo_pide_definir_la_contrasena_con_vigencia_y_regreso() -> None:
