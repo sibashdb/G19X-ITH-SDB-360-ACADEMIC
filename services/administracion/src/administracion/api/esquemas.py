@@ -30,7 +30,22 @@ Correo = Annotated[
     str,
     StringConstraints(strip_whitespace=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"),
 ]
-Nombre = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+# Los que rechaza el validador person-name-prohibited-characters de Keycloak en nombre y apellidos.
+CARACTERES_PROHIBIDOS_EN_NOMBRE = frozenset('<>&"$%!#?§;*~/\\|^=[]{}()')
+
+
+def _sin_caracteres_prohibidos(texto: str) -> str:
+    prohibidos = dict.fromkeys(c for c in texto if c in CARACTERES_PROHIBIDOS_EN_NOMBRE)
+    if prohibidos:
+        raise ValueError(f"No use estos caracteres: {' '.join(prohibidos)}")
+    return texto
+
+
+Nombre = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
+    AfterValidator(_sin_caracteres_prohibidos),
+]
 
 
 class UsuarioNuevo(BaseModel):

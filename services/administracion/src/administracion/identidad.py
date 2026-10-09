@@ -61,6 +61,10 @@ class DatoDuplicado(Exception):
         self.campo: Literal["usuario", "correo"] = campo
 
 
+class DatosRechazados(Exception):
+    """El proveedor de identidad rechazó los datos (nombre, apellidos o correo) por inválidos."""
+
+
 class CorreoNoEnviado(Exception):
     """El proveedor de identidad no pudo entregar el correo al servidor de correo."""
 

@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 import pytest
 from administracion.bitacora import Actor, registrar
-from administracion.identidad import IdentidadNoDisponible, UsuarioIdentidad
+from administracion.identidad import DatosRechazados, IdentidadNoDisponible, UsuarioIdentidad
 from administracion.identidad_falsa import IdentidadFalsa
 from comun.pruebas import ClavesPrueba
 from sqlalchemy import text
@@ -179,6 +179,8 @@ async def test_alta_con_correo_caido_crea_la_cuenta_y_lo_avisa(
         ({"usuario": ".ana"}, "body.usuario"),
         ({"usuario": "ana-"}, "body.usuario"),
         ({"usuario": "service-account-x"}, "body.usuario"),
+        ({"nombre": "Ana (Compras)"}, "body.nombre"),
+        ({"apellidos": "Pérez & Asociados"}, "body.apellidos"),
     ],
 )
 async def test_validacion(
@@ -187,6 +189,49 @@ async def test_validacion(
     respuesta = await cliente.post("/usuarios", json={**NUEVO, **cambio}, headers=admin)
     assert respuesta.status_code == 422
     assert campo in [e["campo"] for e in respuesta.json()["errores"]]
+
+
+async def test_nombre_con_caracteres_que_keycloak_rechaza_dice_cuales(
+    cliente: httpx.AsyncClient, admin: dict[str, str]
+) -> None:
+    alta = await cliente.post("/usuarios", json={**NUEVO, "nombre": "Ana (Compras)"}, headers=admin)
+    assert alta.status_code == 422
+    assert {"campo": "body.nombre", "mensaje": "No use estos caracteres: ( )"} in (
+        alta.json()["errores"]
+    )
+    edicion = await cliente.patch(
+        "/usuarios/comprador-1", json={"apellidos": "A/B <C>"}, headers=admin
+    )
+    assert edicion.status_code == 422
+    assert {"campo": "body.apellidos", "mensaje": "No use estos caracteres: / < >"} in (
+        edicion.json()["errores"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("metodo", "ruta", "cuerpo", "falla"),
+    [
+        ("post", "/usuarios", NUEVO, "crear_usuario"),
+        ("patch", "/usuarios/comprador-1", {"apellidos": "Compras"}, "actualizar_datos"),
+    ],
+)
+async def test_si_keycloak_rechaza_los_datos_es_un_422(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    monkeypatch: pytest.MonkeyPatch,
+    metodo: str,
+    ruta: str,
+    cuerpo: dict[str, Any],
+    falla: str,
+) -> None:
+    _que_falle(identidad, monkeypatch, falla, DatosRechazados("simulado"))
+    respuesta = await getattr(cliente, metodo)(ruta, json=cuerpo, headers=admin)
+    assert respuesta.status_code == 422
+    assert respuesta.json()["codigo"] == "datos_rechazados"
+    assert respuesta.json()["detail"] == (
+        "El servicio de identidad rechazó los datos; revise nombre, apellidos y correo."
+    )
 
 
 async def test_identidad_caida(
@@ -334,14 +379,17 @@ async def test_nombre_reservado_dice_por_que(
 
 
 def _que_falle(
-    identidad: IdentidadFalsa, monkeypatch: pytest.MonkeyPatch, metodo: str
+    identidad: IdentidadFalsa,
+    monkeypatch: pytest.MonkeyPatch,
+    metodo: str,
+    error: Exception | None = None,
 ) -> list[Any]:
     """Hace que un solo método del proveedor falle; devuelve los argumentos con que lo llamaron."""
     llamadas: list[Any] = []
 
     async def falla(*args: object, **_: object) -> None:
         llamadas.append(args)
-        raise IdentidadNoDisponible("simulado")
+        raise error or IdentidadNoDisponible("simulado")
 
     monkeypatch.setattr(identidad, metodo, falla)
     return llamadas

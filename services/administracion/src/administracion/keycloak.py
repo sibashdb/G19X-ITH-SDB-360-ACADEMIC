@@ -17,6 +17,7 @@ from administracion.identidad import (
     ROLES_ASIGNABLES,
     CorreoNoEnviado,
     DatoDuplicado,
+    DatosRechazados,
     DatosUsuarioNuevo,
     EventoSesion,
     IdentidadNoDisponible,
@@ -170,6 +171,13 @@ class IdentidadKeycloak:
         mensaje = str((respuesta.json() or {}).get("errorMessage", "")).lower()
         return DatoDuplicado("correo" if "email" in mensaje else "usuario")
 
+    @staticmethod
+    def _exigir_datos_validos(respuesta: httpx.Response) -> None:
+        """Un 400 al guardar nombre, apellidos o correo es un rechazo de los datos, no una caída."""
+        if respuesta.status_code == 400:
+            log.warning("Keycloak rechazó los datos del usuario: %s", respuesta.text[:200])
+            raise DatosRechazados(respuesta.text[:200])
+
     async def crear_usuario(self, datos: DatosUsuarioNuevo) -> str:
         respuesta = await self._pedir(
             "POST",
@@ -185,6 +193,7 @@ class IdentidadKeycloak:
         )
         if respuesta.status_code == 409:
             raise self._duplicado(respuesta)
+        self._exigir_datos_validos(respuesta)
         self._exigir_exito(respuesta)
         return respuesta.headers["Location"].rstrip("/").rsplit("/", 1)[-1]
 
@@ -198,6 +207,7 @@ class IdentidadKeycloak:
         )
         if respuesta.status_code == 409:
             raise self._duplicado(respuesta)
+        self._exigir_datos_validos(respuesta)
         self._exigir_exito(respuesta)
 
     async def fijar_roles(self, usuario_id: str, roles: frozenset[str]) -> None:

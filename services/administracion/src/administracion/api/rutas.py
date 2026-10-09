@@ -31,6 +31,7 @@ from administracion.identidad import (
     ROLES_ASIGNABLES,
     CorreoNoEnviado,
     DatoDuplicado,
+    DatosRechazados,
     DatosUsuarioNuevo,
     IdentidadNoDisponible,
     ProveedorIdentidad,
@@ -95,6 +96,13 @@ def _traducir_errores() -> Iterator[None]:
                 "codigo": f"{exc.campo}_duplicado",
                 "errores": [{"campo": exc.campo, "mensaje": mensaje}],
             },
+        ) from exc
+    except DatosRechazados as exc:
+        raise ErrorDominio(
+            422,
+            "Solicitud inválida",
+            "El servicio de identidad rechazó los datos; revise nombre, apellidos y correo.",
+            {"codigo": "datos_rechazados"},
         ) from exc
     except ReglaProteccion as exc:
         raise ErrorDominio(409, "Conflicto", str(exc), {"codigo": "regla_proteccion"}) from exc

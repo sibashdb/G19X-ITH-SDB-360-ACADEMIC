@@ -8,6 +8,7 @@ import pytest
 from administracion.identidad import (
     CorreoNoEnviado,
     DatoDuplicado,
+    DatosRechazados,
     DatosUsuarioNuevo,
     IdentidadNoDisponible,
     UsuarioNoEncontrado,
@@ -217,6 +218,20 @@ async def test_fijar_roles_con_un_rol_que_keycloak_no_tiene() -> None:
     )
     with pytest.raises(IdentidadNoDisponible):
         await identidad.fijar_roles("u1", frozenset({"admin", "aprobador"}))
+
+
+async def test_un_400_al_guardar_datos_es_un_rechazo_no_una_caida() -> None:
+    rechazo = httpx.Response(400, json={"field": "firstName", "errorMessage": "invalido"})
+    identidad, _ = _keycloak(
+        {
+            ("POST", f"{ADMIN}/users"): lambda _: rechazo,
+            ("PUT", f"{ADMIN}/users/u1"): lambda _: rechazo,
+        }
+    )
+    with pytest.raises(DatosRechazados):
+        await identidad.crear_usuario(DatosUsuarioNuevo("ana", "Ana (X)", "López", "ana@x.mx"))
+    with pytest.raises(DatosRechazados):
+        await identidad.actualizar_datos("u1", "Ana (X)", "López", "ana@x.mx")
 
 
 async def test_enviar_correo_pide_definir_la_contrasena_con_vigencia_y_regreso() -> None:
