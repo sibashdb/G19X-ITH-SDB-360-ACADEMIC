@@ -3,9 +3,11 @@ import {
   Building2,
   FileUp,
   LayoutDashboard,
+  Mail,
   Settings,
   Tags,
   Trophy,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react"
 import type { Rol } from "@/auth"
@@ -70,8 +72,22 @@ export const NAVEGACION: SeccionNavegacion[] = [
     ],
   },
   {
-    titulo: "Datos",
+    titulo: "Sistema",
     elementos: [
+      {
+        titulo: "Usuarios",
+        ruta: "/sistema/usuarios",
+        descripcion: "Quién entra y con qué rol",
+        icono: UsersRound,
+        soloAdmin: true,
+      },
+      {
+        titulo: "Correos",
+        ruta: "/sistema/correos",
+        descripcion: "Invitaciones y restablecimientos enviados",
+        icono: Mail,
+        soloAdmin: true,
+      },
       {
         titulo: "Importación",
         ruta: "/importacion",
@@ -106,21 +122,31 @@ export function estaActiva(ruta: string, pathname: string): boolean {
 
 /** Migas de pan: sección › página › detalle (la sección se omite si se llama igual que la página). */
 export function migasDe(pathname: string): Miga[] {
-  const [, primero = "", ...resto] = pathname.split("/")
-  const base = `/${primero}`
+  const ruta = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname
+  let mejor: {
+    seccion: SeccionNavegacion
+    elemento: ElementoNavegacion
+  } | null = null
   for (const seccion of NAVEGACION) {
-    const elemento = seccion.elementos.find((e) => e.ruta === base)
-    if (!elemento) continue
-    const migas: Miga[] =
-      seccion.titulo === elemento.titulo ? [] : [{ titulo: seccion.titulo }]
-    if (resto.some(Boolean)) {
-      return [
-        ...migas,
-        { titulo: elemento.titulo, ruta: elemento.ruta },
-        { titulo: "Detalle" },
-      ]
+    for (const elemento of seccion.elementos) {
+      const coincide = estaActiva(elemento.ruta, ruta)
+      if (
+        coincide &&
+        (!mejor || elemento.ruta.length > mejor.elemento.ruta.length)
+      )
+        mejor = { seccion, elemento }
     }
-    return [...migas, { titulo: elemento.titulo }]
   }
-  return [{ titulo: "Página no encontrada" }]
+  if (!mejor) return [{ titulo: "Página no encontrada" }]
+  const { seccion, elemento } = mejor
+  const migas: Miga[] =
+    seccion.titulo === elemento.titulo ? [] : [{ titulo: seccion.titulo }]
+  if (ruta !== elemento.ruta) {
+    return [
+      ...migas,
+      { titulo: elemento.titulo, ruta: elemento.ruta },
+      { titulo: "Detalle" },
+    ]
+  }
+  return [...migas, { titulo: elemento.titulo }]
 }

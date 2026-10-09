@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { ErrorApi, pedir } from "@/api"
+import { enviarJson, ErrorApi, erroresPorCampo, pedir } from "@/api"
 
 function simular(
   cuerpo: BodyInit | null,
@@ -138,5 +138,57 @@ describe("pedir", () => {
 
     expect(error).toBe(cancelacion)
     expect(error).not.toBeInstanceOf(ErrorApi)
+  })
+})
+
+describe("administración", () => {
+  it("expone el código del problema y los errores por campo sin el prefijo body.", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              title: "Conflicto",
+              detail: "Ya existe un usuario con ese nombre de usuario.",
+              codigo: "usuario_duplicado",
+              errores: [{ campo: "body.correo", mensaje: "Formato inválido" }],
+            }),
+            {
+              status: 409,
+              headers: { "Content-Type": "application/problem+json" },
+            }
+          )
+      )
+    )
+    const error = await errorDe(pedir("/administracion/usuarios", "t"))
+    expect(error).toBeInstanceOf(ErrorApi)
+    expect(error.codigo).toBe("usuario_duplicado")
+    expect(erroresPorCampo(error)).toEqual({ correo: "Formato inválido" })
+    vi.unstubAllGlobals()
+  })
+
+  it("un 204 no intenta leer JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 }))
+    )
+    await expect(
+      pedir(
+        "/administracion/usuarios/x/cerrar-sesiones",
+        "t",
+        enviarJson("POST")
+      )
+    ).resolves.toBeUndefined()
+    vi.unstubAllGlobals()
+  })
+
+  it("enviarJson arma el cuerpo y la cabecera", () => {
+    const init = enviarJson("PATCH", { roles: ["admin"] })
+    expect(init.method).toBe("PATCH")
+    expect(new Headers(init.headers).get("Content-Type")).toBe(
+      "application/json"
+    )
+    expect(init.body).toBe('{"roles":["admin"]}')
   })
 })

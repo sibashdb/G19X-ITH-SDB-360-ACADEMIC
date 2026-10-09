@@ -1,21 +1,24 @@
-export type ErrorFila = { fila: number; campo: string; mensaje: string }
+export type ErrorFila = { fila?: number; campo: string; mensaje: string }
 
 /** Error de la API con los datos de Problem Details (RFC 9457). */
 export class ErrorApi extends Error {
   readonly estado: number
   readonly titulo: string
   readonly errores: ErrorFila[]
+  readonly codigo: string | null
 
   constructor(
     estado: number,
     titulo: string,
     detalle: string,
-    errores: ErrorFila[] = []
+    errores: ErrorFila[] = [],
+    codigo: string | null = null
   ) {
     super(detalle)
     this.estado = estado
     this.titulo = titulo
     this.errores = errores
+    this.codigo = codigo
   }
 }
 
@@ -69,15 +72,42 @@ export async function pedir<T>(
     const cuerpo: unknown = await respuesta.json().catch(() => null)
     const problema =
       typeof cuerpo === "object" && cuerpo !== null
-        ? (cuerpo as { title?: string; detail?: string; errores?: ErrorFila[] })
+        ? (cuerpo as {
+            title?: string
+            detail?: string
+            errores?: ErrorFila[]
+            codigo?: string
+          })
         : {}
     const porDefecto = problemaPorEstado(respuesta.status)
     throw new ErrorApi(
       respuesta.status,
       problema.title ?? porDefecto.titulo,
       problema.detail ?? porDefecto.detalle,
-      problema.errores ?? []
+      problema.errores ?? [],
+      problema.codigo ?? null
     )
   }
+  if (respuesta.status === 204) return undefined as T
   return (await respuesta.json()) as T
+}
+
+/** Opciones de fetch para enviar JSON. */
+export function enviarJson(
+  metodo: "POST" | "PATCH",
+  datos?: unknown
+): RequestInit {
+  return {
+    method: metodo,
+    headers: { "Content-Type": "application/json" },
+    body: datos === undefined ? undefined : JSON.stringify(datos),
+  }
+}
+
+/** Mensajes de error por campo ("body.correo" → "correo") para mostrarlos junto a cada campo. */
+export function erroresPorCampo(error: unknown): Record<string, string> {
+  if (!(error instanceof ErrorApi)) return {}
+  return Object.fromEntries(
+    error.errores.map((e) => [e.campo.replace(/^body\./, ""), e.mensaje])
+  )
 }

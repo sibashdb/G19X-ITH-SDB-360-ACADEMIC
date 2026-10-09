@@ -28,14 +28,14 @@ describe("navegacionPara", () => {
       "Resumen",
       "Proveedores",
       "Inteligencia",
-      "Datos",
+      "Sistema",
     ])
     expect(titulos(["admin"])).toContain("Configuración")
   })
 
   it("descarta las secciones que quedan vacías", () => {
     expect(navegacionPara(["aprobador"]).map((s) => s.titulo)).not.toContain(
-      "Datos"
+      "Sistema"
     )
   })
 })
@@ -63,6 +63,17 @@ describe("migasDe", () => {
     ],
     ["/ranking", [{ titulo: "Proveedores" }, { titulo: "Ranking" }]],
     ["/precios", [{ titulo: "Inteligencia" }, { titulo: "Precios" }]],
+    ["/sistema/usuarios", [{ titulo: "Sistema" }, { titulo: "Usuarios" }]],
+    [
+      "/sistema/usuarios/abc",
+      [
+        { titulo: "Sistema" },
+        { titulo: "Usuarios", ruta: "/sistema/usuarios" },
+        { titulo: "Detalle" },
+      ],
+    ],
+    ["/importacion", [{ titulo: "Sistema" }, { titulo: "Importación" }]],
+    ["/sistema", [{ titulo: "Página no encontrada" }]],
     ["/no-existe", [{ titulo: "Página no encontrada" }]],
   ])("%s", (pathname, esperado) => {
     expect(migasDe(pathname)).toEqual(esperado)
@@ -82,6 +93,8 @@ describe("descripciones del menú", () => {
       Ranking: "Los mejores proveedores por categoría",
       Precios: "Cuánto debería pagar",
       Alertas: "Qué atender hoy",
+      Usuarios: "Quién entra y con qué rol",
+      Correos: "Invitaciones y restablecimientos enviados",
       Importación: "Cargar datos del ERP",
       Configuración: "Ajustes de puntuación y precios",
     })

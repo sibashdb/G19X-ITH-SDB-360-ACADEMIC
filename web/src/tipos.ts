@@ -1,3 +1,5 @@
+import type { Rol } from "@/auth"
+
 export type Categoria = "licencia_saas" | "nube" | "consultoria" | "soporte"
 
 export const NOMBRES_CATEGORIA: Record<Categoria, string> = {
@@ -150,4 +152,52 @@ export function normalizarTexto(texto: string): string {
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase()
+}
+
+export type UsuarioAdmin = {
+  id: string
+  usuario: string
+  nombre: string
+  apellidos: string
+  correo: string
+  roles: Rol[]
+  activo: boolean
+  creado_en: string
+  ultimo_acceso: string | null
+}
+export type PaginaUsuarios = { total: number; elementos: UsuarioAdmin[] }
+export type MetodoAlta = "invitacion" | "temporal"
+export type ResultadoAlta = {
+  usuario: UsuarioAdmin
+  correo_enviado: boolean | null
+  contrasena_temporal: string | null
+}
+export type ResultadoContrasena = { contrasena_temporal: string | null }
+export type RegistroActividad = {
+  id: string
+  fecha: string
+  actor_id: string | null
+  actor_nombre: string
+  tipo: string
+  objeto_tipo: string | null
+  objeto_id: string | null
+  objeto_nombre: string | null
+  detalle: Record<string, unknown>
+  resultado: "exito" | "fallo"
+  ip: string | null
+}
+export type PaginaActividad = { total: number; elementos: RegistroActividad[] }
+export type CorreoEnviado = {
+  id: string
+  fecha: string
+  tipo: "invitacion" | "restablecimiento"
+  destinatario: string
+  solicitado_por: string
+  estado: "enviado" | "fallido"
+  error: string | null
+}
+export type PaginaCorreos = {
+  total: number
+  elementos: CorreoEnviado[]
+  buzon_url: string | null
 }

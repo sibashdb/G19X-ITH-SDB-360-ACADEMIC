@@ -2,12 +2,18 @@ import { useAuth, type AuthProviderProps } from "react-oidc-context"
 
 export type Rol = "admin" | "comprador" | "aprobador"
 
-const ROLES: readonly Rol[] = ["admin", "comprador", "aprobador"]
+export const ROLES: readonly Rol[] = ["admin", "comprador", "aprobador"]
 
 export const NOMBRES_ROL: Record<Rol, string> = {
   admin: "Administración",
   comprador: "Compras",
   aprobador: "Aprobación",
+}
+
+export const DESCRIPCIONES_ROL: Record<Rol, string> = {
+  admin: "Gestiona usuarios, catálogos e importaciones.",
+  comprador: "Crea y supervisa las negociaciones.",
+  aprobador: "Aprueba adjudicaciones y cierres.",
 }
 
 /** Empieza con una sola barra (ni "//" ni barra y barra invertida): nunca apunta a otro origen. */
