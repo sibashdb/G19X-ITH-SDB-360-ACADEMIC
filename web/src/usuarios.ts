@@ -11,7 +11,7 @@ export function nombreCompleto(u: {
 export function sugerirUsuario(correo: string): string {
   return (correo.split("@")[0] ?? "")
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9.-]/g, "")
     .slice(0, 30)
