@@ -37,6 +37,16 @@ describe("describirActividad", () => {
     ],
     ["usuario.creado", {}, "Dio de alta a Ana López"],
     [
+      "usuario.creado",
+      { pendiente: "roles" },
+      "Dio de alta a Ana López; faltó asignar los roles",
+    ],
+    [
+      "usuario.creado",
+      { pendiente: "contrasena" },
+      "Dio de alta a Ana López; faltó la contraseña",
+    ],
+    [
       "usuario.roles_cambiados",
       { antes: ["comprador"], despues: ["comprador", "aprobador"] },
       "Cambió los roles de Ana López: Compras → Compras, Aprobación",

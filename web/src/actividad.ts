@@ -66,8 +66,17 @@ const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
   "servicio.activado": (a) => `Activó el servicio ${a.objeto_nombre}`,
 }
 
+// Un alta que quedó a medias trae en el detalle qué faltó.
+const PENDIENTES: Record<string, string> = {
+  roles: "; faltó asignar los roles",
+  contrasena: "; faltó la contraseña",
+}
+
 /** La acción en lenguaje llano; un tipo desconocido se muestra tal cual. */
 export function describirActividad(registro: RegistroActividad): string {
   const texto = TEXTOS[registro.tipo as TipoActividad]
-  return texto ? texto(registro) : registro.tipo
+  if (!texto) return registro.tipo
+  return (
+    texto(registro) + (PENDIENTES[String(registro.detalle.pendiente)] ?? "")
+  )
 }
