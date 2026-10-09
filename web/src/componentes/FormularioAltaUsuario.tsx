@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { CircleAlert } from "lucide-react"
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type FormEvent, type RefObject } from "react"
 import { enviarJson, erroresPorCampo, ErrorApi, pedir } from "@/api"
 import { useToken, type Rol } from "@/auth"
 import { CamposRoles } from "@/componentes/CamposRoles"
@@ -34,10 +34,13 @@ export function FormularioAltaUsuario({
   abierto,
   alCambiarAbierto,
   alTerminar,
+  devolverFoco,
 }: {
   abierto: boolean
   alCambiarAbierto: (abierto: boolean) => void
   alTerminar: (resultado: ResultadoAlta) => void
+  /** El panel se abre por estado, sin disparador: este botón recibe el foco al cerrarlo. */
+  devolverFoco: RefObject<HTMLElement | null>
 }) {
   const token = useToken()
   const cliente = useQueryClient()
@@ -106,7 +109,13 @@ export function FormularioAltaUsuario({
         alCambiarAbierto(siguiente)
       }}
     >
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+      <SheetContent
+        className="w-full overflow-y-auto sm:max-w-md"
+        onCloseAutoFocus={(evento) => {
+          evento.preventDefault()
+          devolverFoco.current?.focus()
+        }}
+      >
         <SheetHeader>
           <SheetTitle>Nuevo usuario</SheetTitle>
           <SheetDescription>

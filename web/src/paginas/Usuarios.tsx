@@ -68,6 +68,7 @@ function ContenidoUsuarios() {
     contrasena: string
   } | null>(null)
 
+  const botonAlta = useRef<HTMLButtonElement>(null)
   const campoBusqueda = useRef<HTMLInputElement>(null)
   useEffect(() => {
     const campo = campoBusqueda.current
@@ -251,7 +252,7 @@ function ContenidoUsuarios() {
         titulo="Usuarios"
         descripcion="Quién puede entrar a la plataforma y con qué rol. Las cuentas se desactivan, no se borran: su historial se conserva."
         acciones={
-          <Button onClick={() => setAltaAbierta(true)}>
+          <Button ref={botonAlta} onClick={() => setAltaAbierta(true)}>
             <UserPlus aria-hidden />
             Nuevo usuario
           </Button>
@@ -341,10 +342,12 @@ function ContenidoUsuarios() {
         abierto={altaAbierta}
         alCambiarAbierto={setAltaAbierta}
         alTerminar={alTerminarAlta}
+        devolverFoco={botonAlta}
       />
       <DialogoContrasenaTemporal
         datos={temporal}
         alCerrar={() => setTemporal(null)}
+        devolverFoco={botonAlta}
       />
     </section>
   )

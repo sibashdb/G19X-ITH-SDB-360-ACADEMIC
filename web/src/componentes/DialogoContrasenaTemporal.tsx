@@ -1,5 +1,5 @@
 import { Check, Copy } from "lucide-react"
-import { useState } from "react"
+import { useState, type RefObject } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,13 +11,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-/** Muestra la contraseña temporal una sola vez; al cerrar, el padre la descarta. */
+/**
+ * Muestra la contraseña temporal una sola vez; al cerrar, el padre la descarta.
+ * Se abre por estado, sin disparador: `devolverFoco` es el botón que recibe el foco al cerrar.
+ */
 export function DialogoContrasenaTemporal({
   datos,
   alCerrar,
+  devolverFoco,
 }: {
   datos: { nombre: string; contrasena: string } | null
   alCerrar: () => void
+  devolverFoco: RefObject<HTMLElement | null>
 }) {
   const [copia, setCopia] = useState<"lista" | "copiada" | "fallo">("lista")
   async function copiar() {
@@ -38,7 +43,12 @@ export function DialogoContrasenaTemporal({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(evento) => {
+          evento.preventDefault()
+          devolverFoco.current?.focus()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Contraseña temporal de {datos?.nombre}</DialogTitle>
           <DialogDescription>

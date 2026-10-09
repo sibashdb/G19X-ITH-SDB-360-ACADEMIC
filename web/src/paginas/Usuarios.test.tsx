@@ -158,6 +158,69 @@ describe("Usuarios", () => {
     expect(screen.queryByText("Xy7#abcdefghijkl")).not.toBeInTheDocument()
   })
 
+  it("al cerrar el panel de alta con Esc, el foco vuelve a «Nuevo usuario»", async () => {
+    api()
+    renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })
+    await screen.findByRole("link", { name: "Ana López" })
+    await userEvent.click(screen.getByRole("button", { name: "Nuevo usuario" }))
+    await screen.findByRole("dialog", { name: "Nuevo usuario" })
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Nuevo usuario" })
+      ).toHaveFocus()
+    )
+  })
+
+  it("tras un alta por invitación, el foco vuelve a «Nuevo usuario»", async () => {
+    api()
+    renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })
+    await screen.findByRole("link", { name: "Ana López" })
+    const panel = await llenarAlta()
+    await userEvent.click(
+      within(panel).getByRole("button", { name: "Dar de alta" })
+    )
+    await screen.findByText(/Se envió la invitación a ana@plataforma.example/)
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Nuevo usuario" })
+      ).toHaveFocus()
+    )
+  })
+
+  it("al cerrar la contraseña temporal, el foco vuelve a «Nuevo usuario»", async () => {
+    api(() =>
+      respuestaJson(
+        {
+          usuario: ANA,
+          correo_enviado: null,
+          contrasena_temporal: "Xy7#abcdefghijkl",
+        },
+        201
+      )
+    )
+    renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })
+    await screen.findByRole("link", { name: "Ana López" })
+    const panel = await llenarAlta("temporal")
+    await userEvent.click(
+      within(panel).getByRole("button", { name: "Dar de alta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Contraseña temporal de Ana López",
+    })
+    // El panel que se cierra no debe quitarle el foco al diálogo que se abre.
+    await new Promise((resolver) => setTimeout(resolver, 50))
+    expect(dialogo).toContainElement(document.activeElement as HTMLElement)
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Listo" })
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Nuevo usuario" })
+      ).toHaveFocus()
+    )
+  })
+
   it("muestra el duplicado junto al campo", async () => {
     api(() =>
       respuestaJson(

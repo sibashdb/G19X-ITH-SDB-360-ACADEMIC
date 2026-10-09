@@ -9,7 +9,7 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react"
-import { useId, useState, type FormEvent, type ReactNode } from "react"
+import { useId, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { Link, useParams } from "react-router"
 import { describirActividad } from "@/actividad"
 import { enviarJson, erroresPorCampo, ErrorApi, pedir } from "@/api"
@@ -95,6 +95,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
   const [roles, setRoles] = useState<Rol[]>(usuario.roles)
   const [mensaje, setMensaje] = useState<Mensaje>(null)
   const [temporal, setTemporal] = useState<string | null>(null)
+  const botonTemporal = useRef<HTMLButtonElement>(null)
   // El formulario parte de los datos cargados; tras guardar ya coincide con lo que guardó el servidor.
 
   function actualizarCache(siguiente: UsuarioAdmin) {
@@ -300,7 +301,11 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
               ejecutar("contrasena", "", { metodo: "temporal" })
             }
           >
-            <Button variant="outline" disabled={accion.isPending}>
+            <Button
+              ref={botonTemporal}
+              variant="outline"
+              disabled={accion.isPending}
+            >
               <KeyRound aria-hidden />
               Asignar contraseña temporal
             </Button>
@@ -349,6 +354,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
       <DialogoContrasenaTemporal
         datos={temporal ? { nombre, contrasena: temporal } : null}
         alCerrar={() => setTemporal(null)}
+        devolverFoco={botonTemporal}
       />
     </section>
   )

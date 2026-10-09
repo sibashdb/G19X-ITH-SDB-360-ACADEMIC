@@ -1,4 +1,4 @@
-import { cleanup, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { UsuarioDetalle } from "@/paginas/UsuarioDetalle"
@@ -149,6 +149,34 @@ describe("UsuarioDetalle", () => {
       name: "Contraseña temporal de Ana López",
     })
     expect(within(dialogo).getByText("Ab1#cdefghijklmn")).toBeInTheDocument()
+  })
+
+  it("al cerrar la contraseña temporal, el foco vuelve a «Asignar contraseña temporal»", async () => {
+    api({
+      [`${RUTA}/contrasena`]: () =>
+        respuestaJson({ contrasena_temporal: "Ab1#cdefghijklmn" }),
+    })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Ana López" })
+    await userEvent.click(
+      screen.getByRole("button", { name: "Asignar contraseña temporal" })
+    )
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Asignar",
+      })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Contraseña temporal de Ana López",
+    })
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Listo" })
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Asignar contraseña temporal" })
+      ).toHaveFocus()
+    )
   })
 
   it("si el correo no sale, ofrece la contraseña temporal", async () => {
