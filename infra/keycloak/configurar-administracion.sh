@@ -4,8 +4,9 @@
 # "administracion" con su cuenta de servicio. Es idempotente.
 # Uso (desde la raíz del repositorio):
 #   docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/configurar-administracion.sh
-# La contraseña del administrador y el secreto del cliente se leen del entorno del contenedor y se
-# pasan por la entrada estándar, nunca como argumentos.
+# La contraseña del administrador y el secreto del cliente se leen del entorno del contenedor, nunca
+# como argumentos: la contraseña llega a kcadm en la variable KC_CLI_PASSWORD de esa sola orden, y
+# el secreto va dentro del JSON del cliente, que kcadm recibe por la entrada estándar (-f -).
 set -euo pipefail
 
 kcadm=/opt/keycloak/bin/kcadm.sh
