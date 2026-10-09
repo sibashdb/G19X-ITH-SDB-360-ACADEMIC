@@ -2,12 +2,29 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+
+from administracion.keycloak import PREFIJO_CUENTA_SERVICIO
 
 Rol = Literal["admin", "comprador", "aprobador"]
+
+
+def _no_reservado(usuario: str) -> str:
+    # Keycloak usa este prefijo en sus cuentas de servicio y el adaptador las oculta de la lista.
+    if usuario.startswith(PREFIJO_CUENTA_SERVICIO):
+        raise ValueError("Ese nombre de usuario está reservado.")
+    return usuario
+
+
 # Pydantic valida el patrón antes de pasar a minúsculas: se aceptan mayúsculas y se normalizan.
 NombreUsuario = Annotated[
-    str, StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^[A-Za-z0-9.-]{3,30}$")
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        to_lower=True,
+        pattern=r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{1,28}[A-Za-z0-9])$",
+    ),
+    AfterValidator(_no_reservado),
 ]
 Correo = Annotated[
     str,

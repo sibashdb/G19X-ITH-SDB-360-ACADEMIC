@@ -4,8 +4,9 @@ import logging
 import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from comun.auth import Usuario, requiere_rol
 from comun.errores import ErrorDominio
@@ -98,6 +99,22 @@ def _sin_bitacora(exc: SQLAlchemyError) -> ErrorDominio:
         "La acción se aplicó, pero no quedó en la bitácora.",
         {"codigo": "bitacora_no_registrada"},
     )
+
+
+async def _confirmar_en_bitacora(
+    sesion: AsyncSession,
+    tipo: str,
+    actor: Actor,
+    objeto: Objeto,
+    detalle: dict[str, Any] | None = None,
+    resultado: str = "exito",
+) -> None:
+    """Registra una acción que quedó a medias y confirma, antes de avisar del error."""
+    try:
+        await registrar(sesion, tipo, actor, objeto=objeto, detalle=detalle, resultado=resultado)
+        await sesion.commit()
+    except SQLAlchemyError as exc:
+        raise _sin_bitacora(exc) from exc
 
 
 def _actor(usuario: Usuario, request: Request) -> Actor:
@@ -214,13 +231,35 @@ async def crear_usuario(
         usuario_id = await identidad.crear_usuario(
             DatosUsuarioNuevo(datos.usuario, datos.nombre, datos.apellidos, datos.correo)
         )
-        await identidad.fijar_roles(usuario_id, frozenset(datos.roles))
-        nuevo = await identidad.obtener_usuario(usuario_id)
-        if datos.metodo == "temporal":
-            temporal = generar_contrasena_temporal()
-            await identidad.fijar_contrasena_temporal(usuario_id, temporal)
-        else:
-            correo_enviado = await _enviar_correo(identidad, sesion, nuevo, "invitacion", actor)
+        pendiente = "roles"
+        try:
+            await identidad.fijar_roles(usuario_id, frozenset(datos.roles))
+            pendiente = "contrasena"
+            nuevo = await identidad.obtener_usuario(usuario_id)
+            if datos.metodo == "temporal":
+                temporal = generar_contrasena_temporal()
+                await identidad.fijar_contrasena_temporal(usuario_id, temporal)
+            else:
+                correo_enviado = await _enviar_correo(identidad, sesion, nuevo, "invitacion", actor)
+        except (IdentidadNoDisponible, UsuarioNoEncontrado) as exc:
+            log.warning(
+                "El alta de %s quedó incompleta (falta: %s): %s", usuario_id, pendiente, exc
+            )
+            await _confirmar_en_bitacora(
+                sesion,
+                "usuario.creado",
+                actor,
+                Objeto("usuario", usuario_id, f"{datos.nombre} {datos.apellidos}"),
+                {"roles": _roles_ordenados(frozenset(datos.roles)), "pendiente": pendiente},
+                "fallo",
+            )
+            raise ErrorDominio(
+                503,
+                "Servicio no disponible",
+                "Se creó la cuenta, pero no se pudo terminar de configurar. "
+                "Abra su ficha en Usuarios para asignar los roles o la contraseña.",
+                {"codigo": "alta_incompleta", "usuario_id": usuario_id},
+            ) from exc
     try:
         await registrar(
             sesion,
@@ -274,18 +313,37 @@ async def editar_usuario(
         campos = sorted(k for k, v in nuevos.items() if v is not None and v != getattr(objetivo, k))
         roles_nuevos = frozenset(datos.roles) if datos.roles is not None else objetivo.roles
         if roles_nuevos != objetivo.roles:
+            # ponytail: dos admins a la vez podrían pasar ambos; candado o verificación en Keycloak
             verificar_cambio_de_roles(
                 admin.id, objetivo, roles_nuevos, await identidad.listar_usuarios()
             )
+        nombre = datos.nombre or objetivo.nombre
+        apellidos = datos.apellidos or objetivo.apellidos
         if campos:
             await identidad.actualizar_datos(
-                usuario_id,
-                datos.nombre or objetivo.nombre,
-                datos.apellidos or objetivo.apellidos,
-                datos.correo or objetivo.correo,
+                usuario_id, nombre, apellidos, datos.correo or objetivo.correo
             )
         if roles_nuevos != objetivo.roles:
-            await identidad.fijar_roles(usuario_id, roles_nuevos)
+            try:
+                await identidad.fijar_roles(usuario_id, roles_nuevos)
+            except (IdentidadNoDisponible, UsuarioNoEncontrado) as exc:
+                if not campos:
+                    raise
+                log.warning("Los datos de %s se guardaron, pero no los roles: %s", usuario_id, exc)
+                await _confirmar_en_bitacora(
+                    sesion,
+                    "usuario.actualizado",
+                    actor,
+                    _objeto(replace(objetivo, nombre=nombre, apellidos=apellidos)),
+                    {"campos": campos},
+                )
+                raise ErrorDominio(
+                    503,
+                    "Servicio no disponible",
+                    "Se guardaron los datos, pero no se pudieron cambiar los roles. "
+                    "Intente de nuevo en unos minutos.",
+                    {"codigo": "roles_no_cambiados"},
+                ) from exc
         actualizado = await identidad.obtener_usuario(usuario_id)
     try:
         if campos:
@@ -326,12 +384,28 @@ async def _cambiar_activo(
     with _traducir_errores():
         objetivo = await identidad.obtener_usuario(usuario_id)
         if not activo:
+            # ponytail: dos admins a la vez podrían pasar ambos; candado o verificación en Keycloak
             verificar_desactivacion(admin.id, objetivo, await identidad.listar_usuarios())
         cambia = objetivo.activo != activo
         if cambia:
             await identidad.fijar_activo(usuario_id, activo)
             if not activo:
-                await identidad.cerrar_sesiones(usuario_id)  # que salga de inmediato
+                try:
+                    await identidad.cerrar_sesiones(usuario_id)  # que salga de inmediato
+                except (IdentidadNoDisponible, UsuarioNoEncontrado) as exc:
+                    log.warning(
+                        "%s quedó desactivado, pero siguen sus sesiones: %s", usuario_id, exc
+                    )
+                    await _confirmar_en_bitacora(
+                        sesion, "usuario.desactivado", actor, _objeto(objetivo)
+                    )
+                    raise ErrorDominio(
+                        503,
+                        "Servicio no disponible",
+                        "La cuenta quedó desactivada, pero no se pudieron cerrar sus sesiones "
+                        "abiertas. Use «Cerrar sesiones» en unos minutos.",
+                        {"codigo": "sesiones_no_cerradas"},
+                    ) from exc
         actualizado = await identidad.obtener_usuario(usuario_id)
     if cambia:
         try:

@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 import pytest
 from administracion.bitacora import Actor, registrar
+from administracion.identidad import IdentidadNoDisponible
 from administracion.identidad_falsa import IdentidadFalsa
 from comun.pruebas import ClavesPrueba
 from sqlalchemy import text
@@ -160,6 +161,9 @@ async def test_alta_con_correo_caido_crea_la_cuenta_y_lo_avisa(
         ({"roles": []}, "body.roles"),
         ({"correo": "no-es-correo"}, "body.correo"),
         ({"roles": ["root"]}, "body.roles.0"),
+        ({"usuario": ".ana"}, "body.usuario"),
+        ({"usuario": "ana-"}, "body.usuario"),
+        ({"usuario": "service-account-x"}, "body.usuario"),
     ],
 )
 async def test_validacion(
@@ -300,3 +304,137 @@ async def test_si_la_bitacora_falla_lo_dice(
     assert respuesta.status_code == 500
     assert respuesta.json()["codigo"] == "bitacora_no_registrada"
     assert respuesta.json()["detail"] == "La acción se aplicó, pero no quedó en la bitácora."
+
+
+async def test_nombre_reservado_dice_por_que(
+    cliente: httpx.AsyncClient, admin: dict[str, str]
+) -> None:
+    respuesta = await cliente.post(
+        "/usuarios", json={**NUEVO, "usuario": "Service-Account-x"}, headers=admin
+    )
+    assert respuesta.status_code == 422
+    assert {"campo": "body.usuario", "mensaje": "Ese nombre de usuario está reservado."} in (
+        respuesta.json()["errores"]
+    )
+
+
+def _que_falle(
+    identidad: IdentidadFalsa, monkeypatch: pytest.MonkeyPatch, metodo: str
+) -> list[Any]:
+    """Hace que un solo método del proveedor falle; devuelve los argumentos con que lo llamaron."""
+    llamadas: list[Any] = []
+
+    async def falla(*args: object, **_: object) -> None:
+        llamadas.append(args)
+        raise IdentidadNoDisponible("simulado")
+
+    monkeypatch.setattr(identidad, metodo, falla)
+    return llamadas
+
+
+@pytest.mark.parametrize(
+    ("metodo_alta", "falla", "pendiente"),
+    [
+        ("invitacion", "fijar_roles", "roles"),
+        ("temporal", "fijar_contrasena_temporal", "contrasena"),
+    ],
+)
+async def test_alta_a_medias_queda_en_la_bitacora(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    metodo_alta: str,
+    falla: str,
+    pendiente: str,
+) -> None:
+    llamadas = _que_falle(identidad, monkeypatch, falla)
+    respuesta = await cliente.post(
+        "/usuarios", json={**NUEVO, "metodo": metodo_alta}, headers=admin
+    )
+    assert respuesta.status_code == 503
+    cuerpo = respuesta.json()
+    assert cuerpo["codigo"] == "alta_incompleta"
+    assert cuerpo["usuario_id"] == "id-ana.lopez"
+    assert cuerpo["detail"] == (
+        "Se creó la cuenta, pero no se pudo terminar de configurar. "
+        "Abra su ficha en Usuarios para asignar los roles o la contraseña."
+    )
+    assert "id-ana.lopez" in identidad.usuarios
+    registros = await _bitacora(fabrica)
+    assert [(r["tipo"], r["resultado"], r["objeto_id"]) for r in registros] == [
+        ("usuario.creado", "fallo", "id-ana.lopez")
+    ]
+    assert registros[0]["detalle"] == {"roles": ["comprador"], "pendiente": pendiente}
+    if metodo_alta == "temporal":
+        temporal = str(llamadas[0][1])
+        assert len(temporal) == 16
+        assert temporal not in respuesta.text
+        assert temporal not in json.dumps(registros, default=str)
+
+
+async def test_desactivar_con_sesiones_que_no_se_cierran(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _que_falle(identidad, monkeypatch, "cerrar_sesiones")
+    respuesta = await cliente.post("/usuarios/comprador-1/desactivar", headers=admin)
+    assert respuesta.status_code == 503
+    assert respuesta.json()["codigo"] == "sesiones_no_cerradas"
+    assert respuesta.json()["detail"] == (
+        "La cuenta quedó desactivada, pero no se pudieron cerrar sus sesiones abiertas. "
+        "Use «Cerrar sesiones» en unos minutos."
+    )
+    assert identidad.usuarios["comprador-1"].activo is False
+    registros = await _bitacora(fabrica)
+    assert [(r["tipo"], r["resultado"], r["objeto_id"]) for r in registros] == [
+        ("usuario.desactivado", "exito", "comprador-1")
+    ]
+
+
+async def test_editar_con_roles_que_no_se_cambian(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _que_falle(identidad, monkeypatch, "fijar_roles")
+    respuesta = await cliente.patch(
+        "/usuarios/comprador-1",
+        json={"apellidos": "Compras", "roles": ["comprador", "aprobador"]},
+        headers=admin,
+    )
+    assert respuesta.status_code == 503
+    assert respuesta.json()["codigo"] == "roles_no_cambiados"
+    assert respuesta.json()["detail"] == (
+        "Se guardaron los datos, pero no se pudieron cambiar los roles. "
+        "Intente de nuevo en unos minutos."
+    )
+    assert identidad.usuarios["comprador-1"].apellidos == "Compras"
+    assert identidad.usuarios["comprador-1"].roles == {"comprador"}
+    registros = await _bitacora(fabrica)
+    assert [(r["tipo"], r["resultado"], r["objeto_id"]) for r in registros] == [
+        ("usuario.actualizado", "exito", "comprador-1")
+    ]
+    assert registros[0]["detalle"] == {"campos": ["apellidos"]}
+
+
+async def test_editar_solo_roles_y_la_identidad_cae_no_deja_bitacora(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _que_falle(identidad, monkeypatch, "fijar_roles")
+    respuesta = await cliente.patch(
+        "/usuarios/comprador-1", json={"roles": ["comprador", "aprobador"]}, headers=admin
+    )
+    assert respuesta.status_code == 503
+    assert respuesta.json()["codigo"] == "identidad_no_disponible"
+    assert await _bitacora(fabrica) == []
