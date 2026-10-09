@@ -1,5 +1,5 @@
 # Contexto: raíz del repositorio. Construye la SPA y la sirve desde el gateway Nginx.
-FROM node:24-alpine AS construccion
+FROM node:25-alpine AS construccion
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
