@@ -110,7 +110,7 @@ export function FormularioAltaUsuario({
       }}
     >
       <SheetContent
-        className="w-full overflow-y-auto sm:max-w-md"
+        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-md"
         onCloseAutoFocus={(evento) => {
           evento.preventDefault()
           devolverFoco.current?.focus()

@@ -221,6 +221,24 @@ describe("Usuarios", () => {
     )
   })
 
+  it("el panel de alta ocupa todo el ancho en pantallas chicas y 28rem desde sm", async () => {
+    api()
+    renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })
+    await screen.findByRole("link", { name: "Ana López" })
+    await userEvent.click(screen.getByRole("button", { name: "Nuevo usuario" }))
+    const panel = await screen.findByRole("dialog", { name: "Nuevo usuario" })
+    // jsdom no mide el diseño: el SheetContent trae w-3/4 y sm:max-w-sm con la variante data-[side=right]:,
+    // y solo esa misma variante los reemplaza (tailwind-merge).
+    expect(panel).toHaveClass(
+      "data-[side=right]:w-full",
+      "data-[side=right]:sm:max-w-md"
+    )
+    expect(panel).not.toHaveClass(
+      "data-[side=right]:w-3/4",
+      "data-[side=right]:sm:max-w-sm"
+    )
+  })
+
   it("muestra el duplicado junto al campo", async () => {
     api(() =>
       respuestaJson(
