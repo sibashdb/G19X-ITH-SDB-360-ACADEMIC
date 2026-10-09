@@ -26,9 +26,15 @@ NombreUsuario = Annotated[
     ),
     AfterValidator(_no_reservado),
 ]
+# Keycloak guarda el correo en minúsculas: se normaliza aquí para que guardar igual no cambie nada.
 Correo = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"),
+    StringConstraints(
+        strip_whitespace=True,
+        to_lower=True,
+        max_length=254,
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    ),
 ]
 # Los que rechaza el validador person-name-prohibited-characters de Keycloak en nombre y apellidos.
 CARACTERES_PROHIBIDOS_EN_NOMBRE = frozenset('<>&"$%!#?§;*~/\\|^=[]{}()')

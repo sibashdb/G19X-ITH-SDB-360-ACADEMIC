@@ -269,6 +269,26 @@ async def test_editar_datos_y_roles_registra_antes_y_despues(
     }
 
 
+async def test_el_correo_se_guarda_en_minusculas_y_guardar_igual_no_registra(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    alta = await cliente.post(
+        "/usuarios", json={**NUEVO, "correo": "Ana@Ejemplo.com"}, headers=admin
+    )
+    assert alta.json()["usuario"]["correo"] == "ana@ejemplo.com"
+    for _ in range(2):
+        edicion = await cliente.patch(
+            "/usuarios/comprador-1", json={"correo": "Carlos@Ejemplo.com"}, headers=admin
+        )
+        assert edicion.json()["correo"] == "carlos@ejemplo.com"
+    assert identidad.usuarios["comprador-1"].correo == "carlos@ejemplo.com"
+    tipos = [r["tipo"] for r in await _bitacora(fabrica)]
+    assert tipos.count("usuario.actualizado") == 1
+
+
 async def test_nadie_se_quita_admin(
     cliente: httpx.AsyncClient, admin: dict[str, str], identidad: IdentidadFalsa
 ) -> None:
