@@ -7,9 +7,11 @@ import {
   navegacionPara,
   type ElementoNavegacion,
 } from "@/componentes/navegacion"
+import { MenuUsuario } from "@/componentes/MenuUsuario"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -122,6 +124,9 @@ export function BarraLateral() {
             </SidebarGroup>
           ))}
         </SidebarContent>
+        <SidebarFooter>
+          <MenuUsuario />
+        </SidebarFooter>
       </nav>
     </Sidebar>
   )

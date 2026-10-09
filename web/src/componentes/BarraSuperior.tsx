@@ -1,17 +1,13 @@
 import {
   Bell,
   BellOff,
-  CircleHelp,
-  LogOut,
   Monitor,
   Moon,
   Sun,
   type LucideIcon,
 } from "lucide-react"
 import { Fragment } from "react"
-import { useAuth } from "react-oidc-context"
-import { Link, useLocation, useNavigate } from "react-router"
-import { NOMBRES_ROL, useRoles } from "@/auth"
+import { Link, useLocation } from "react-router"
 import { migasDe } from "@/componentes/navegacion"
 import {
   Breadcrumb,
@@ -34,7 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { mostrarGuia, useGuia } from "@/guia"
 import { NOMBRES_TEMA, useTema, type Tema } from "@/tema"
 
 const ICONOS_TEMA: Record<Tema, LucideIcon> = {
@@ -134,68 +129,6 @@ function SelectorTema() {
   )
 }
 
-function MenuUsuario() {
-  const auth = useAuth()
-  const roles = useRoles()
-  const guia = useGuia()
-  const navegar = useNavigate()
-  const perfil = auth.user?.profile
-  const nombre =
-    [perfil?.given_name, perfil?.family_name].filter(Boolean).join(" ") ||
-    perfil?.preferred_username ||
-    "Usuario"
-  const iniciales = nombre
-    .split(" ")
-    .map((parte) => parte[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-9 gap-2 px-2"
-          aria-label={`Cuenta de ${nombre}`}
-        >
-          <span
-            aria-hidden
-            className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
-          >
-            {iniciales}
-          </span>
-          <span className="hidden text-sm font-medium md:inline">{nombre}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="space-y-0.5">
-          <span className="block font-medium">{nombre}</span>
-          <span className="block text-xs font-normal text-muted-foreground">
-            {roles.map((rol) => NOMBRES_ROL[rol]).join(" · ") ||
-              "Sin rol asignado"}
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {guia.oculta && (
-          <DropdownMenuItem
-            onSelect={() => {
-              mostrarGuia()
-              void navegar("/")
-            }}
-          >
-            <CircleHelp aria-hidden />
-            Mostrar guía de uso
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onSelect={() => void auth.signoutRedirect()}>
-          <LogOut aria-hidden />
-          Cerrar sesión
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 export function BarraSuperior() {
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -208,7 +141,6 @@ export function BarraSuperior() {
       <div className="ml-auto flex items-center gap-1">
         <MenuAlertas />
         <SelectorTema />
-        <MenuUsuario />
       </div>
     </header>
   )

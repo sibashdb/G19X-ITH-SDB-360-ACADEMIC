@@ -267,6 +267,22 @@ describe("Layout con sesión iniciada", () => {
     ).toBeInTheDocument()
   })
 
+  it("muestra la cuenta abajo en el menú lateral, con nombre y roles, y no en la barra superior", () => {
+    estado.autenticacion = sesionCon(["comprador", "aprobador"])
+    renderizar()
+    const menu = screen.getByRole("navigation", { name: "Principal" })
+    const cuenta = within(menu).getByRole("button", {
+      name: "Cuenta de Ana López",
+    })
+
+    expect(cuenta.closest('[data-sidebar="footer"]')).not.toBeNull()
+    expect(cuenta).toHaveTextContent("Ana López")
+    expect(cuenta).toHaveTextContent("Compras · Aprobación")
+    expect(screen.getAllByRole("button", { name: /^Cuenta de/ })).toHaveLength(
+      1
+    )
+  })
+
   it("muestra el usuario con sus roles y cierra sesión", async () => {
     estado.autenticacion = sesionCon(["comprador", "aprobador"])
     renderizar()
@@ -274,7 +290,9 @@ describe("Layout con sesión iniciada", () => {
       screen.getByRole("button", { name: "Cuenta de Ana López" })
     )
 
-    expect(await screen.findByText("Compras · Aprobación")).toBeInTheDocument()
+    expect(
+      within(await screen.findByRole("menu")).getByText("Compras · Aprobación")
+    ).toBeInTheDocument()
     await userEvent.click(
       screen.getByRole("menuitem", { name: "Cerrar sesión" })
     )
