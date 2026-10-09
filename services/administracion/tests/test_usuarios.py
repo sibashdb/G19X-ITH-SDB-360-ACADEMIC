@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 import pytest
 from administracion.bitacora import Actor, registrar
-from administracion.identidad import IdentidadNoDisponible
+from administracion.identidad import IdentidadNoDisponible, UsuarioIdentidad
 from administracion.identidad_falsa import IdentidadFalsa
 from comun.pruebas import ClavesPrueba
 from sqlalchemy import text
@@ -32,7 +32,10 @@ def admin(claves: ClavesPrueba) -> dict[str, str]:
 async def _bitacora(fabrica: async_sessionmaker[AsyncSession]) -> list[dict[str, Any]]:
     async with fabrica() as sesion:
         filas = await sesion.execute(
-            text("SELECT tipo, objeto_id, detalle, resultado FROM actividad ORDER BY fecha")
+            text(
+                "SELECT tipo, objeto_id, objeto_nombre, detalle, resultado "
+                "FROM actividad ORDER BY fecha"
+            )
         )
         return [dict(f._mapping) for f in filas]
 
@@ -438,3 +441,61 @@ async def test_editar_solo_roles_y_la_identidad_cae_no_deja_bitacora(
     assert respuesta.status_code == 503
     assert respuesta.json()["codigo"] == "identidad_no_disponible"
     assert await _bitacora(fabrica) == []
+
+
+def _releer_falla(identidad: IdentidadFalsa, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deja pasar la primera lectura del usuario y hace fallar la siguiente (la de la respuesta)."""
+    original = identidad.obtener_usuario
+    lecturas = 0
+
+    async def obtener(usuario_id: str) -> UsuarioIdentidad:
+        nonlocal lecturas
+        lecturas += 1
+        if lecturas > 1:
+            raise IdentidadNoDisponible("simulado")
+        return await original(usuario_id)
+
+    monkeypatch.setattr(identidad, "obtener_usuario", obtener)
+
+
+async def test_editar_y_fallar_la_ultima_lectura_deja_la_bitacora(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _releer_falla(identidad, monkeypatch)
+    respuesta = await cliente.patch(
+        "/usuarios/comprador-1",
+        json={"apellidos": "Compras", "roles": ["comprador", "aprobador"]},
+        headers=admin,
+    )
+    assert respuesta.status_code == 503
+    assert respuesta.json()["codigo"] == "identidad_no_disponible"
+    assert identidad.usuarios["comprador-1"].apellidos == "Compras"
+    assert identidad.usuarios["comprador-1"].roles == {"comprador", "aprobador"}
+    registros = await _bitacora(fabrica)
+    assert [(r["tipo"], r["resultado"], r["objeto_nombre"]) for r in registros] == [
+        ("usuario.actualizado", "exito", "Carlos Compras"),
+        ("usuario.roles_cambiados", "exito", "Carlos Compras"),
+    ]
+
+
+async def test_desactivar_y_fallar_la_ultima_lectura_deja_la_bitacora(
+    cliente: httpx.AsyncClient,
+    admin: dict[str, str],
+    identidad: IdentidadFalsa,
+    fabrica: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _releer_falla(identidad, monkeypatch)
+    respuesta = await cliente.post("/usuarios/comprador-1/desactivar", headers=admin)
+    assert respuesta.status_code == 503
+    assert respuesta.json()["codigo"] == "identidad_no_disponible"
+    assert identidad.usuarios["comprador-1"].activo is False
+    assert identidad.sesiones_cerradas == ["comprador-1"]
+    registros = await _bitacora(fabrica)
+    assert [(r["tipo"], r["resultado"], r["objeto_nombre"]) for r in registros] == [
+        ("usuario.desactivado", "exito", "Carlos Comprador")
+    ]

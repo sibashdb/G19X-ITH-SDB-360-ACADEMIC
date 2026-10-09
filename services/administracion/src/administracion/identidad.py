@@ -10,6 +10,8 @@ from typing import Literal, Protocol
 from comun.auth import ROLES_INTERNOS
 
 ROLES_ASIGNABLES: tuple[str, ...] = ROLES_INTERNOS
+# Las cuentas de servicio del proveedor llevan este prefijo: no son personas y no se listan.
+PREFIJO_CUENTA_SERVICIO = "service-account-"
 
 
 @dataclass(frozen=True)

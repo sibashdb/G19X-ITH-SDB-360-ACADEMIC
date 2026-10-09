@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from administracion.identidad import (
+    PREFIJO_CUENTA_SERVICIO,
     ROLES_ASIGNABLES,
     CorreoNoEnviado,
     DatoDuplicado,
@@ -30,7 +31,6 @@ MAX_USUARIOS = 1000
 TAMANO_PAGINA_EVENTOS = 200
 MAX_PAGINAS_EVENTOS = 50
 TIPOS_EVENTO = ("LOGIN", "LOGIN_ERROR", "LOGOUT")
-PREFIJO_CUENTA_SERVICIO = "service-account-"
 MARGEN_TOKEN_S = 30
 
 

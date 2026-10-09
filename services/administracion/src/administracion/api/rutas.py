@@ -328,6 +328,7 @@ async def editar_usuario(
             )
         nombre = datos.nombre or objetivo.nombre
         apellidos = datos.apellidos or objetivo.apellidos
+        objeto = _objeto(replace(objetivo, nombre=nombre, apellidos=apellidos))
         if campos:
             await identidad.actualizar_datos(
                 usuario_id, nombre, apellidos, datos.correo or objetivo.correo
@@ -340,11 +341,7 @@ async def editar_usuario(
                     raise
                 log.warning("Los datos de %s se guardaron, pero no los roles: %s", usuario_id, exc)
                 await _confirmar_en_bitacora(
-                    sesion,
-                    "usuario.actualizado",
-                    actor,
-                    _objeto(replace(objetivo, nombre=nombre, apellidos=apellidos)),
-                    {"campos": campos},
+                    sesion, "usuario.actualizado", actor, objeto, {"campos": campos}
                 )
                 raise ErrorDominio(
                     503,
@@ -353,22 +350,19 @@ async def editar_usuario(
                     "Intente de nuevo en unos minutos.",
                     {"codigo": "roles_no_cambiados"},
                 ) from exc
-        actualizado = await identidad.obtener_usuario(usuario_id)
+    # Primero la bitácora, con lo que ya se sabe: si la lectura de la respuesta falla, el cambio
+    # ya quedó registrado.
     try:
         if campos:
             await registrar(
-                sesion,
-                "usuario.actualizado",
-                actor,
-                objeto=_objeto(actualizado),
-                detalle={"campos": campos},
+                sesion, "usuario.actualizado", actor, objeto=objeto, detalle={"campos": campos}
             )
         if roles_nuevos != objetivo.roles:
             await registrar(
                 sesion,
                 "usuario.roles_cambiados",
                 actor,
-                objeto=_objeto(actualizado),
+                objeto=objeto,
                 detalle={
                     "antes": _roles_ordenados(objetivo.roles),
                     "despues": _roles_ordenados(roles_nuevos),
@@ -377,6 +371,8 @@ async def editar_usuario(
         await sesion.commit()
     except SQLAlchemyError as exc:
         raise _sin_bitacora(exc) from exc
+    with _traducir_errores():
+        actualizado = await identidad.obtener_usuario(usuario_id)
     accesos = await ultimos_accesos(sesion, [usuario_id])
     return _salida(actualizado, accesos.get(usuario_id))
 
@@ -415,14 +411,16 @@ async def _cambiar_activo(
                         "abiertas. Use «Cerrar sesiones» en unos minutos.",
                         {"codigo": "sesiones_no_cerradas"},
                     ) from exc
-        actualizado = await identidad.obtener_usuario(usuario_id)
     if cambia:
+        # Primero la bitácora; si la lectura de la respuesta falla, el cambio ya quedó registrado.
         try:
             tipo = "usuario.activado" if activo else "usuario.desactivado"
-            await registrar(sesion, tipo, actor, objeto=_objeto(actualizado))
+            await registrar(sesion, tipo, actor, objeto=_objeto(objetivo))
             await sesion.commit()
         except SQLAlchemyError as exc:
             raise _sin_bitacora(exc) from exc
+    with _traducir_errores():
+        actualizado = await identidad.obtener_usuario(usuario_id)
     accesos = await ultimos_accesos(sesion, [usuario_id])
     return _salida(actualizado, accesos.get(usuario_id))
 

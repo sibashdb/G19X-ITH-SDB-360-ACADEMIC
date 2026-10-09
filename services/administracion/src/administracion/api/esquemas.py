@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
-from administracion.keycloak import PREFIJO_CUENTA_SERVICIO
+from administracion.identidad import PREFIJO_CUENTA_SERVICIO
 
 Rol = Literal["admin", "comprador", "aprobador"]
 
