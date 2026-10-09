@@ -25,6 +25,30 @@ docker compose -f infra/docker-compose.yml exec proveedores python -m proveedore
 Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
 `aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
 con usuario y contraseña. Verificación automática: `uv run python infra/smoke_test.py`.
+La prueba de humo deja un usuario `humo.prueba` desactivado. Lo reutiliza en cada corrida.
+
+Los secretos van en `infra/.env` (cópielo desde `infra/.env.example`). Los de la administración son:
+
+- `ADMINISTRACION_DB_PASSWORD`: contraseña con la que el servicio `administracion` entra a su base
+  (solo puede consultar e insertar en la bitácora).
+- `ADMINISTRACION_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
+- `KEYCLOAK_ADMINISTRACION_SECRET`: secreto del cliente de Keycloak con el que `administracion`
+  gestiona usuarios y lee los inicios de sesión.
+
+### Activar la administración en un entorno ya creado
+
+El volumen de PostgreSQL y el realm de Keycloak solo se inicializan la primera vez. Si su entorno
+ya existía antes de la administración, agregue en `infra/.env` las tres variables de arriba, levante
+el stack y ejecute estos dos comandos, en este orden (en Git Bash, ejecute antes
+`export MSYS_NO_PATHCONV=1`):
+
+```bash
+docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/20-administracion.sh
+docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/configurar-administracion.sh
+```
+
+Ambos son idempotentes: puede repetirlos sin riesgo. El primero crea la base y sus dos usuarios.
+El segundo configura en Keycloak el cliente, los eventos, el correo y el tema.
 
 ### Tema de inicio de sesión en un realm ya importado
 
@@ -88,6 +112,8 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 | Pruebas del frontend | `cd web && npm test -- --run` |
 | Contrato OpenAPI de proveedores | <http://localhost:8080/api/proveedores/docs> |
 | Consola de RabbitMQ | <http://localhost:15672> |
+| Contrato OpenAPI de administración | <http://localhost:8080/api/administracion/docs> |
+| Mailpit, buzón de desarrollo de los correos de Keycloak (solo en este equipo) | <http://localhost:8025> |
 
 ## Interfaz
 
@@ -107,6 +133,7 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 |---|---|
 | `libs/comun` | Infraestructura compartida: logs, errores RFC 9457, JWT, salud, outbox |
 | `services/proveedores` | Microservicio de proveedores, contratos, precios y desempeño |
+| `services/administracion` | Microservicio de administración: usuarios, bitácora y correos (`/api/administracion/`) |
 | `tools/generador` | Datos sintéticos reproducibles del ERP simulado |
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |

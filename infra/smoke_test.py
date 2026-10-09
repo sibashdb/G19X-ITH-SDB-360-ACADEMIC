@@ -2,11 +2,13 @@
 
 import json
 import sys
+import time
 from pathlib import Path
 
 import httpx
 
 BASE = "http://localhost:8080"
+BUZON = "http://localhost:8025"
 REALM = Path(__file__).parent / "keycloak" / "realm-plataforma.json"
 
 
@@ -19,6 +21,96 @@ def contrasena_de_desarrollo(usuario: str) -> str:
     realm = json.loads(REALM.read_text(encoding="utf-8"))
     [datos] = [u for u in realm["users"] if u["username"] == usuario]
     return str(datos["credentials"][0]["value"])
+
+
+def token_de(cliente: httpx.Client, usuario: str) -> dict[str, str]:
+    respuesta = cliente.post(
+        "/auth/realms/plataforma/protocol/openid-connect/token",
+        data={
+            "grant_type": "password",
+            "client_id": "pruebas-humo",
+            "username": usuario,
+            "password": contrasena_de_desarrollo(usuario),
+        },
+    )
+    verificar(respuesta.status_code == 200, f"{usuario} no obtuvo token: {respuesta.text}")
+    return {"Authorization": f"Bearer {respuesta.json()['access_token']}"}
+
+
+def verificar_administracion(cliente: httpx.Client) -> None:
+    admin = token_de(cliente, "admin1")
+    comprador = token_de(cliente, "comprador1")
+    api = "/api/administracion"
+    verificar(
+        cliente.get(f"{api}/usuarios", headers=comprador).status_code == 403,
+        "un comprador no debe gestionar usuarios",
+    )
+    lista = cliente.get(f"{api}/usuarios", headers=admin)
+    verificar(lista.status_code == 200, f"listar usuarios falló: {lista.text}")
+
+    # Usuario de humo reutilizable: se crea la primera vez y después se reactiva.
+    datos = {
+        "usuario": "humo.prueba",
+        "nombre": "Humo",
+        "apellidos": "Prueba",
+        "correo": "humo.prueba@plataforma.example",
+        "roles": ["comprador"],
+        "metodo": "invitacion",
+    }
+    alta = cliente.post(f"{api}/usuarios", json=datos, headers=admin)
+    if alta.status_code == 201:
+        usuario_id = alta.json()["usuario"]["id"]
+        verificar(alta.json()["correo_enviado"] is True, "la invitación no se envió")
+    else:
+        # Con usuario y correo repetidos, Keycloak reporta primero el correo.
+        verificar(
+            alta.json().get("codigo") in ("usuario_duplicado", "correo_duplicado"),
+            f"alta falló: {alta.text}",
+        )
+        [existente] = cliente.get(
+            f"{api}/usuarios", params={"busqueda": "humo.prueba"}, headers=admin
+        ).json()["elementos"]
+        usuario_id = existente["id"]
+        cliente.post(f"{api}/usuarios/{usuario_id}/activar", headers=admin)
+        correo = cliente.post(
+            f"{api}/usuarios/{usuario_id}/contrasena", json={"metodo": "correo"}, headers=admin
+        )
+        verificar(correo.status_code == 200, f"el correo no se envió: {correo.text}")
+
+    mensajes = httpx.get(
+        f"{BUZON}/api/v1/search", params={"query": "to:humo.prueba@plataforma.example"}, timeout=10
+    )
+    asuntos = [m["Subject"] for m in mensajes.json().get("messages", [])]
+    verificar(
+        "Defina su contraseña de PluriOne" in asuntos,
+        f"el correo no llegó a Mailpit con el asunto esperado: {asuntos}",
+    )
+
+    baja = cliente.post(f"{api}/usuarios/{usuario_id}/desactivar", headers=admin)
+    verificar(
+        baja.status_code == 200 and baja.json()["activo"] is False, f"desactivar falló: {baja.text}"
+    )
+    tipos = [
+        e["tipo"]
+        for e in cliente.get(
+            f"{api}/actividad", params={"persona": usuario_id}, headers=admin
+        ).json()["elementos"]
+    ]
+    verificar(
+        "usuario.desactivado" in tipos and "usuario.correo_contrasena" in tipos,
+        f"la bitácora no registró las acciones: {tipos}",
+    )
+
+    # Los inicios de sesión llegan a la bitácora en menos de un minuto (lectura cada 30 s).
+    limite = time.monotonic() + 75
+    while time.monotonic() < limite:
+        sesiones = cliente.get(
+            f"{api}/actividad", params={"tipo": "sesiones"}, headers=admin
+        ).json()["elementos"]
+        if any(e["actor_nombre"] == "admin1" for e in sesiones):
+            return
+        time.sleep(5)
+    raise SystemExit("FALLA: los inicios de sesión no llegaron a la bitácora en 75 s")
 
 
 def main() -> int:
@@ -94,7 +186,12 @@ def main() -> int:
         openapi = cliente.get("/api/proveedores/openapi.json")
         verificar(openapi.status_code == 200, "no se publica el contrato OpenAPI")
 
-    print(f"OK: SPA, Keycloak y proveedores responden ({lista.json()['total']} proveedores).")
+        verificar_administracion(cliente)
+
+    print(
+        f"OK: SPA, Keycloak, proveedores y administración responden "
+        f"({lista.json()['total']} proveedores)."
+    )
     return 0
 
 

@@ -149,13 +149,18 @@ services:
       dockerfile: web/Dockerfile
     ports:
       - "127.0.0.1:8080:8080"
+    # restart: true reinicia el gateway cuando se recrea una dependencia; Nginx resuelve las IP
+    # de los servicios una sola vez al arrancar y, sin esto, daría 502 con IP viejas.
     depends_on:
       proveedores:
         condition: service_healthy
+        restart: true
       administracion:
         condition: service_healthy
+        restart: true
       keycloak:
         condition: service_healthy
+        restart: true
 
 volumes:
   pgdata:
