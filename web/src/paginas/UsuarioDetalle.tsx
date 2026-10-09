@@ -94,6 +94,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
   const cliente = useQueryClient()
   const id = useId()
   const nombre = nombreCompleto(usuario)
+  // El formulario parte de los datos cargados; tras guardar ya coincide con lo que guardó el servidor.
   const [datos, setDatos] = useState({
     nombre: usuario.nombre,
     apellidos: usuario.apellidos,
@@ -111,7 +112,6 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
     enfocarEstado.current = false
     botonEstado.current?.focus()
   }, [usuario.activo])
-  // El formulario parte de los datos cargados; tras guardar ya coincide con lo que guardó el servidor.
 
   function actualizarCache(siguiente: UsuarioAdmin) {
     cliente.setQueryData(["usuario", usuario.id], siguiente)
@@ -147,6 +147,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
 
   function enviarCambios(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
+    if (guardar.isPending) return
     setMensaje(null)
     const cambios: Record<string, unknown> = {}
     for (const campo of ["nombre", "apellidos", "correo"] as const) {
@@ -162,6 +163,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
   }
 
   function ejecutar(sufijo: string, exito: string, cuerpo?: object) {
+    if (accion.isPending) return
     setMensaje(null)
     accion.mutate(
       { sufijo, cuerpo },
@@ -285,7 +287,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
             alCambiar={setRoles}
             error={errores.roles}
           />
-          <Button type="submit" disabled={guardar.isPending}>
+          <Button type="submit" aria-disabled={guardar.isPending}>
             {guardar.isPending ? "Guardando…" : "Guardar cambios"}
           </Button>
         </form>
@@ -298,7 +300,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            disabled={accion.isPending}
+            aria-disabled={accion.isPending}
             onClick={() =>
               ejecutar(
                 "contrasena",
@@ -323,7 +325,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
             <Button
               ref={botonTemporal}
               variant="outline"
-              disabled={accion.isPending}
+              aria-disabled={accion.isPending}
             >
               <KeyRound aria-hidden />
               Asignar contraseña temporal
@@ -337,7 +339,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
               ejecutar("cerrar-sesiones", "Se cerraron sus sesiones.")
             }
           >
-            <Button variant="outline" disabled={accion.isPending}>
+            <Button variant="outline" aria-disabled={accion.isPending}>
               <LogOut aria-hidden />
               Cerrar sesiones
             </Button>
@@ -354,7 +356,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
               <Button
                 ref={botonEstado}
                 variant="outline"
-                disabled={accion.isPending}
+                aria-disabled={accion.isPending}
               >
                 <UserX aria-hidden />
                 Desactivar
@@ -364,7 +366,7 @@ function Ficha({ usuario, ruta }: { usuario: UsuarioAdmin; ruta: string }) {
             <Button
               ref={botonEstado}
               variant="outline"
-              disabled={accion.isPending}
+              aria-disabled={accion.isPending}
               onClick={() => ejecutar("activar", "La cuenta quedó activa.")}
             >
               <UserCheck aria-hidden />

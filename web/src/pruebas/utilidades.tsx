@@ -15,6 +15,15 @@ export function respuestaJson(cuerpo: unknown, estado = 200): Response {
 
 type Respuesta = Response | Promise<Response>
 
+/** Respuesta que la prueba resuelve a mano, para fijar el momento exacto en que termina una petición. */
+export function respuestaDiferida() {
+  let resolver!: (respuesta: Response) => void
+  const promesa = new Promise<Response>((resolve) => {
+    resolver = resolve
+  })
+  return { promesa, resolver }
+}
+
 /**
  * Sustituye fetch. Con un objeto, responde cada URL exacta (404 si no está); con una función,
  * decide por URL. Cada llamada crea una respuesta nueva (el cuerpo solo se lee una vez).

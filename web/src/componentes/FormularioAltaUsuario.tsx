@@ -98,6 +98,7 @@ export function FormularioAltaUsuario({
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
+    if (mutacion.isPending) return
     mutacion.mutate({ ...valores, roles, metodo })
   }
 
@@ -226,7 +227,7 @@ export function FormularioAltaUsuario({
             </RadioGroup>
           </div>
           <SheetFooter className="px-0">
-            <Button type="submit" disabled={mutacion.isPending}>
+            <Button type="submit" aria-disabled={mutacion.isPending}>
               {mutacion.isPending ? "Dando de alta…" : "Dar de alta"}
             </Button>
           </SheetFooter>

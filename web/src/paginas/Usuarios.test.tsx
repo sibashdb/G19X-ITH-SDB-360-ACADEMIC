@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Usuarios } from "@/paginas/Usuarios"
@@ -6,6 +6,7 @@ import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularApi,
   ubicacionActual,
@@ -267,6 +268,49 @@ describe("Usuarios", () => {
     expect(campo).toHaveAccessibleDescription(
       /Ya existe un usuario con ese nombre de usuario./
     )
+  })
+
+  it("«Dar de alta»: con error del servidor, el foco sigue en el botón y no envía dos veces", async () => {
+    const lenta = respuestaDiferida()
+    const fetch = api(() => lenta.promesa)
+    renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })
+    await screen.findByRole("link", { name: "Ana López" })
+    const panel = await llenarAlta()
+    const boton = within(panel).getByRole("button", { name: "Dar de alta" })
+    await userEvent.click(boton)
+    await userEvent.click(boton)
+    expect(boton).toHaveFocus()
+    // jsdom no desenfoca un botón con `disabled`, pero el navegador sí: debe quedar solo `aria-disabled`.
+    expect(boton).not.toBeDisabled()
+    expect(boton).toHaveAttribute("aria-disabled", "true")
+    await act(async () =>
+      lenta.resolver(
+        respuestaJson(
+          {
+            title: "Conflicto",
+            detail: "Ya existe un usuario con ese nombre de usuario.",
+            codigo: "usuario_duplicado",
+            errores: [
+              {
+                campo: "usuario",
+                mensaje: "Ya existe un usuario con ese nombre de usuario.",
+              },
+            ],
+          },
+          409
+        )
+      )
+    )
+    await waitFor(() =>
+      expect(within(panel).getByLabelText("Usuario")).toHaveAttribute(
+        "aria-invalid",
+        "true"
+      )
+    )
+    expect(boton).toHaveFocus()
+    expect(
+      fetch.mock.calls.filter(([url]) => url === "/api/administracion/usuarios")
+    ).toHaveLength(1)
   })
 
   it("si la invitación no sale, lo dice y lleva a la ficha", async () => {

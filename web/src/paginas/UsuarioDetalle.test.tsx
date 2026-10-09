@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { UsuarioDetalle } from "@/paginas/UsuarioDetalle"
@@ -6,6 +6,7 @@ import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularApi,
 } from "@/pruebas/utilidades"
@@ -207,6 +208,95 @@ describe("UsuarioDetalle", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Desactivar" })).toHaveFocus()
     )
+  })
+
+  it("«Enviar correo»: el foco sigue en el botón mientras se envía y no envía dos veces", async () => {
+    const lenta = respuestaDiferida()
+    const fetch = api({ [`${RUTA}/contrasena`]: () => lenta.promesa })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Ana López" })
+    const boton = screen.getByRole("button", {
+      name: "Enviar correo para definir contraseña",
+    })
+    await userEvent.click(boton)
+    await userEvent.click(boton)
+    expect(boton).toHaveFocus()
+    // jsdom no desenfoca un botón con `disabled`, pero el navegador sí: debe quedar solo `aria-disabled`.
+    expect(boton).not.toBeDisabled()
+    expect(boton).toHaveAttribute("aria-disabled", "true")
+    await act(async () =>
+      lenta.resolver(respuestaJson({ contrasena_temporal: null }))
+    )
+    expect(
+      await screen.findByText("Se envió el correo a ana@plataforma.example.")
+    ).toBeInTheDocument()
+    expect(boton).toHaveFocus()
+    expect(
+      fetch.mock.calls.filter(([url]) => url === `${RUTA}/contrasena`)
+    ).toHaveLength(1)
+  })
+
+  it("«Guardar cambios»: el foco sigue en el botón mientras se guarda y no guarda dos veces", async () => {
+    // La API simulada responde por URL: la primera llamada a RUTA es la carga y las siguientes, el PATCH.
+    const lenta = respuestaDiferida()
+    let llamadas = 0
+    const fetch = api({
+      [RUTA]: () => (++llamadas === 1 ? respuestaJson(ANA) : lenta.promesa),
+    })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Ana López" })
+    await userEvent.click(screen.getByLabelText("Aprobación"))
+    const boton = screen.getByRole("button", { name: "Guardar cambios" })
+    await userEvent.click(boton)
+    await userEvent.click(boton)
+    expect(boton).toHaveFocus()
+    // jsdom no desenfoca un botón con `disabled`, pero el navegador sí: debe quedar solo `aria-disabled`.
+    expect(boton).not.toBeDisabled()
+    expect(boton).toHaveAttribute("aria-disabled", "true")
+    await act(async () =>
+      lenta.resolver(
+        respuestaJson({ ...ANA, roles: ["comprador", "aprobador"] })
+      )
+    )
+    expect(await screen.findByText("Cambios guardados.")).toBeInTheDocument()
+    expect(boton).toHaveFocus()
+    const llamadasFetch = fetch.mock.calls as unknown as [
+      string,
+      RequestInit?,
+    ][]
+    expect(
+      llamadasFetch.filter(([, init]) => init?.method === "PATCH")
+    ).toHaveLength(1)
+  })
+
+  it("«Cerrar sesiones»: con respuesta lenta, el foco vuelve al botón y no se envía dos veces", async () => {
+    const lenta = respuestaDiferida()
+    const fetch = api({ [`${RUTA}/cerrar-sesiones`]: () => lenta.promesa })
+    renderizar()
+    await screen.findByRole("heading", { level: 1, name: "Ana López" })
+    const boton = screen.getByRole("button", { name: "Cerrar sesiones" })
+    async function confirmar() {
+      await userEvent.click(boton)
+      await userEvent.click(
+        within(await screen.findByRole("alertdialog")).getByRole("button", {
+          name: "Cerrar sesiones",
+        })
+      )
+    }
+    await confirmar()
+    await waitFor(() => expect(boton).toHaveFocus())
+    // jsdom no desenfoca un botón con `disabled`, pero el navegador sí: debe quedar solo `aria-disabled`.
+    expect(boton).not.toBeDisabled()
+    expect(boton).toHaveAttribute("aria-disabled", "true")
+    await confirmar()
+    await act(async () => lenta.resolver(new Response(null, { status: 204 })))
+    expect(
+      await screen.findByText("Se cerraron sus sesiones.")
+    ).toBeInTheDocument()
+    await waitFor(() => expect(boton).toHaveFocus())
+    expect(
+      fetch.mock.calls.filter(([url]) => url === `${RUTA}/cerrar-sesiones`)
+    ).toHaveLength(1)
   })
 
   it("si el correo no sale, ofrece la contraseña temporal", async () => {
