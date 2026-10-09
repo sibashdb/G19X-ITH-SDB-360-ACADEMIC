@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router"
 import { Layout } from "@/componentes/Layout"
 import { Alertas } from "@/paginas/Alertas"
 import { Configuracion } from "@/paginas/Configuracion"
+import { Correos } from "@/paginas/Correos"
 import { Importacion } from "@/paginas/Importacion"
 import { NoEncontrado } from "@/paginas/NoEncontrado"
 import { Precios } from "@/paginas/Precios"
@@ -10,6 +11,7 @@ import { Proveedores } from "@/paginas/Proveedores"
 import { Ranking } from "@/paginas/Ranking"
 import { Tablero } from "@/paginas/Tablero"
 import { Usuarios } from "@/paginas/Usuarios"
+import { UsuarioDetalle } from "@/paginas/UsuarioDetalle"
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +27,8 @@ export const router = createBrowserRouter([
       { path: "importacion", Component: Importacion },
       { path: "configuracion", Component: Configuracion },
       { path: "sistema/usuarios", Component: Usuarios },
+      { path: "sistema/usuarios/:id", Component: UsuarioDetalle },
+      { path: "sistema/correos", Component: Correos },
       { path: "*", Component: NoEncontrado },
     ],
   },
