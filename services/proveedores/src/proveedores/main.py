@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from proveedores.api.catalogo import router as router_catalogo
 from proveedores.api.rutas import router
 from proveedores.config import Configuracion
 from proveedores.modelos import Outbox
@@ -68,4 +69,5 @@ def crear_app(
         crear_router_salud({"postgres": verificar_postgres, "rabbitmq": verificar_rabbitmq})
     )
     app.include_router(router)
+    app.include_router(router_catalogo)
     return app

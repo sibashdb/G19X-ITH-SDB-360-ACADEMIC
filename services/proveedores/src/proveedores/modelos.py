@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
     text,
+    true,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -60,6 +61,7 @@ class ServicioCatalogo(Base):
     categoria: Mapped[str] = mapped_column(String(20))
     unidad: Mapped[str] = mapped_column(String(20))
     moneda: Mapped[str] = mapped_column(String(3))
+    activo: Mapped[bool] = mapped_column(default=True, server_default=true())
 
 
 class Contrato(Base):

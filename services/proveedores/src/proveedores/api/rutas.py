@@ -21,7 +21,6 @@ from proveedores.modelos import (
     LineaContrato,
     Proveedor,
     RegistroDesempeno,
-    ServicioCatalogo,
 )
 
 MAX_BYTES_CSV = 10 * 1024 * 1024
@@ -160,14 +159,6 @@ async def desempeno_del_proveedor(
         .limit(meses)
     )
     return [esquemas.Desempeno.model_validate(r) for r in registros]
-
-
-@router.get("/servicios", tags=["catalogo"])
-async def listar_servicios(sesion: Sesion, _: Interno) -> list[esquemas.Servicio]:
-    servicios = await sesion.scalars(
-        select(ServicioCatalogo).order_by(ServicioCatalogo.categoria, ServicioCatalogo.codigo)
-    )
-    return [esquemas.Servicio.model_validate(s) for s in servicios]
 
 
 @router.post("/importaciones/{entidad}", tags=["importacion"])

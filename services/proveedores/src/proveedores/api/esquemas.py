@@ -1,8 +1,20 @@
 from datetime import date
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
+
+from proveedores.importacion.esquemas import Categoria, Moneda, Unidad
+
+# Pydantic valida el patrón antes de pasar a mayúsculas: se aceptan minúsculas y se normalizan.
+CodigoServicio = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"^[A-Za-z0-9-]{3,30}$"),
+]
+NombreServicio = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+]
 
 
 class DesdeOrm(BaseModel):
@@ -36,6 +48,28 @@ class Servicio(DesdeOrm):
     categoria: str
     unidad: str
     moneda: str
+    activo: bool
+    tiene_contratos: bool = False
+
+
+class ServicioNuevo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    codigo: CodigoServicio
+    nombre: NombreServicio
+    categoria: Categoria
+    unidad: Unidad
+    moneda: Moneda
+
+
+class CambioServicio(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: NombreServicio | None = None
+    categoria: Categoria | None = None
+    unidad: Unidad | None = None
+    moneda: Moneda | None = None
+    activo: bool | None = None
 
 
 class LineaContratoSalida(BaseModel):
