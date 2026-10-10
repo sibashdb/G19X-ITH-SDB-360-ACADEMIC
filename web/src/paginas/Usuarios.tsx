@@ -142,8 +142,11 @@ function ContenidoUsuarios() {
     ).trim()
     actualizar({ q: texto || null, pagina: null })
   }
-  const limpiar = () =>
+  // "Limpiar filtros" se desmonta al usarse: el foco pasa al campo de búsqueda, que sigue en pantalla.
+  function limpiar() {
     actualizar({ q: null, rol: null, estado: null, pagina: null })
+    campoBusqueda.current?.focus()
+  }
 
   function contenido() {
     if (consulta.isPending) return <EstadoCarga />

@@ -78,6 +78,21 @@ describe("Ayuda", () => {
     ).toBeInTheDocument()
   })
 
+  it("al limpiar la búsqueda, el foco pasa al campo en vez de perderse", async () => {
+    sesionDePrueba.roles = ["comprador"]
+    renderizarPagina(<Ayuda />, { ruta: "/ayuda?q=zzz" })
+    await userEvent.click(
+      screen.getByRole("button", { name: "Limpiar búsqueda" })
+    )
+    expect(ubicacionActual()).toBe("/ayuda")
+    expect(
+      screen.queryByRole("button", { name: "Limpiar búsqueda" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("searchbox", { name: "Buscar en la ayuda" })
+    ).toHaveFocus()
+  })
+
   it("sin resultados lo dice", () => {
     sesionDePrueba.roles = ["comprador"]
     renderizarPagina(<Ayuda />, { ruta: "/ayuda?q=zzz" })

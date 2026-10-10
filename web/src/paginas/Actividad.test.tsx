@@ -197,6 +197,22 @@ describe("Actividad", () => {
     expect(ubicacionActual()).toBe("/sistema/actividad")
   })
 
+  it("al limpiar los filtros, el foco pasa al primer filtro en vez de perderse", async () => {
+    api()
+    renderizarPagina(<Actividad />, {
+      ruta: "/sistema/actividad?persona=u-ana&tipo=sesiones",
+    })
+    await screen.findByText("Importó 1,250 contratos")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Limpiar filtros" })
+    )
+    expect(ubicacionActual()).toBe("/sistema/actividad")
+    expect(
+      screen.queryByRole("button", { name: "Limpiar filtros" })
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("combobox", { name: "Persona" })).toHaveFocus()
+  })
+
   it("solo administración ve la bitácora", () => {
     sesionDePrueba.roles = ["comprador"]
     api()

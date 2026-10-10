@@ -147,6 +147,7 @@ describe("Proveedores", () => {
 
     await waitFor(() => expect(ubicacionActual()).toBe("/proveedores"))
     expect(campo).toHaveValue("")
+    expect(campo).toHaveFocus()
   })
 
   it("pagina con Siguiente", async () => {
@@ -226,6 +227,7 @@ describe("Proveedores", () => {
     const botones = screen.getAllByRole("button", { name: "Limpiar filtros" })
     await userEvent.click(botones[botones.length - 1])
     expect(ubicacionActual()).toBe("/proveedores")
+    expect(screen.getByLabelText("Buscar por nombre o RFC")).toHaveFocus()
   })
 
   it.each([

@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { CircleCheck, CircleX, Download, History, X } from "lucide-react"
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 import { descargar, pedir } from "@/api"
 import { describirActividad } from "@/actividad"
 import { useToken } from "@/auth"
@@ -79,6 +79,8 @@ function ContenidoActividad() {
   const hayFiltros = Boolean(persona || tipo || desde || hasta)
   const [exportando, setExportando] = useState(false)
   const [errorExportacion, setErrorExportacion] = useState<string | null>(null)
+  // "Limpiar filtros" se desmonta al usarse: el foco pasa al primer filtro, que sigue en pantalla.
+  const selectorPersona = useRef<HTMLButtonElement>(null)
 
   const filtros = new URLSearchParams()
   if (persona) filtros.set("persona", persona)
@@ -127,7 +129,7 @@ function ContenidoActividad() {
     }
   }
 
-  const limpiar = () =>
+  function limpiar() {
     actualizar({
       persona: null,
       tipo: null,
@@ -135,6 +137,8 @@ function ContenidoActividad() {
       hasta: null,
       pagina: null,
     })
+    selectorPersona.current?.focus()
+  }
   const opcionesPersona = personas.data?.elementos ?? []
   const personaConocida = opcionesPersona.some((u) => u.id === persona)
 
@@ -261,6 +265,7 @@ function ContenidoActividad() {
                 }
               >
                 <SelectTrigger
+                  ref={selectorPersona}
                   aria-labelledby={`${id}-persona`}
                   className="w-64"
                 >

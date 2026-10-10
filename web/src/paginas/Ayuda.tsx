@@ -94,7 +94,11 @@ export function Ayuda() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => actualizar({ q: null })}
+            onClick={() => {
+              actualizar({ q: null })
+              // El botón se desmonta al usarse: el foco pasa al campo, que sigue en pantalla.
+              campo.current?.focus()
+            }}
           >
             <X aria-hidden />
             Limpiar búsqueda

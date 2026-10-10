@@ -54,6 +54,7 @@ function ContenidoCatalogo() {
   // Código del servicio cuyo botón de estado debe recibir el foco cuando lleguen los datos nuevos.
   const enfocar = useRef<string | null>(null)
   const botonNuevo = useRef<HTMLButtonElement>(null)
+  const grupoCategoria = useRef<HTMLDivElement>(null)
   // El panel se abre por estado: recuerda qué botón lo abrió para devolverle el foco.
   const origen = useRef<HTMLElement | null>(null)
 
@@ -106,7 +107,11 @@ function ContenidoCatalogo() {
     if (!cambioEstado.isPending) cambioEstado.mutate(servicio)
   }
 
-  const limpiar = () => actualizar({ categoria: null, estado: null })
+  // "Limpiar filtros" se desmonta al usarse: el foco pasa al primer filtro, que sigue en pantalla.
+  function limpiar() {
+    actualizar({ categoria: null, estado: null })
+    grupoCategoria.current?.querySelector("button")?.focus()
+  }
 
   function contenido() {
     if (consulta.isPending) return <EstadoCarga />
@@ -248,6 +253,7 @@ function ContenidoCatalogo() {
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <div
+              ref={grupoCategoria}
               role="group"
               aria-label="Filtrar por categoría"
               className="flex flex-wrap gap-2"

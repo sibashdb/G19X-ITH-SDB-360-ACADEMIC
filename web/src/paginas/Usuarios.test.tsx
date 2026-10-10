@@ -103,6 +103,23 @@ describe("Usuarios", () => {
     )
   })
 
+  it("al limpiar los filtros, el foco pasa al campo de búsqueda en vez de perderse", async () => {
+    simularApi(() => respuestaJson({ total: 0, elementos: [] }))
+    renderizarPagina(<Usuarios />, {
+      ruta: "/sistema/usuarios?q=zzz&rol=aprobador",
+    })
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Limpiar filtros" })
+    )
+    expect(ubicacionActual()).toBe("/sistema/usuarios")
+    expect(
+      screen.queryByRole("button", { name: "Limpiar filtros" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByLabelText("Buscar por nombre, usuario o correo")
+    ).toHaveFocus()
+  })
+
   it("alta por invitación: envía los datos y avisa", async () => {
     const fetch = api()
     renderizarPagina(<Usuarios />, { ruta: "/sistema/usuarios" })

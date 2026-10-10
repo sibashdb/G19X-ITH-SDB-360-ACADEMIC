@@ -78,8 +78,11 @@ export function Proveedores() {
     ).trim()
     actualizar({ q: texto || null, pagina: null })
   }
-  const limpiar = () =>
+  // "Limpiar filtros" se desmonta al usarse: el foco pasa al campo de búsqueda, que sigue en pantalla.
+  function limpiar() {
     actualizar({ q: null, categoria: null, estado: null, pagina: null })
+    campoBusqueda.current?.focus()
+  }
   const botonLimpiar = (
     <Button type="button" variant="ghost" onClick={limpiar}>
       <X aria-hidden />

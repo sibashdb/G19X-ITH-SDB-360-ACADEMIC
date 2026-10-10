@@ -104,6 +104,25 @@ describe("Catalogo", () => {
     expect(await screen.findByText("Sin resultados")).toBeInTheDocument()
   })
 
+  it("al limpiar los filtros, el foco pasa al primer filtro en vez de perderse", async () => {
+    catalogo()
+    renderizarPagina(<Catalogo />, {
+      ruta: "/sistema/catalogo?categoria=nube&estado=inactivos",
+    })
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Limpiar filtros" })
+    )
+    expect(ubicacionActual()).toBe("/sistema/catalogo")
+    expect(
+      screen.queryByRole("button", { name: "Limpiar filtros" })
+    ).not.toBeInTheDocument()
+    expect(
+      within(
+        screen.getByRole("group", { name: "Filtrar por categoría" })
+      ).getByRole("button", { name: "Todas" })
+    ).toHaveFocus()
+  })
+
   it("da de alta un servicio y devuelve el foco a «Nuevo servicio»", async () => {
     const simulado = catalogo()
     renderizarPagina(<Catalogo />, { ruta: "/sistema/catalogo" })
