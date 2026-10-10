@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 
+import pytest
 from administracion.modelos import Actividad
 from administracion.textos import TEXTOS, describir
 
@@ -46,3 +47,80 @@ def test_textos_en_lenguaje_llano() -> None:
         "Desactivó el servicio SOP-MESA-TK"
     )
     assert describir(_actividad("tipo.desconocido")) == "tipo.desconocido"
+
+
+SESION_FALLIDA = "Intento fallido de inicio de sesión"
+# (tipo, objeto_nombre, detalle, texto): cada texto copiado de web/src/actividad.ts.
+CASOS: list[tuple[str, str, dict[str, object], str]] = [
+    ("sesion.iniciada", "", {}, "Inició sesión"),
+    ("sesion.fallida", "", {}, SESION_FALLIDA),
+    (
+        "sesion.fallida",
+        "",
+        {"error": "invalid_user_credentials"},
+        f"{SESION_FALLIDA}: contraseña incorrecta",
+    ),
+    ("sesion.fallida", "", {"error": "user_not_found"}, f"{SESION_FALLIDA}: usuario inexistente"),
+    (
+        "sesion.fallida",
+        "",
+        {"error": "user_temporarily_disabled"},
+        f"{SESION_FALLIDA}: cuenta bloqueada temporalmente",
+    ),
+    ("sesion.fallida", "", {"error": "otro_error"}, SESION_FALLIDA),
+    ("sesion.cerrada", "", {}, "Cerró sesión"),
+    ("usuario.creado", "Ana López", {}, "Dio de alta a Ana López"),
+    (
+        "usuario.creado",
+        "Ana López",
+        {"pendiente": "contrasena"},
+        "Dio de alta a Ana López; faltó la contraseña",
+    ),
+    ("usuario.actualizado", "Ana López", {}, "Editó los datos de Ana López"),
+    (
+        "usuario.roles_cambiados",
+        "Ana López",
+        {"antes": ["aprobador", "comprador"], "despues": ["admin", "rol_nuevo"]},
+        "Cambió los roles de Ana López: Aprobación, Compras → Administración, rol_nuevo",
+    ),
+    ("usuario.desactivado", "Ana López", {}, "Desactivó a Ana López"),
+    ("usuario.activado", "Ana López", {}, "Activó a Ana López"),
+    (
+        "usuario.correo_contrasena",
+        "Ana López",
+        {},
+        "Envió a Ana López un correo para definir su contraseña",
+    ),
+    (
+        "usuario.contrasena_temporal",
+        "Ana López",
+        {},
+        "Asignó una contraseña temporal a Ana López",
+    ),
+    ("usuario.sesiones_cerradas", "Ana López", {}, "Cerró las sesiones de Ana López"),
+    ("importacion.completada", "proveedores", {"registros": 7}, "Importó 7 proveedores"),
+    ("importacion.completada", "proveedores", {}, "Importó 0 proveedores"),
+    (
+        "importacion.rechazada",
+        "contratos",
+        {"errores": 1},
+        "Intentó importar contratos; el archivo tenía 1 errores",
+    ),
+    ("servicio.creado", "SOP-CRM-LIC", {}, "Dio de alta el servicio SOP-CRM-LIC"),
+    ("servicio.actualizado", "SOP-CRM-LIC", {}, "Editó el servicio SOP-CRM-LIC"),
+    ("servicio.desactivado", "SOP-CRM-LIC", {}, "Desactivó el servicio SOP-CRM-LIC"),
+    ("servicio.activado", "SOP-CRM-LIC", {}, "Activó el servicio SOP-CRM-LIC"),
+]
+
+
+def test_la_tabla_cubre_todos_los_tipos() -> None:
+    assert {tipo for tipo, *_ in CASOS} == set(TEXTOS)
+
+
+@pytest.mark.parametrize(
+    ("tipo", "objeto", "detalle", "esperado"), CASOS, ids=[caso[0] for caso in CASOS]
+)
+def test_cada_texto_igual_al_de_la_web(
+    tipo: str, objeto: str, detalle: dict[str, object], esperado: str
+) -> None:
+    assert describir(_actividad(tipo, objeto_nombre=objeto, detalle=detalle)) == esperado
