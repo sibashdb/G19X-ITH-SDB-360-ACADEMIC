@@ -14,7 +14,14 @@ from sqlalchemy.orm import selectinload
 
 from proveedores.api import esquemas
 from proveedores.db import obtener_sesion
-from proveedores.importacion.aplicar import Entidad, ResumenImportacion, importar
+from proveedores.importacion.aplicar import (
+    Entidad,
+    ErrorImportacion,
+    ResumenImportacion,
+    importar,
+    registrar_importacion,
+    registrar_rechazo,
+)
 from proveedores.importacion.esquemas import Categoria
 from proveedores.modelos import (
     Contrato,
@@ -171,9 +178,15 @@ async def importar_archivo(
     contenido = await archivo.read(MAX_BYTES_CSV + 1)
     if len(contenido) > MAX_BYTES_CSV:
         raise ErrorDominio(413, "Archivo demasiado grande", "El archivo excede el límite de 10 MB")
+    actor: dict[str, str | None] = {"id": usuario.id, "nombre": usuario.nombre}
     try:
         async with sesion.begin():
             resumen = await importar(sesion, entidad, contenido)
+            registrar_importacion(sesion, resumen, actor)
+    except ErrorImportacion as error:
+        async with sesion.begin():
+            registrar_rechazo(sesion, entidad, len(error.errores), actor)
+        raise
     except IntegrityError as error:
         log.warning("Conflicto de integridad al importar %s", entidad, exc_info=True)
         # Dos importaciones simultáneas del mismo folio: la segunda pierde en el commit.

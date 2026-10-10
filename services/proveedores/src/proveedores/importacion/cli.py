@@ -11,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from proveedores.config import Configuracion
 from proveedores.importacion.aplicar import (
+    ACTOR_LINEA_DE_COMANDOS,
     ORDEN_CARGA,
     ErrorImportacion,
     ResumenImportacion,
     importar,
+    registrar_importacion,
+    registrar_rechazo,
 )
 
 
@@ -50,9 +53,13 @@ async def cargar_carpeta(
         contenido = (carpeta / f"{entidad}.csv").read_bytes()
         try:
             async with fabrica() as sesion, sesion.begin():
-                resumenes.append(await importar(sesion, entidad, contenido))
+                resumen = await importar(sesion, entidad, contenido)
+                registrar_importacion(sesion, resumen, ACTOR_LINEA_DE_COMANDOS)
         except ErrorImportacion as error:
+            async with fabrica() as sesion, sesion.begin():
+                registrar_rechazo(sesion, entidad, len(error.errores), ACTOR_LINEA_DE_COMANDOS)
             raise ErrorCarga(error, entidad, [r.entidad for r in resumenes]) from error
+        resumenes.append(resumen)
     return resumenes
 
 

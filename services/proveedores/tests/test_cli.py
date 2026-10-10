@@ -4,7 +4,7 @@ import pytest
 from generador.modelo import generar
 from generador.salida import escribir
 from proveedores.importacion.cli import ErrorCarga, _principal, cargar_carpeta
-from proveedores.modelos import Contrato, Proveedor
+from proveedores.modelos import Contrato, Outbox, Proveedor
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -42,6 +42,33 @@ async def test_error_en_un_archivo_indica_cual_fue_y_que_ya_se_importo(
     async with fabrica() as sesion:
         assert await sesion.scalar(select(func.count()).select_from(Proveedor)) == 3
         assert await sesion.scalar(select(func.count()).select_from(Contrato)) == 0
+
+
+@pytest.mark.integracion
+async def test_la_carga_registra_cada_archivo_con_el_actor_de_linea_de_comandos(
+    fabrica: async_sessionmaker[AsyncSession], tmp_path: Path
+) -> None:
+    _carpeta_con_contratos_invalidos(tmp_path)
+    with pytest.raises(ErrorCarga):
+        await cargar_carpeta(fabrica, tmp_path)
+    async with fabrica() as sesion:
+        filas = list(
+            (
+                await sesion.scalars(
+                    select(Outbox)
+                    .where(Outbox.tipo.startswith("importacion."))
+                    .order_by(Outbox.ocurrido_en)
+                )
+            ).all()
+        )
+    assert [(f.tipo, f.payload["entidad"]) for f in filas] == [
+        ("importacion.completada", "servicios"),
+        ("importacion.completada", "proveedores"),
+        ("importacion.completada", "tipo_cambio"),
+        ("importacion.rechazada", "contratos"),
+    ]
+    assert {f.payload["actor"]["nombre"] for f in filas} == {"Sistema (línea de comandos)"}
+    assert filas[-1].payload["errores"] == 1
 
 
 # `fabrica` fija DATABASE_URL (contenedor de la sesión) y limpia las tablas al terminar.

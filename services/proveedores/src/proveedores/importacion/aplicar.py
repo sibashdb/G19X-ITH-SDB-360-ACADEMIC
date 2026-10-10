@@ -62,6 +62,42 @@ class ResumenImportacion:
     eventos: int
 
 
+ACTOR_LINEA_DE_COMANDOS: dict[str, str | None] = {
+    "id": None,
+    "nombre": "Sistema (línea de comandos)",
+}
+
+
+def registrar_importacion(
+    sesion: AsyncSession, resumen: ResumenImportacion, actor: dict[str, str | None]
+) -> None:
+    """Deja en el outbox, en la transacción de los datos, que la importación se completó."""
+    registrar_evento(
+        sesion,
+        Outbox,
+        "importacion.completada",
+        {
+            "entidad": resumen.entidad,
+            "filas": resumen.filas,
+            "registros": resumen.registros,
+            "omitidos": resumen.omitidos,
+            "actor": actor,
+        },
+    )
+
+
+def registrar_rechazo(
+    sesion: AsyncSession, entidad: str, total_errores: int, actor: dict[str, str | None]
+) -> None:
+    """La transacción de los datos se revirtió: el intento se registra en una propia."""
+    registrar_evento(
+        sesion,
+        Outbox,
+        "importacion.rechazada",
+        {"entidad": entidad, "errores": total_errores, "actor": actor},
+    )
+
+
 class ErrorImportacion(ErrorDominio):
     def __init__(self, errores: list[ErrorFila]) -> None:
         super().__init__(

@@ -8,7 +8,10 @@ import pytest
 from comun.pruebas import ClavesPrueba
 from proveedores.config import Configuracion
 from proveedores.main import crear_app
+from proveedores.modelos import Outbox
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 pytestmark = pytest.mark.integracion
 
@@ -58,6 +61,12 @@ async def _subir(
         files={"archivo": (f"{entidad}.csv", contenido, "text/csv")},
         headers=_auth(claves, rol),
     )
+
+
+async def _payloads(fabrica: async_sessionmaker[AsyncSession], tipo: str) -> list[dict[str, Any]]:
+    async with fabrica() as sesion:
+        filas = await sesion.scalars(select(Outbox).where(Outbox.tipo == tipo))
+        return [f.payload for f in filas]
 
 
 @pytest.fixture
@@ -137,6 +146,41 @@ async def test_importar_con_errores_devuelve_422_con_detalle(
     assert cuerpo["errores"] == [
         {"fila": 2, "campo": "contacto_email", "mensaje": "Formato inválido"}
     ]
+
+
+async def test_importacion_completada_registra_quien_y_cuanto(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba, fabrica: async_sessionmaker[AsyncSession]
+) -> None:
+    respuesta = await cliente.post(
+        "/importaciones/servicios",
+        files={"archivo": ("servicios.csv", SERVICIOS.encode(), "text/csv")},
+        headers={"Authorization": f"Bearer {claves.token('admin', sub='admin-42')}"},
+    )
+    assert respuesta.status_code == 200
+    assert await _payloads(fabrica, "importacion.completada") == [
+        {
+            "entidad": "servicios",
+            "filas": 2,
+            "registros": 2,
+            "omitidos": 0,
+            "actor": {"id": "admin-42", "nombre": "admin-42"},
+        }
+    ]
+
+
+async def test_importacion_rechazada_registra_el_intento(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba, fabrica: async_sessionmaker[AsyncSession]
+) -> None:
+    texto = PROVEEDORES.replace("ventas01@proveedor01.example", "correo-invalido")
+    respuesta = await _subir(cliente, claves, "proveedores", texto.encode())
+    assert respuesta.status_code == 422
+    [rechazo] = await _payloads(fabrica, "importacion.rechazada")
+    assert rechazo["entidad"] == "proveedores"
+    assert rechazo["errores"] == 1
+    assert rechazo["actor"]["id"] == "usuario-prueba"
+    # Los datos del archivo no se guardaron: ni proveedores ni sus eventos.
+    assert await _payloads(fabrica, "proveedor.actualizado") == []
+    assert await _payloads(fabrica, "importacion.completada") == []
 
 
 async def test_archivo_no_utf8_devuelve_422(
