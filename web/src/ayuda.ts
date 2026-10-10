@@ -88,7 +88,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "El menú",
         parrafos: [
-          "El menú de la izquierda agrupa las pantallas por área: Resumen, Proveedores, Inteligencia, Sistema (solo administración) y Soporte. Cada opción dice para qué sirve. En pantallas pequeñas se abre con el botón de la esquina superior izquierda.",
+          "El menú de la izquierda agrupa las pantallas por área: Resumen, Proveedores, Inteligencia, Sistema (solo administración) y Soporte. El botón de la esquina superior izquierda lo contrae a solo iconos; al pasar el ratón por cada uno verá su nombre y para qué sirve. En pantallas pequeñas ese mismo botón abre el menú.",
         ],
       },
       {

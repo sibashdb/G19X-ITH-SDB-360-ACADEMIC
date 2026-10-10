@@ -45,7 +45,7 @@ function ElementoMenu({
             </span>
           ),
         }}
-        className="h-auto items-start py-2 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+        className="data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
       >
         <Link
           to={ruta}
@@ -53,19 +53,11 @@ function ElementoMenu({
           aria-describedby={idDescripcion}
           onClick={alNavegar}
         >
-          <Icono
-            aria-hidden
-            className="mt-0.5 group-data-[collapsible=icon]:mt-0"
-          />
-          <span className="grid leading-tight">
-            <span>{titulo}</span>
-            <span
-              id={idDescripcion}
-              aria-hidden
-              className="text-xs whitespace-normal text-sidebar-foreground/70 group-data-[active=true]/menu-button:text-sidebar-primary-foreground/90"
-            >
-              {descripcion}
-            </span>
+          <Icono aria-hidden />
+          <span>{titulo}</span>
+          {/* Oculta a la vista: el lector de pantalla la lee como descripción del enlace. */}
+          <span id={idDescripcion} hidden>
+            {descripcion}
           </span>
         </Link>
       </SidebarMenuButton>

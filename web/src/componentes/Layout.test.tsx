@@ -180,14 +180,14 @@ describe("Layout con sesión iniciada", () => {
     expect(within(menu).getByText("Cuánto debería pagar")).toBeInTheDocument()
   })
 
-  // jsdom no mide el diseño: el botón del menú trunca su último span (nowrap heredado), así que
-  // la descripción larga de "Ranking" se cortaría sin esta clase en lugar de pasar a dos líneas.
-  it("deja que la descripción de cada opción pase a otra línea en vez de cortarse", () => {
+  // El menú muestra solo icono y nombre; la descripción queda para el lector de pantalla y para la
+  // ayuda emergente del menú contraído.
+  it("no muestra la descripción de cada opción a la vista", () => {
     renderizar()
     const menu = screen.getByRole("navigation", { name: "Principal" })
     expect(
       within(menu).getByText("Los mejores proveedores por categoría")
-    ).toHaveClass("whitespace-normal")
+    ).not.toBeVisible()
   })
 
   // axe `region`: la marca del menú lateral debe quedar dentro de una región, no suelta fuera de ella.

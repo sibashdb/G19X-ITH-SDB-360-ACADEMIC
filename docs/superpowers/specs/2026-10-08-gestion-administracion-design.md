@@ -191,7 +191,7 @@ Todas usan los componentes existentes (encabezado, tarjetas de indicador, seccio
 **Menú:**
 - Área **Sistema** (solo admin): Panel, Usuarios, Actividad, Catálogo, Estado del sistema, Correos, Importación y Configuración (estas dos se mueven desde "Datos", que desaparece).
 - Área **Soporte** (todos): Centro de ayuda.
-- Cada opción conserva su línea de propósito.
+- Cada opción muestra solo icono y nombre; su línea de propósito queda como descripción accesible y en la ayuda emergente del menú contraído.
 
 | Pantalla | Ruta | Contenido |
 |---|---|---|

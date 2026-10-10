@@ -141,8 +141,9 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 - Tema claro, oscuro o del sistema desde la barra superior; la preferencia se guarda en el navegador.
 - Fuentes Fira Sans y Fira Code servidas por la propia aplicación (sin CDN).
 - Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md`.
-- Guía "Cómo usar PluriOne" en el Tablero (se oculta y vuelve desde el menú de usuario) y menú
-  con una línea de propósito en cada opción.
+- Guía "Cómo usar PluriOne" en el Tablero (se oculta y vuelve desde el menú de usuario). El menú
+  muestra icono y nombre; el propósito de cada opción aparece en la ayuda emergente del menú
+  contraído y lo lee el lector de pantalla.
 - Los términos técnicos (P25/P50/P75, sobreprecio, puntuación, SLA…) tienen una ayuda que se
   abre con clic, toque o teclado; las definiciones viven en `web/src/glosario.ts`.
 - Área **Sistema** (solo administración): Panel, Usuarios, Actividad (con exportación a CSV), Catálogo, Estado del sistema, Correos, Importación y Configuración.
