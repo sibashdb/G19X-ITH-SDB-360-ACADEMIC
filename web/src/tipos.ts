@@ -137,13 +137,31 @@ export function formatoPeriodo(iso: string): string {
   })
 }
 
+export type Unidad =
+  "usuario_mes" | "vcpu_mes" | "gb_mes" | "mes" | "hora" | "ticket"
+
+export const NOMBRES_UNIDAD: Record<Unidad, string> = {
+  usuario_mes: "Usuario al mes",
+  vcpu_mes: "vCPU al mes",
+  gb_mes: "GB al mes",
+  mes: "Mes",
+  hora: "Hora",
+  ticket: "Ticket",
+}
+
+export const UNIDADES = Object.keys(NOMBRES_UNIDAD) as Unidad[]
+export const MONEDAS = ["MXN", "USD"] as const
+export type Moneda = (typeof MONEDAS)[number]
+
 export type Servicio = {
   id: string
   codigo: string
   nombre: string
   categoria: Categoria
   unidad: string
-  moneda: "MXN" | "USD"
+  moneda: Moneda
+  activo: boolean
+  tiene_contratos: boolean
 }
 
 /** Minúsculas y sin acentos, para buscar "consultoria" y encontrar "Consultoría". */

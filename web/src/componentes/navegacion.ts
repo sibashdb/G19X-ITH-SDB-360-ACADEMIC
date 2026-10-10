@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   Mail,
+  Package,
   Settings,
   Tags,
   Trophy,
@@ -87,6 +88,13 @@ export const NAVEGACION: SeccionNavegacion[] = [
         ruta: "/sistema/actividad",
         descripcion: "Quién hizo qué y cuándo",
         icono: History,
+        soloAdmin: true,
+      },
+      {
+        titulo: "Catálogo",
+        ruta: "/sistema/catalogo",
+        descripcion: "Servicios de TI que se compran",
+        icono: Package,
         soloAdmin: true,
       },
       {

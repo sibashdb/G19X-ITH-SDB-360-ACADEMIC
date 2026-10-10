@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router"
 import { Layout } from "@/componentes/Layout"
 import { Actividad } from "@/paginas/Actividad"
 import { Alertas } from "@/paginas/Alertas"
+import { Catalogo } from "@/paginas/Catalogo"
 import { Configuracion } from "@/paginas/Configuracion"
 import { Correos } from "@/paginas/Correos"
 import { Importacion } from "@/paginas/Importacion"
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: "sistema/usuarios/:id", Component: UsuarioDetalle },
       { path: "sistema/correos", Component: Correos },
       { path: "sistema/actividad", Component: Actividad },
+      { path: "sistema/catalogo", Component: Catalogo },
       { path: "*", Component: NoEncontrado },
     ],
   },
