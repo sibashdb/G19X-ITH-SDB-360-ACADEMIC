@@ -20,7 +20,8 @@ log = logging.getLogger(__name__)
 COLA = "administracion.actividad"
 CLAVES = ("importacion.*", "servicio.*")
 # ponytail: tras 5 entregas fallidas RabbitMQ descarta el mensaje (no hay cola de fallidos todavía);
-# el Plan B declara eventos.dlx y la cola de fallidos para todos los consumidores.
+# con una espera de REINTENTO_CONEXION_S entre entregas, una caída de la base de datos de unos 25 s
+# (5 entregas x 5 s) pierde el registro. El Plan B declara eventos.dlx y la cola de fallidos.
 ARGUMENTOS_COLA = {"x-queue-type": "quorum", "x-delivery-limit": 5}
 REINTENTO_CONEXION_S = 5
 NOMBRES_ENTIDAD = {
@@ -123,7 +124,9 @@ async def atender(
             await guardar(fabrica, registro)
         except SQLAlchemyError:
             log.exception("No se pudo guardar el evento %s; se reintentará", mensaje.message_id)
-            await mensaje.nack(requeue=True)
+            # Sin esta espera el mensaje vuelve de inmediato y agota sus entregas en milisegundos.
+            await asyncio.sleep(REINTENTO_CONEXION_S)
+            await mensaje.reject(requeue=True)
             return
     await mensaje.ack()
 

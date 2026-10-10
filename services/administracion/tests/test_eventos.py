@@ -4,20 +4,24 @@ import json
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import aio_pika
 import pytest
 from administracion.bitacora import Actor, Objeto
 from administracion.eventos import (
     COLA,
+    REINTENTO_CONEXION_S,
     ConsumidorEventos,
     EventoInvalido,
     Registro,
+    atender,
     traducir,
 )
+from aio_pika.abc import AbstractIncomingMessage
 from comun.outbox import EXCHANGE_EVENTOS
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from testcontainers.community.rabbitmq import RabbitMqContainer
 
@@ -102,6 +106,59 @@ def test_un_sobre_mal_formado_es_invalido() -> None:
         traducir({"type": "importacion.completada", "payload": {}})
     with pytest.raises(EventoInvalido):  # un payload que no es un objeto tampoco debe escapar
         traducir(_sobre("servicio.actualizado", "no es un objeto"))  # type: ignore[arg-type]
+
+
+class _MensajeFalso:
+    """Lo mínimo de un mensaje entrante: anota ack/reject/nack en la lista compartida."""
+
+    message_id = "m-1"
+
+    def __init__(self, cuerpo: bytes, anotaciones: list[tuple[Any, ...]]) -> None:
+        self.body = cuerpo
+        self._anotaciones = anotaciones
+
+    async def ack(self) -> None:
+        self._anotaciones.append(("ack",))
+
+    async def reject(self, requeue: bool = False) -> None:
+        self._anotaciones.append(("reject", requeue))
+
+    async def nack(self, multiple: bool = False, requeue: bool = True) -> None:
+        self._anotaciones.append(("nack", requeue))
+
+
+class _FabricaRota:
+    """Una fábrica de sesiones cuya base de datos no responde."""
+
+    def __call__(self) -> "_FabricaRota":
+        return self
+
+    async def __aenter__(self) -> AsyncSession:
+        raise SQLAlchemyError("la base de datos no responde")
+
+    async def __aexit__(self, *_excepcion: object) -> None:
+        return None
+
+
+async def test_si_falla_la_base_espera_y_devuelve_el_mensaje_a_la_cola(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    anotaciones: list[tuple[Any, ...]] = []
+
+    async def dormir(segundos: float) -> None:
+        anotaciones.append(("sleep", segundos))
+
+    monkeypatch.setattr(asyncio, "sleep", dormir)
+    cuerpo = json.dumps(
+        _sobre(
+            "servicio.actualizado",
+            {"codigo": "NUBE-VM-2", "cambio": "creado", "campos": [], "actor": ADMIN},
+        )
+    ).encode()
+    mensaje = cast(AbstractIncomingMessage, _MensajeFalso(cuerpo, anotaciones))
+    await atender(cast("async_sessionmaker[AsyncSession]", _FabricaRota()), mensaje)
+    # Sin la espera, el mensaje volvería de inmediato y agotaría las 5 entregas en milisegundos.
+    assert anotaciones == [("sleep", REINTENTO_CONEXION_S), ("reject", True)]
 
 
 @pytest.fixture(scope="module")
