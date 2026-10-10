@@ -56,6 +56,15 @@ describe("GuiaUso", () => {
     ).toHaveAttribute("href", "/ayuda")
   })
 
+  it("el enlace dentro de la frase va subrayado: no se distingue solo por color", async () => {
+    conProveedores(60)
+    renderizarPagina(<GuiaUso />)
+    // jsdom no calcula estilos: la clase es la evidencia de que el subrayado está siempre puesto.
+    expect(
+      await screen.findByRole("link", { name: "Centro de ayuda" })
+    ).toHaveClass("underline")
+  })
+
   it("las visitas registradas marcan los pasos 2 y 3", async () => {
     conProveedores(60)
     localStorage.setItem(

@@ -156,7 +156,10 @@ export function GuiaUso() {
       </ol>
       <p className="text-sm text-muted-foreground">
         ¿Tiene dudas? Consulte el{" "}
-        <Link to="/ayuda" className="font-medium text-accent hover:underline">
+        <Link
+          to="/ayuda"
+          className="font-medium text-accent underline underline-offset-2"
+        >
           Centro de ayuda
         </Link>
         .
