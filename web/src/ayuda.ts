@@ -246,7 +246,7 @@ export const ARTICULOS: Articulo[] = [
       {
         parrafos: [
           "El catálogo lista los servicios que aparecen en los contratos y en Precios. Puede darlos de alta, editarlos o desactivarlos; también se cargan con la importación del ERP.",
-          "El código no cambia después de crearlo, porque las importaciones lo usan para identificar el servicio. Si un servicio ya tiene contratos, su categoría y su moneda tampoco cambian, porque los precios históricos dependen de ellas.",
+          "El código no cambia después de crearlo, porque las importaciones lo usan para identificar el servicio. Si un servicio ya tiene contratos, desde el Catálogo tampoco puede cambiar su categoría ni su moneda, porque los precios históricos dependen de ellas.",
           "Un servicio desactivado deja de aparecer en Precios, pero sus contratos y su historial se conservan.",
         ],
       },
