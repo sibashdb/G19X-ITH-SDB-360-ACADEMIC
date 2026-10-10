@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react"
+import { cleanup, configure, fireEvent, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Importacion } from "@/paginas/Importacion"
@@ -33,6 +33,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  configure({ reactStrictMode: false })
   vi.unstubAllGlobals()
 })
 
@@ -160,6 +161,8 @@ describe("Importacion", () => {
           eventos: 0,
         }),
     })
+    // Como main.tsx: StrictMode en la raíz corre dos veces los efectos de montaje.
+    configure({ reactStrictMode: true })
     renderizarPagina(<Importacion />)
     expect(document.body).toHaveFocus() // al cargar la página no se mueve el foco
     await irAlPasoDeArchivo()

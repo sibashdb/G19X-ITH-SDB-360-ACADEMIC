@@ -165,12 +165,11 @@ function FlujoImportacion() {
 
   // Cada paso reemplaza al anterior: el foco pasa a su título para no perderse (no al cargar).
   const tituloPaso = useRef<HTMLHeadingElement>(null)
-  const primerPaso = useRef(true)
+  // Se compara con el paso anterior (no con un "primer render"): StrictMode repite los efectos de montaje.
+  const pasoAnterior = useRef(paso)
   useEffect(() => {
-    if (primerPaso.current) {
-      primerPaso.current = false
-      return
-    }
+    if (pasoAnterior.current === paso) return
+    pasoAnterior.current = paso
     tituloPaso.current?.focus()
   }, [paso])
 
