@@ -116,6 +116,10 @@ services:
       KEYCLOAK_SECRETO: ${KEYCLOAK_ADMINISTRACION_SECRET:?Defina KEYCLOAK_ADMINISTRACION_SECRET en infra/.env}
       URL_APP: http://localhost:8080/
       BUZON_URL: http://localhost:8025
+      PROVEEDORES_URL: http://proveedores:8000
+      MAILPIT_URL: http://mailpit:8025
+      RABBITMQ_API_URL: http://rabbitmq:15672/api
+      VERSION_APP: ${VERSION_APP:-desarrollo}
     depends_on:
       postgres:
         condition: service_healthy

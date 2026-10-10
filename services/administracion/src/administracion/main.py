@@ -5,6 +5,7 @@ import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from comun.auth import ValidadorJWT, validador_desde_jwks
 from comun.errores import registrar_manejadores
 from comun.logs import configurar_logs, middleware_correlacion
@@ -13,7 +14,9 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from administracion import estado
 from administracion.api.rutas import router
+from administracion.api.sistema import router as router_sistema
 from administracion.config import Configuracion
 from administracion.eventos import ConsumidorEventos
 from administracion.identidad import ProveedorIdentidad
@@ -26,6 +29,7 @@ def crear_app(
     validador: ValidadorJWT | None = None,
     fabrica: async_sessionmaker[AsyncSession] | None = None,
     identidad: ProveedorIdentidad | None = None,
+    transporte_estado: httpx.AsyncBaseTransport | None = None,
 ) -> FastAPI:
     config = configuracion or Configuracion()
     configurar_logs(config.nombre_servicio, config.log_level)
@@ -42,6 +46,7 @@ def crear_app(
     )
 
     consumidor = ConsumidorEventos(sesiones, config.rabbitmq_url)
+    http = httpx.AsyncClient(timeout=estado.TIEMPO_LIMITE_S, transport=transporte_estado)
 
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
@@ -61,6 +66,7 @@ def crear_app(
         await consumidor.cerrar()
         if isinstance(proveedor, IdentidadKeycloak):
             await proveedor.cerrar()
+        await http.aclose()
 
     app = FastAPI(
         title="Servicio de administración",
@@ -72,6 +78,7 @@ def crear_app(
     app.state.config = config
     app.state.identidad = proveedor
     app.state.consumidor = consumidor
+    app.state.http = http
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )
@@ -84,4 +91,5 @@ def crear_app(
 
     app.include_router(crear_router_salud({"postgres": verificar_postgres}))
     app.include_router(router)
+    app.include_router(router_sistema)
     return app

@@ -144,3 +144,23 @@ class ActividadSalida(BaseModel):
 class PaginaActividad(BaseModel):
     total: int
     elementos: list[ActividadSalida]
+
+
+class EstadoServicio(BaseModel):
+    clave: str
+    nombre: str
+    estado: Literal["sano", "con_problemas", "caido"]
+    tiempo_ms: int | None
+    detalle: str
+
+
+class EstadoSistema(BaseModel):
+    version: str
+    comprobado_en: datetime
+    servicios: list[EstadoServicio]
+
+
+class Resumen(BaseModel):
+    usuarios_activos: int | None
+    intentos_fallidos_24h: int
+    correos_7d: int
