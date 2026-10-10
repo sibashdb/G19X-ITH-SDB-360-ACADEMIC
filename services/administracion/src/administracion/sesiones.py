@@ -27,9 +27,6 @@ async def sincronizar(
     async with fabrica() as sesion:
         cursor = await sesion.get(CursorEventos, CURSOR)
         desde = cursor.hasta if cursor else datetime.now(UTC) - RETENCION_KEYCLOAK
-        # ponytail: Keycloak devuelve primero lo más nuevo y cada lectura trae hasta 10,000 eventos
-        # (50 páginas de 200); si se pone al día tras una caída larga, se saltan los más viejos.
-        # Mejora: dateFrom en milisegundos y direction=asc, para traer solo lo nuevo y en orden.
         pedidos = await identidad.eventos_de_sesion(desde - MARGEN_DEL_CURSOR)
         eventos = [e for e in pedidos if e.tipo in TIPOS]
         nombres: dict[str, str] = {}

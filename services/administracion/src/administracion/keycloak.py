@@ -286,11 +286,18 @@ class IdentidadKeycloak:
         )
 
     async def eventos_de_sesion(self, desde: datetime) -> list[EventoSesion]:
+        """Eventos desde `desde`, del más viejo al más nuevo.
+
+        ponytail: hasta 10,000 por lectura (50 páginas de 200). Si hay más, la siguiente lectura
+        sigue desde el último copiado: nada se pierde, solo se retrasa.
+        """
         eventos: list[EventoSesion] = []
+        desde_ms = str(int(desde.timestamp() * 1000))
         for pagina in range(MAX_PAGINAS_EVENTOS):
             parametros = [
                 *(("type", tipo) for tipo in TIPOS_EVENTO),
-                ("dateFrom", desde.astimezone(UTC).date().isoformat()),
+                ("dateFrom", desde_ms),
+                ("direction", "asc"),
                 ("first", str(pagina * TAMANO_PAGINA_EVENTOS)),
                 ("max", str(TAMANO_PAGINA_EVENTOS)),
             ]

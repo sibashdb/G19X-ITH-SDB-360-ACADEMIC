@@ -13,7 +13,12 @@ from administracion.identidad import (
     IdentidadNoDisponible,
     UsuarioNoEncontrado,
 )
-from administracion.keycloak import CONSULTAS_DE_ROLES_A_LA_VEZ, IdentidadKeycloak
+from administracion.keycloak import (
+    CONSULTAS_DE_ROLES_A_LA_VEZ,
+    MAX_PAGINAS_EVENTOS,
+    TAMANO_PAGINA_EVENTOS,
+    IdentidadKeycloak,
+)
 
 BASE = "http://kc/auth"
 ADMIN = "/auth/admin/realms/plataforma"
@@ -329,7 +334,8 @@ async def test_eventos_pagina_traduce_y_filtra_por_fecha() -> None:
 
     def eventos(peticion: httpx.Request) -> httpx.Response:
         assert peticion.url.params.get_list("type") == ["LOGIN", "LOGIN_ERROR", "LOGOUT"]
-        assert peticion.url.params["dateFrom"] == "2026-10-08"
+        assert peticion.url.params["dateFrom"] == str(ms)
+        assert peticion.url.params["direction"] == "asc"
         return httpx.Response(200, json=pagina1 if peticion.url.params["first"] == "0" else pagina2)
 
     identidad, _ = _keycloak({("GET", f"{ADMIN}/events"): eventos})
@@ -342,3 +348,24 @@ async def test_eventos_pagina_traduce_y_filtra_por_fecha() -> None:
     assert fallido.usuario == "fantasma"
     assert fallido.error == "user_not_found"
     assert fallido.id.startswith(str(ms + 500_000))
+
+
+async def test_eventos_se_detiene_en_el_tope_y_devuelve_los_mas_viejos() -> None:
+    desde = datetime(2026, 10, 8, 12, 0, tzinfo=UTC)
+    ms = int(desde.timestamp() * 1000)
+
+    def eventos(peticion: httpx.Request) -> httpx.Response:
+        primero = int(peticion.url.params["first"])
+        return httpx.Response(
+            200,
+            json=[
+                {"id": f"e{primero + i}", "time": ms + (primero + i) * 1000, "type": "LOGIN"}
+                for i in range(TAMANO_PAGINA_EVENTOS)
+            ],
+        )
+
+    identidad, peticiones = _keycloak({("GET", f"{ADMIN}/events"): eventos})
+    lista = await identidad.eventos_de_sesion(desde)
+    assert len([p for p in peticiones if p.url.path == f"{ADMIN}/events"]) == MAX_PAGINAS_EVENTOS
+    assert len(lista) == MAX_PAGINAS_EVENTOS * TAMANO_PAGINA_EVENTOS
+    assert lista[0].id == "e0"  # los más viejos primero: la siguiente lectura sigue desde el último
