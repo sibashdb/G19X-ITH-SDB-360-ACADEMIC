@@ -130,7 +130,7 @@ Interfaz `ProveedorIdentidad` con estas operaciones: listar usuarios (búsqueda,
 ### 3.7 Infraestructura
 
 - **Docker Compose:** servicios `administracion` y `mailpit` (imagen `axllent/mailpit`; SMTP solo en la red interna; interfaz web solo en `127.0.0.1:8025`).
-- **PostgreSQL:** `init.sh` crea `administracion_db` y sus dos usuarios en volúmenes nuevos. Para volúmenes existentes, un script idempotente `infra/postgres/administracion.sh` (el mismo script que corre al crear el volumen, montado como `20-administracion.sh`).
+- **PostgreSQL:** `infra/postgres/administracion.sh` crea `administracion_db` y sus dos usuarios. Es idempotente y sirve en los dos casos: corre solo al crear un volumen nuevo (montado como `20-administracion.sh`) y se ejecuta a mano en un volumen existente.
 - **Gateway:** ruta `/api/administracion/`. La CSP no cambia.
 - **Versión desplegada:** variable `VERSION_APP` (commit corto), por defecto `desarrollo`.
 
