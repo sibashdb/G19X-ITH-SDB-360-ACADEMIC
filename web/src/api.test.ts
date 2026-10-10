@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { enviarJson, ErrorApi, erroresPorCampo, pedir } from "@/api"
+import { descargar, enviarJson, ErrorApi, erroresPorCampo, pedir } from "@/api"
 
 function simular(
   cuerpo: BodyInit | null,
@@ -190,5 +190,49 @@ describe("administración", () => {
       "application/json"
     )
     expect(init.body).toBe('{"roles":["admin"]}')
+  })
+})
+
+describe("descargar", () => {
+  it("baja el archivo con el token y lo guarda con su nombre", async () => {
+    const simulado = simular("a,b\n", 200, "text/csv")
+    const crear = vi.fn(() => "blob:archivo")
+    const revocar = vi.fn()
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL: crear, revokeObjectURL: revocar })
+    )
+    const clic = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        expect(this.download).toBe("actividad.csv")
+        expect(this.href).toBe("blob:archivo")
+      })
+
+    await descargar(
+      "/administracion/actividad/exportar?tipo=sesiones",
+      "tk",
+      "actividad.csv"
+    )
+
+    const [url, init] = simulado.mock.calls[0]
+    expect(url).toBe("/api/administracion/actividad/exportar?tipo=sesiones")
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tk")
+    expect(clic).toHaveBeenCalledOnce()
+    expect(revocar).toHaveBeenCalledWith("blob:archivo")
+    clic.mockRestore()
+  })
+
+  it("convierte un error de la API en ErrorApi", async () => {
+    simular(
+      JSON.stringify({
+        title: "Solicitud inválida",
+        detail: "Revise los campos indicados.",
+      }),
+      422,
+      "application/problem+json"
+    )
+    const error = await errorDe(descargar("/x", "tk", "x.csv"))
+    expect(error.estado).toBe(422)
   })
 })

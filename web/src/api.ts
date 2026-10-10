@@ -48,16 +48,16 @@ function problemaPorEstado(estado: number): {
   return { titulo: "Error", detalle: `Ocurrió un error (código ${estado}).` }
 }
 
-export async function pedir<T>(
+/** Hace la petición con el token; sin red, lanza un ErrorApi en español. */
+async function hacerPeticion(
   ruta: string,
   token: string | undefined,
-  init: RequestInit = {}
-): Promise<T> {
+  init: RequestInit
+): Promise<Response> {
   const cabeceras = new Headers(init.headers)
   if (token) cabeceras.set("Authorization", `Bearer ${token}`)
-  let respuesta: Response
   try {
-    respuesta = await fetch(`/api${ruta}`, { ...init, headers: cabeceras })
+    return await fetch(`/api${ruta}`, { ...init, headers: cabeceras })
   } catch (error) {
     // Una cancelación pedida por el llamador no es un fallo de red.
     if (init.signal?.aborted) throw error
@@ -68,28 +68,57 @@ export async function pedir<T>(
       "No se pudo conectar con el servidor; revise su conexión e intente de nuevo."
     )
   }
-  if (!respuesta.ok) {
-    const cuerpo: unknown = await respuesta.json().catch(() => null)
-    const problema =
-      typeof cuerpo === "object" && cuerpo !== null
-        ? (cuerpo as {
-            title?: string
-            detail?: string
-            errores?: ErrorFila[]
-            codigo?: string
-          })
-        : {}
-    const porDefecto = problemaPorEstado(respuesta.status)
-    throw new ErrorApi(
-      respuesta.status,
-      problema.title ?? porDefecto.titulo,
-      problema.detail ?? porDefecto.detalle,
-      problema.errores ?? [],
-      problema.codigo ?? null
-    )
-  }
+}
+
+/** ErrorApi a partir de una respuesta de error, con o sin Problem Details. */
+async function errorDeRespuesta(respuesta: Response): Promise<ErrorApi> {
+  const cuerpo: unknown = await respuesta.json().catch(() => null)
+  const problema =
+    typeof cuerpo === "object" && cuerpo !== null
+      ? (cuerpo as {
+          title?: string
+          detail?: string
+          errores?: ErrorFila[]
+          codigo?: string
+        })
+      : {}
+  const porDefecto = problemaPorEstado(respuesta.status)
+  return new ErrorApi(
+    respuesta.status,
+    problema.title ?? porDefecto.titulo,
+    problema.detail ?? porDefecto.detalle,
+    problema.errores ?? [],
+    problema.codigo ?? null
+  )
+}
+
+export async function pedir<T>(
+  ruta: string,
+  token: string | undefined,
+  init: RequestInit = {}
+): Promise<T> {
+  const respuesta = await hacerPeticion(ruta, token, init)
+  if (!respuesta.ok) throw await errorDeRespuesta(respuesta)
   if (respuesta.status === 204) return undefined as T
   return (await respuesta.json()) as T
+}
+
+/** Descarga un archivo de la API con el token (un enlace normal no lo enviaría). */
+export async function descargar(
+  ruta: string,
+  token: string | undefined,
+  nombre: string
+): Promise<void> {
+  const respuesta = await hacerPeticion(ruta, token, {})
+  if (!respuesta.ok) throw await errorDeRespuesta(respuesta)
+  const url = URL.createObjectURL(await respuesta.blob())
+  const enlace = document.createElement("a")
+  enlace.href = url
+  enlace.download = nombre
+  document.body.append(enlace)
+  enlace.click()
+  enlace.remove()
+  URL.revokeObjectURL(url)
 }
 
 /** Opciones de fetch para enviar JSON. */

@@ -18,7 +18,6 @@ import {
   type ReactNode,
 } from "react"
 import { Link, useParams } from "react-router"
-import { describirActividad } from "@/actividad"
 import { enviarJson, erroresPorCampo, ErrorApi, pedir } from "@/api"
 import { NOMBRES_ROL, useToken, type Rol } from "@/auth"
 import { CamposRoles } from "@/componentes/CamposRoles"
@@ -27,6 +26,7 @@ import { DialogoContrasenaTemporal } from "@/componentes/DialogoContrasenaTempor
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
 import { Iniciales } from "@/componentes/Iniciales"
+import { ListaActividad } from "@/componentes/ListaActividad"
 import { RequiereRol } from "@/componentes/RequiereRol"
 import { Seccion } from "@/componentes/Seccion"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -424,35 +424,23 @@ function ActividadReciente({ usuarioId }: { usuarioId: string }) {
     )
   else
     contenido = (
-      <ul className="divide-y">
-        {consulta.data.elementos.map((a) => (
-          <li
-            key={a.id}
-            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-sm"
-          >
-            <time
-              dateTime={a.fecha}
-              className="w-44 shrink-0 text-muted-foreground"
-            >
-              {formatoFechaHora(a.fecha)}
-            </time>
-            <span className="min-w-0 flex-1">
-              {a.actor_id !== usuarioId && (
-                <span className="font-medium">{a.actor_nombre}: </span>
-              )}
-              {describirActividad(a)}
-            </span>
-            {a.resultado === "fallo" && (
-              <Badge variant="destructive">Falló</Badge>
-            )}
-          </li>
-        ))}
-      </ul>
+      <ListaActividad
+        elementos={consulta.data.elementos}
+        personaId={usuarioId}
+      />
     )
   return (
     <Seccion
       titulo="Actividad reciente"
       descripcion="Lo que hizo esta persona y lo que se hizo con su cuenta (últimos 20 registros)."
+      acciones={
+        <Link
+          to={`/sistema/actividad?persona=${encodeURIComponent(usuarioId)}`}
+          className="text-sm font-medium text-accent hover:underline"
+        >
+          Ver toda su actividad
+        </Link>
+      }
     >
       {contenido}
     </Seccion>

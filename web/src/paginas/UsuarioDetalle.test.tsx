@@ -85,6 +85,9 @@ describe("UsuarioDetalle", () => {
     expect(screen.getByLabelText("Compras")).toBeChecked()
     expect(screen.getByText("Activo")).toBeInTheDocument()
     expect(screen.getByText("Inició sesión")).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: "Ver toda su actividad" })
+    ).toHaveAttribute("href", "/sistema/actividad?persona=u-ana")
   })
 
   it("guarda solo lo que cambió", async () => {

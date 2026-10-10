@@ -2,6 +2,7 @@ import {
   Bell,
   Building2,
   FileUp,
+  History,
   LayoutDashboard,
   Mail,
   Settings,
@@ -79,6 +80,13 @@ export const NAVEGACION: SeccionNavegacion[] = [
         ruta: "/sistema/usuarios",
         descripcion: "Quién entra y con qué rol",
         icono: UsersRound,
+        soloAdmin: true,
+      },
+      {
+        titulo: "Actividad",
+        ruta: "/sistema/actividad",
+        descripcion: "Quién hizo qué y cuándo",
+        icono: History,
         soloAdmin: true,
       },
       {
