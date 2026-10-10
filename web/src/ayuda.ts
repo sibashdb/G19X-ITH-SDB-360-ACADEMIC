@@ -338,9 +338,23 @@ function textoDe(articulo: Articulo): string {
   )
 }
 
-/** Artículos visibles que contienen todas las palabras, sin acentos ni mayúsculas. */
+// No dicen de qué trata un artículo: "¿cómo importar?" no debe exigir que el texto diga "cómo".
+const PALABRAS_DE_PREGUNTA = new Set([
+  "como",
+  "cual",
+  "cuales",
+  "cuando",
+  "donde",
+  "que",
+  "quien",
+])
+
+/** Artículos visibles que contienen todas las palabras (sin acentos, mayúsculas, signos ni palabras de pregunta). */
 export function buscarArticulos(texto: string, esAdmin: boolean): Articulo[] {
-  const palabras = normalizarTexto(texto).split(/\s+/).filter(Boolean)
+  const palabras = normalizarTexto(texto)
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((p) => p && !PALABRAS_DE_PREGUNTA.has(p))
   return articulosVisibles(esAdmin).filter((a) => {
     const contenido = textoDe(a)
     return palabras.every((p) => contenido.includes(p))

@@ -44,6 +44,15 @@ describe("contenido de la ayuda", () => {
     expect(buscarArticulos("zzz inexistente", true)).toEqual([])
   })
 
+  it("ignora los signos de puntuación: se puede buscar con una pregunta", () => {
+    expect(
+      buscarArticulos("¿cómo importar?", true).map((a) => a.slug)
+    ).toContain("importar-datos")
+    expect(
+      buscarArticulos("«Importar», datos.", true).map((a) => a.slug)
+    ).toContain("importar-datos")
+  })
+
   it("encuentra un artículo por su slug", () => {
     expect(articuloPorSlug("importar-datos")?.titulo).toBe(
       "Importar los datos del ERP"
