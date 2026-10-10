@@ -1,5 +1,8 @@
 """API de gestión de usuarios y correos (solo administración)."""
 
+import codecs
+import csv
+import io
 import logging
 import unicodedata
 from collections.abc import Iterator
@@ -45,6 +48,7 @@ from administracion.reglas import (
     verificar_cambio_de_roles,
     verificar_desactivacion,
 )
+from administracion.textos import describir
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -550,10 +554,42 @@ async def listar_correos(
 
 
 ZONA = ZoneInfo("America/Mexico_City")
+FECHA_MINIMA = date(2000, 1, 1)
+FECHA_MAXIMA = date(2100, 12, 31)
+MAX_FILAS_EXPORTACION = 10_000
+# Excel ejecuta como fórmula una celda que empieza con estos caracteres (inyección CSV).
+INICIOS_DE_FORMULA = ("=", "+", "-", "@", "\t", "\r")
 
 
 def _inicio_del_dia(dia: date) -> datetime:
     return datetime.combine(dia, time.min, tzinfo=ZONA)
+
+
+def _invalida(campo: str, mensaje: str) -> ErrorDominio:
+    return ErrorDominio(
+        422,
+        "Solicitud inválida",
+        "Revise los campos indicados.",
+        {"errores": [{"campo": campo, "mensaje": mensaje}]},
+    )
+
+
+def _filtro_actividad(
+    persona: str | None, tipo: GrupoTipo | None, desde: date | None, hasta: date | None
+) -> FiltroActividad:
+    for campo, valor in (("desde", desde), ("hasta", hasta)):
+        if valor is not None and not FECHA_MINIMA <= valor <= FECHA_MAXIMA:
+            raise _invalida(
+                campo, f"Use una fecha entre {FECHA_MINIMA:%Y-%m-%d} y {FECHA_MAXIMA:%Y-%m-%d}."
+            )
+    if desde and hasta and hasta < desde:
+        raise _invalida("hasta", "Debe ser igual o posterior a la fecha inicial")
+    return FiltroActividad(
+        persona=persona,
+        tipo=tipo,
+        desde=_inicio_del_dia(desde) if desde else None,
+        hasta=_inicio_del_dia(hasta + timedelta(days=1)) if hasta else None,
+    )
 
 
 @router.get("/actividad", tags=["actividad"])
@@ -567,24 +603,47 @@ async def listar_actividad(
     pagina: Annotated[int, Query(ge=1, le=10_000)] = 1,
     tamano: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> esquemas.PaginaActividad:
-    if desde and hasta and hasta < desde:
-        raise ErrorDominio(
-            422,
-            "Solicitud inválida",
-            "Revise los campos indicados.",
-            {
-                "errores": [
-                    {"campo": "hasta", "mensaje": "Debe ser igual o posterior a la fecha inicial"}
-                ]
-            },
-        )
-    filtro = FiltroActividad(
-        persona=persona,
-        tipo=tipo,
-        desde=_inicio_del_dia(desde) if desde else None,
-        hasta=_inicio_del_dia(hasta + timedelta(days=1)) if hasta else None,
-    )
+    filtro = _filtro_actividad(persona, tipo, desde, hasta)
     total, filas = await consultar(sesion, filtro, (pagina - 1) * tamano, tamano)
     return esquemas.PaginaActividad(
         total=total, elementos=[esquemas.ActividadSalida.model_validate(f) for f in filas]
+    )
+
+
+def _celda(valor: str) -> str:
+    return f"'{valor}" if valor.startswith(INICIOS_DE_FORMULA) else valor
+
+
+@router.get("/actividad/exportar", tags=["actividad"])
+async def exportar_actividad(
+    sesion: Sesion,
+    _: Admin,
+    persona: Annotated[str | None, Query(max_length=64)] = None,
+    tipo: GrupoTipo | None = None,
+    desde: date | None = None,
+    hasta: date | None = None,
+) -> Response:
+    """Las más recientes primero, hasta 10,000 filas; X-Total-Registros dice cuántas hay."""
+    filtro = _filtro_actividad(persona, tipo, desde, hasta)
+    total, filas = await consultar(sesion, filtro, 0, MAX_FILAS_EXPORTACION)
+    salida = io.StringIO()
+    escritor = csv.writer(salida)
+    escritor.writerow(["Fecha", "Persona", "Acción", "Resultado", "IP"])
+    for a in filas:
+        escritor.writerow(
+            [
+                a.fecha.astimezone(ZONA).strftime("%Y-%m-%d %H:%M"),
+                _celda(a.actor_nombre),
+                _celda(describir(a)),
+                "Éxito" if a.resultado == "exito" else "Falló",
+                _celda(a.ip or ""),
+            ]
+        )
+    return Response(
+        codecs.BOM_UTF8 + salida.getvalue().encode("utf-8"),  # BOM: Excel lo abre como UTF-8
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="actividad.csv"',
+            "X-Total-Registros": str(total),
+        },
     )
