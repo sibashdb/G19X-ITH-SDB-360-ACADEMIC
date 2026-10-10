@@ -5,7 +5,7 @@
 | PRD padre | `docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md` |
 | Antecede a | Plan B del sub-proyecto 1 (`docs/superpowers/specs/2026-10-01-experiencia-e-inteligencia-design.md`, sección 8) |
 | Fecha | 2026-10-08 |
-| Estado | Pendiente de revisión del residente |
+| Estado | Aprobado por el residente; implementado en los planes "Usuarios y acceso" y "Operación del sistema" |
 | Base de código | "Claridad y acceso" terminado (rama `feat/claridad-y-acceso`, commit `2f7a3f2`) |
 
 ---
@@ -89,10 +89,10 @@ flowchart LR
 | `actividad` | id, fecha (`timestamptz`), actor_id, actor_nombre, tipo, objeto_tipo, objeto_id, objeto_nombre, detalle (JSON sin secretos), resultado (`exito` / `fallo`), ip, origen (`keycloak` / `proveedores` / `administracion`), clave_origen (única) | **Solo SELECT e INSERT** |
 | `correo_enviado` | id, fecha, tipo (`invitacion` / `restablecimiento`), destinatario, usuario_id, solicitado_por, estado (`enviado` / `fallido`), error | SELECT, INSERT |
 | `cursor_eventos` | hasta qué fecha se leyeron los eventos de Keycloak | SELECT, INSERT, UPDATE |
-| `evento_procesado` | id de mensaje de RabbitMQ ya aplicado (patrón existente) | SELECT, INSERT |
 
 - **Dos usuarios de base de datos:** `administracion_dueno` es dueño del esquema y corre las migraciones; `administracion` es el de la aplicación, con los permisos de la tabla. Así la regla de solo inserción no depende del código.
 - `clave_origen` hace idempotente toda inserción: id de evento de Keycloak, id de mensaje de RabbitMQ o un UUID propio.
+- Los eventos de `proveedores` son idempotentes por `clave_origen` (`proveedores:{event_id}`), así que no hace falta una tabla de eventos procesados.
 
 ### 3.4 Adaptador de identidad
 
@@ -100,7 +100,7 @@ Interfaz `ProveedorIdentidad` con estas operaciones: listar usuarios (búsqueda,
 
 - **`IdentidadKeycloak`** usa la API de administración de Keycloak con `httpx` y *client credentials* del cliente confidencial `administracion`.
   - La cuenta de servicio tiene solo `view-users`, `manage-users` y `view-events` de `realm-management`. No es superadministrador.
-  - Los roles de la lista se obtienen **por rol** (3 consultas: usuarios de `admin`, `comprador` y `aprobador`), no una consulta por usuario.
+  - Los roles se leen **por usuario** (`/users/{id}/role-mappings/realm`), con hasta 20 consultas a la vez: los endpoints `/roles/*` piden `view-realm`, que la cuenta de servicio no tiene. Razonable hasta unos 1,000 usuarios.
   - Tiempo límite de 5 s por llamada.
 - **`IdentidadFalsa`** vive en memoria y se usa en las pruebas.
 - Migrar a Entra ID = escribir otra implementación.
@@ -130,7 +130,7 @@ Interfaz `ProveedorIdentidad` con estas operaciones: listar usuarios (búsqueda,
 ### 3.7 Infraestructura
 
 - **Docker Compose:** servicios `administracion` y `mailpit` (imagen `axllent/mailpit`; SMTP solo en la red interna; interfaz web solo en `127.0.0.1:8025`).
-- **PostgreSQL:** `init.sh` crea `administracion_db` y sus dos usuarios en volúmenes nuevos. Para volúmenes existentes, un script idempotente `infra/postgres/crear-administracion.sh`.
+- **PostgreSQL:** `init.sh` crea `administracion_db` y sus dos usuarios en volúmenes nuevos. Para volúmenes existentes, un script idempotente `infra/postgres/administracion.sh` (el mismo script que corre al crear el volumen, montado como `20-administracion.sh`).
 - **Gateway:** ruta `/api/administracion/`. La CSP no cambia.
 - **Versión desplegada:** variable `VERSION_APP` (commit corto), por defecto `desarrollo`.
 
@@ -268,7 +268,7 @@ Las comprobaciones corren en paralelo:
   - CSV;
   - **prueba de que UPDATE y DELETE sobre `actividad` fallan con el usuario de la aplicación.**
   - Cobertura ≥ 80 % en las reglas.
-- **`IdentidadKeycloak`:** pruebas con respuestas HTTP simuladas de la API de Keycloak (crear, roles por rol, correo de acción, contraseña temporal, eventos).
+- **`IdentidadKeycloak`:** pruebas con respuestas HTTP simuladas de la API de Keycloak (crear, roles por usuario, correo de acción, contraseña temporal, eventos).
 - **`proveedores`:** alta, edición y desactivación del catálogo; bloqueo de categoría y moneda con contratos; migración; eventos con actor.
 - **Prueba de humo** (`infra/smoke_test.py`) contra el stack real:
   - alta de un usuario de prueba por invitación;

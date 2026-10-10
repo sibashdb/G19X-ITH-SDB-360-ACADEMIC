@@ -26,6 +26,7 @@ Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1
 `aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
 con usuario y contraseña. Verificación automática: `uv run python infra/smoke_test.py`.
 La prueba de humo deja un usuario `humo.prueba` desactivado. Lo reutiliza en cada corrida.
+También deja un servicio `HUMO-SERV` en el catálogo, que reactiva en cada corrida.
 
 Los secretos van en `infra/.env` (cópielo desde `infra/.env.example`). Los de la administración son:
 
@@ -131,6 +132,7 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 | Consola de RabbitMQ | <http://localhost:15672> |
 | Contrato OpenAPI de administración | <http://localhost:8080/api/administracion/docs> |
 | Mailpit, buzón de desarrollo de los correos de Keycloak (solo en este equipo) | <http://localhost:8025> |
+| Versión que muestra el Estado del sistema | variable `VERSION_APP` de `infra/.env` (por defecto `desarrollo`) |
 
 ## Interfaz
 
@@ -143,6 +145,8 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
   con una línea de propósito en cada opción.
 - Los términos técnicos (P25/P50/P75, sobreprecio, puntuación, SLA…) tienen una ayuda que se
   abre con clic, toque o teclado; las definiciones viven en `web/src/glosario.ts`.
+- Área **Sistema** (solo administración): Panel, Usuarios, Actividad (con exportación a CSV), Catálogo, Estado del sistema, Correos, Importación y Configuración.
+- Área **Soporte**: Centro de ayuda con guías, preguntas frecuentes y glosario (`web/src/ayuda.ts`); se abre también con el botón "?" de la barra superior.
 
 ## Estructura
 
@@ -150,16 +154,18 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 |---|---|
 | `libs/comun` | Infraestructura compartida: logs, errores RFC 9457, JWT, salud, outbox |
 | `services/proveedores` | Microservicio de proveedores, contratos, precios y desempeño |
-| `services/administracion` | Microservicio de administración: usuarios, bitácora y correos (`/api/administracion/`) |
+| `services/administracion` | Microservicio de administración: usuarios, bitácora, correos, estado del sistema y panel (`/api/administracion/`) |
 | `tools/generador` | Datos sintéticos reproducibles del ERP simulado |
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |
 
 ## Limitaciones conocidas (Incremento 1)
 
-- **Eventos sin cola enlazada.** Un evento que se publica en RabbitMQ sin colas enlazadas al
-  exchange se descarta; el outbox conserva el registro. El Incremento 2 declarará las colas
-  antes de publicar y agregará el reproceso.
+- **Eventos sin cola enlazada.** Un evento que se publica sin colas enlazadas al exchange se
+  descarta; el outbox conserva el registro. `administracion` declara su cola
+  (`administracion.actividad`) al arrancar, así que solo se pierden los eventos publicados antes
+  de su primer arranque. El Plan B declarará toda la topología antes de publicar y agregará el
+  reproceso.
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.

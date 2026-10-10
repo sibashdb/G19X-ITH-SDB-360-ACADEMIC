@@ -136,6 +136,70 @@ def verificar_administracion(cliente: httpx.Client) -> None:
     raise SystemExit("FALLA: los inicios de sesión no llegaron a la bitácora en 75 s")
 
 
+SERVICIO_HUMO = "HUMO-SERV"
+
+
+def eventos_del_servicio_de_humo(cliente: httpx.Client, admin: dict[str, str]) -> set[str]:
+    """IDs de los registros del catálogo sobre el servicio de humo (los 100 más recientes)."""
+    respuesta = cliente.get(
+        "/api/administracion/actividad",
+        params={"tipo": "catalogo", "tamano": 100},
+        headers=admin,
+    )
+    verificar(respuesta.status_code == 200, f"consultar la actividad falló: {respuesta.text}")
+    return {e["id"] for e in respuesta.json()["elementos"] if e["objeto_id"] == SERVICIO_HUMO}
+
+
+def verificar_operacion(cliente: httpx.Client) -> None:
+    admin = token_de(cliente, "admin1")
+    comprador = token_de(cliente, "comprador1")
+
+    estado = cliente.get("/api/administracion/estado", headers=admin)
+    verificar(estado.status_code == 200, f"el estado del sistema falló: {estado.text}")
+    caidos = [s["nombre"] for s in estado.json()["servicios"] if s["estado"] == "caido"]
+    verificar(not caidos, f"servicios caídos según el estado del sistema: {caidos}")
+    resumen = cliente.get("/api/administracion/resumen", headers=admin)
+    verificar(
+        resumen.status_code == 200 and resumen.json()["usuarios_activos"] is not None,
+        f"el resumen del panel falló: {resumen.text}",
+    )
+    inactivos = cliente.get(
+        "/api/proveedores/servicios", params={"incluir_inactivos": "true"}, headers=comprador
+    )
+    verificar(inactivos.status_code == 403, "un comprador no debe ver los servicios inactivos")
+
+    # Servicio de humo reutilizable: se crea la primera vez; cada corrida lo desactiva y lo
+    # reactiva. Solo cuentan los registros nuevos de esta corrida.
+    antes = eventos_del_servicio_de_humo(cliente, admin)
+    alta = cliente.post(
+        "/api/proveedores/servicios",
+        json={
+            "codigo": SERVICIO_HUMO,
+            "nombre": "Servicio de la prueba de humo",
+            "categoria": "soporte",
+            "unidad": "ticket",
+            "moneda": "MXN",
+        },
+        headers=admin,
+    )
+    verificar(alta.status_code in (201, 409), f"el alta del servicio falló: {alta.text}")
+    for activo in (False, True):
+        cambio = cliente.patch(
+            f"/api/proveedores/servicios/{SERVICIO_HUMO}", json={"activo": activo}, headers=admin
+        )
+        verificar(
+            cambio.status_code == 200 and cambio.json()["activo"] is activo,
+            f"cambiar el estado del servicio falló: {cambio.text}",
+        )
+    # Los cambios viajan por el outbox y RabbitMQ hasta la bitácora de administración.
+    limite = time.monotonic() + 30
+    while time.monotonic() < limite:
+        if len(eventos_del_servicio_de_humo(cliente, admin) - antes) >= 2:
+            return
+        time.sleep(1)
+    raise SystemExit("FALLA: los cambios del catálogo no llegaron a la bitácora en 30 s")
+
+
 def main() -> int:
     with httpx.Client(base_url=BASE, timeout=10) as cliente:
         spa = cliente.get("/")
@@ -210,9 +274,10 @@ def main() -> int:
         verificar(openapi.status_code == 200, "no se publica el contrato OpenAPI")
 
         verificar_administracion(cliente)
+        verificar_operacion(cliente)
 
     print(
-        f"OK: SPA, Keycloak, proveedores y administración responden "
+        f"OK: SPA, Keycloak, proveedores, administración y operación responden "
         f"({lista.json()['total']} proveedores)."
     )
     return 0

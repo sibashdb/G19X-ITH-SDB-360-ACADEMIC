@@ -122,7 +122,7 @@ describe("Importacion", () => {
     expect(zonaDeArchivo()).toBeInTheDocument()
   })
 
-  it("no permite volver atrás mientras la importación está en curso", async () => {
+  it("mientras importa, el botón conserva el foco y «Atrás» no hace nada", async () => {
     simularApi({
       "/api/proveedores/importaciones/servicios": () =>
         new Promise<Response>(() => {}),
@@ -133,14 +133,47 @@ describe("Importacion", () => {
       zonaDeArchivo(),
       new File(["x"], "servicios.csv", { type: "text/csv" })
     )
-
-    expect(screen.getByRole("button", { name: "Atrás" })).toBeEnabled()
     await userEvent.click(screen.getByRole("button", { name: "Importar" }))
 
+    const importando = await screen.findByRole("button", {
+      name: "Importando…",
+    })
+    expect(importando).toHaveAttribute("aria-disabled", "true")
+    expect(importando).not.toBeDisabled()
+    expect(importando).toHaveFocus()
+    const atras = screen.getByRole("button", { name: "Atrás" })
+    expect(atras).toHaveAttribute("aria-disabled", "true")
+    await userEvent.click(atras)
     expect(
-      await screen.findByRole("button", { name: "Importando…" })
-    ).toBeDisabled()
-    expect(screen.getByRole("button", { name: "Atrás" })).toBeDisabled()
+      screen.getByRole("heading", { name: /2\. Elija el archivo/ })
+    ).toBeInTheDocument()
+  })
+
+  it("lleva el foco al título de cada paso nuevo", async () => {
+    simularApi({
+      "/api/proveedores/importaciones/servicios": () =>
+        respuestaJson({
+          entidad: "servicios",
+          filas: 1,
+          registros: 1,
+          omitidos: 0,
+          eventos: 0,
+        }),
+    })
+    renderizarPagina(<Importacion />)
+    expect(document.body).toHaveFocus() // al cargar la página no se mueve el foco
+    await irAlPasoDeArchivo()
+    expect(
+      screen.getByRole("heading", { name: /2\. Elija el archivo/ })
+    ).toHaveFocus()
+    await userEvent.upload(
+      zonaDeArchivo(),
+      new File(["x"], "servicios.csv", { type: "text/csv" })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Importar" }))
+    expect(
+      await screen.findByRole("heading", { name: "3. Resultado" })
+    ).toHaveFocus()
   })
 
   it("invalida todas las consultas tras importar, incluido el catálogo de servicios", async () => {

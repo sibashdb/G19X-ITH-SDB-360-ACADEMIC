@@ -7,7 +7,7 @@ import {
   FileSpreadsheet,
   Upload,
 } from "lucide-react"
-import { useState, type DragEvent } from "react"
+import { useEffect, useRef, useState, type DragEvent } from "react"
 import { Link } from "react-router"
 import { ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
@@ -163,6 +163,17 @@ function FlujoImportacion() {
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
   const [arrastrando, setArrastrando] = useState(false)
 
+  // Cada paso reemplaza al anterior: el foco pasa a su título para no perderse (no al cargar).
+  const tituloPaso = useRef<HTMLHeadingElement>(null)
+  const primerPaso = useRef(true)
+  useEffect(() => {
+    if (primerPaso.current) {
+      primerPaso.current = false
+      return
+    }
+    tituloPaso.current?.focus()
+  }, [paso])
+
   const importacion = useMutation({
     mutationFn: (datos: { entidad: Entidad; archivo: File }) => {
       const formulario = new FormData()
@@ -205,9 +216,8 @@ function FlujoImportacion() {
   }
 
   function importar() {
-    if (archivo && !errorArchivo) {
-      importacion.mutate({ entidad, archivo }, { onSettled: () => setPaso(3) })
-    }
+    if (importacion.isPending || !archivo || errorArchivo) return
+    importacion.mutate({ entidad, archivo }, { onSettled: () => setPaso(3) })
   }
 
   function empezar(nueva: Entidad, nuevoPaso: number) {
@@ -226,7 +236,7 @@ function FlujoImportacion() {
       <Pasos actual={paso} />
 
       {paso === 1 && (
-        <Seccion titulo="1. Elija el tipo de archivo">
+        <Seccion titulo="1. Elija el tipo de archivo" refTitulo={tituloPaso}>
           <fieldset className="space-y-2">
             <legend className="mb-2 text-sm text-muted-foreground">
               Siga el orden recomendado: contratos y desempeño hacen referencia
@@ -264,7 +274,10 @@ function FlujoImportacion() {
       )}
 
       {paso === 2 && (
-        <Seccion titulo={`2. Elija el archivo: ${actual.nombre}`}>
+        <Seccion
+          titulo={`2. Elija el archivo: ${actual.nombre}`}
+          refTitulo={tituloPaso}
+        >
           <div className="space-y-4">
             <label
               onDragOver={(evento) => {
@@ -309,17 +322,18 @@ function FlujoImportacion() {
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
-                disabled={importacion.isPending}
-                onClick={() => setPaso(1)}
+                aria-disabled={importacion.isPending}
+                onClick={() => {
+                  if (!importacion.isPending) setPaso(1)
+                }}
               >
                 <ArrowLeft aria-hidden />
                 Atrás
               </Button>
               <Button
                 onClick={importar}
-                disabled={
-                  !archivo || Boolean(errorArchivo) || importacion.isPending
-                }
+                disabled={!archivo || Boolean(errorArchivo)}
+                aria-disabled={importacion.isPending}
               >
                 {importacion.isPending ? "Importando…" : "Importar"}
               </Button>
@@ -329,7 +343,7 @@ function FlujoImportacion() {
       )}
 
       {paso === 3 && (
-        <Seccion titulo="3. Resultado">
+        <Seccion titulo="3. Resultado" refTitulo={tituloPaso}>
           {importacion.isSuccess && (
             <div className="space-y-4">
               <Alert role="status">

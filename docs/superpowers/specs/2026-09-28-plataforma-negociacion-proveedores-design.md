@@ -112,13 +112,16 @@ flowchart LR
   GW --> PR[proveedores]
   GW --> IN[inteligencia]
   GW --> NE[negociacion]
+  GW --> AD[administracion]
   NE -- HTTP --> IN
   NE -- HTTP --> IA["ia<br/>(LLM gateway, solo red interna)"]
   IN -- HTTP --> IA
+  AD -- HTTP --> KC
   IA --> OL["Ollama<br/>o API compatible OpenAI"]
   PR <-- eventos --> MQ[[RabbitMQ]]
   NE <-- eventos --> MQ
   MQ -- eventos --> IN
+  MQ -- eventos --> AD
 ```
 
 | Servicio | Tecnología | Responsabilidad | Datos propios |
@@ -126,6 +129,7 @@ flowchart LR
 | **gateway** | Nginx | Único punto de entrada. Enruta `/api/<servicio>`, sirve la SPA, limita tasa de peticiones, cabeceras de seguridad, genera `X-Request-ID`. | — |
 | **identidad** | Keycloak (solo configuración, sin código propio) | Usuarios internos y roles; login OIDC; emite JWT (RS256) con JWKS público. Equivalente a Entra ID: migrar = cambiar emisor OIDC. | `keycloak_db` |
 | **proveedores** | FastAPI | Proveedores, catálogo de servicios TI, contratos, historial de precios, KPIs de desempeño, importación CSV (adaptador ERP/SRM). | `proveedores_db` |
+| **administracion** | FastAPI | Usuarios y roles (vía la API de Keycloak), bitácora de actividad de solo inserción, correos del sistema, estado de los servicios y panel de administración. | `administracion_db` |
 | **inteligencia** | FastAPI + scikit-learn | Benchmark de precio justo, puntuación de proveedores, recomendación de adjudicación, simulador de escenarios, alertas. | `inteligencia_db` (modelo de lectura + modelos entrenados versionados) |
 | **negociacion** | FastAPI | Eventos de negociación, límites, sesiones por proveedor, **motor de concesiones**, API del portal del proveedor (tokens de invitación), propuestas de negociación, aprobaciones, bitácora de auditoría. | `negociacion_db` |
 | **ia** | FastAPI | Único acceso al LLM: plantillas de prompt versionadas, salidas estructuradas validadas con esquema, cola de concurrencia hacia la GPU, timeouts, cambio de proveedor LLM por configuración, métricas de tokens y latencia. **No expuesto por el gateway.** | Sin estado |
@@ -155,6 +159,8 @@ flowchart LR
 | `contrato.registrado` | proveedores | inteligencia | Historial de precios y condiciones. |
 | `desempeno.registrado` | proveedores | inteligencia | KPIs para puntuación. |
 | `negociacion.adjudicada` | negociacion | proveedores, inteligencia | Crear contrato nuevo y actualizar historial. |
+| `servicio.actualizado` | proveedores | administracion, inteligencia | Cambios del catálogo (con quién los hizo) y copia local del servicio. |
+| `importacion.completada` · `importacion.rechazada` | proveedores | administracion | Bitácora de importaciones con quién las hizo. |
 
 Cierra el ciclo: una negociación adjudicada genera un contrato, que mejora el benchmark de la siguiente negociación.
 
@@ -319,6 +325,7 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 | proveedores | Proveedor, ServicioCatalogo, Contrato, LineaContrato, RegistroDesempeno, TipoCambio, Outbox, EventoProcesado |
 | inteligencia | HistorialPrecio y DesempenoProveedor (modelos de lectura alimentados por eventos), ModeloBenchmark (registro de modelos), Escenario, EventoProcesado |
 | negociacion | EventoNegociacion, LineaEvento, Palanca, Sesion, Mensaje, Oferta (origen: formulario / interpretada / agente / comprador; confirmada sí/no), Decision (traza), Adjudicacion, Aprobacion, Bitacora, ProveedorLocal (copia), Outbox, EventoProcesado |
+| administracion | Actividad (bitácora de solo inserción), CorreoEnviado, CursorEventos |
 
 **Reglas de datos:**
 - Dinero en `NUMERIC(14,4)` + código de moneda; `Decimal` en Python. Nunca `float`.
@@ -422,8 +429,10 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 |---|:-:|:-:|:-:|:-:|
 | Configurar catálogos, pesos, umbrales y usuarios | ✔ | | | |
 | Importar datos | ✔ | | | |
+| Gestionar usuarios y ver actividad, correos y estado del sistema | ✔ | | | |
 | Crear/editar eventos propios y supervisar sus sesiones | | ✔ | | |
 | Ver eventos, proveedores, benchmark y tablero | ✔ | ✔ | ✔ | |
+| Consultar el Centro de ayuda | ✔ | ✔ | ✔ | |
 | Proponer adjudicación | | ✔ | | |
 | Aprobar adjudicación | | | ✔ | |
 | Negociar en su propia sesión | | | | ✔ |

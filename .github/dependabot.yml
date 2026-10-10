@@ -13,7 +13,7 @@ updates:
     commit-message:
       prefix: build(deps)
   - package-ecosystem: docker
-    directories: [/services/proveedores, /web]
+    directories: [/services/proveedores, /services/administracion, /web]
     schedule:
       interval: weekly
     commit-message:
