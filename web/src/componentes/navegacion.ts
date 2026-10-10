@@ -6,6 +6,7 @@ import {
   Gauge,
   History,
   LayoutDashboard,
+  LifeBuoy,
   Mail,
   Package,
   Settings,
@@ -136,6 +137,17 @@ export const NAVEGACION: SeccionNavegacion[] = [
         descripcion: "Ajustes de puntuación y precios",
         icono: Settings,
         soloAdmin: true,
+      },
+    ],
+  },
+  {
+    titulo: "Soporte",
+    elementos: [
+      {
+        titulo: "Centro de ayuda",
+        ruta: "/ayuda",
+        descripcion: "Guías y preguntas frecuentes",
+        icono: LifeBuoy,
       },
     ],
   },

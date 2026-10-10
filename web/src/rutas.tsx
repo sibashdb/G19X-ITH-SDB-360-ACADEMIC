@@ -2,6 +2,8 @@ import { createBrowserRouter } from "react-router"
 import { Layout } from "@/componentes/Layout"
 import { Actividad } from "@/paginas/Actividad"
 import { Alertas } from "@/paginas/Alertas"
+import { ArticuloAyuda } from "@/paginas/ArticuloAyuda"
+import { Ayuda } from "@/paginas/Ayuda"
 import { Catalogo } from "@/paginas/Catalogo"
 import { Configuracion } from "@/paginas/Configuracion"
 import { Correos } from "@/paginas/Correos"
@@ -37,6 +39,8 @@ export const router = createBrowserRouter([
       { path: "sistema/correos", Component: Correos },
       { path: "sistema/actividad", Component: Actividad },
       { path: "sistema/catalogo", Component: Catalogo },
+      { path: "ayuda", Component: Ayuda },
+      { path: "ayuda/:articulo", Component: ArticuloAyuda },
       { path: "*", Component: NoEncontrado },
     ],
   },

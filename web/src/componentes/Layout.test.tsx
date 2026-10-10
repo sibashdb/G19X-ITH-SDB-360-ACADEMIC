@@ -299,6 +299,14 @@ describe("Layout con sesión iniciada", () => {
     expect(signoutRedirect).toHaveBeenCalledOnce()
   })
 
+  it("la barra superior enlaza al Centro de ayuda", () => {
+    renderizar()
+    const barra = document.querySelector("header")!
+    expect(
+      within(barra).getByRole("link", { name: "Centro de ayuda" })
+    ).toHaveAttribute("href", "/ayuda")
+  })
+
   it("el menú de alertas enlaza a la página de alertas", async () => {
     renderizar()
     await userEvent.click(screen.getByRole("button", { name: "Alertas" }))

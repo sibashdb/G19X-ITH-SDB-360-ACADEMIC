@@ -51,6 +51,9 @@ describe("GuiaUso", () => {
       within(paso(2)).getByRole("link", { name: "Ver proveedores" })
     ).toHaveAttribute("href", "/proveedores")
     expect(paso(4)).toHaveTextContent("Próximamente")
+    expect(
+      screen.getByRole("link", { name: "Centro de ayuda" })
+    ).toHaveAttribute("href", "/ayuda")
   })
 
   it("las visitas registradas marcan los pasos 2 y 3", async () => {

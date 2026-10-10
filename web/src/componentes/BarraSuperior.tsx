@@ -1,6 +1,7 @@
 import {
   Bell,
   BellOff,
+  CircleHelp,
   Monitor,
   Moon,
   Sun,
@@ -139,6 +140,11 @@ export function BarraSuperior() {
       />
       <Migas />
       <div className="ml-auto flex items-center gap-1">
+        <Button asChild variant="ghost" size="icon-lg">
+          <Link to="/ayuda" aria-label="Centro de ayuda">
+            <CircleHelp aria-hidden />
+          </Link>
+        </Button>
         <MenuAlertas />
         <SelectorTema />
       </div>

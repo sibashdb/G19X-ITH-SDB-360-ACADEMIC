@@ -12,6 +12,7 @@ describe("navegacionPara", () => {
       "Ranking",
       "Precios",
       "Alertas",
+      "Centro de ayuda",
     ])
     expect(titulos([])).toEqual([
       "Tablero",
@@ -19,6 +20,7 @@ describe("navegacionPara", () => {
       "Ranking",
       "Precios",
       "Alertas",
+      "Centro de ayuda",
     ])
   })
 
@@ -29,6 +31,7 @@ describe("navegacionPara", () => {
       "Proveedores",
       "Inteligencia",
       "Sistema",
+      "Soporte",
     ])
     expect(titulos(["admin"])).toContain("Configuración")
   })
@@ -85,6 +88,15 @@ describe("migasDe", () => {
       "/sistema/estado",
       [{ titulo: "Sistema" }, { titulo: "Estado del sistema" }],
     ],
+    ["/ayuda", [{ titulo: "Soporte" }, { titulo: "Centro de ayuda" }]],
+    [
+      "/ayuda/importar-datos",
+      [
+        { titulo: "Soporte" },
+        { titulo: "Centro de ayuda", ruta: "/ayuda" },
+        { titulo: "Detalle" },
+      ],
+    ],
     ["/sistema/no-existe", [{ titulo: "Página no encontrada" }]],
     ["/no-existe", [{ titulo: "Página no encontrada" }]],
   ])("%s", (pathname, esperado) => {
@@ -113,6 +125,7 @@ describe("descripciones del menú", () => {
       Correos: "Invitaciones y restablecimientos enviados",
       Importación: "Cargar datos del ERP",
       Configuración: "Ajustes de puntuación y precios",
+      "Centro de ayuda": "Guías y preguntas frecuentes",
     })
   })
 })

@@ -154,6 +154,13 @@ export function GuiaUso() {
           </li>
         ))}
       </ol>
+      <p className="text-sm text-muted-foreground">
+        ¿Tiene dudas? Consulte el{" "}
+        <Link to="/ayuda" className="font-medium text-accent hover:underline">
+          Centro de ayuda
+        </Link>
+        .
+      </p>
     </section>
   )
 }
