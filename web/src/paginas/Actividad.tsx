@@ -58,6 +58,22 @@ function fecha(valor: string | null): string | null {
     : null
 }
 
+/**
+ * Texto que muestra un campo de fecha: lo que la persona escribió (aunque aún sea una fecha a
+ * medias, como el "0002" de empezar a teclear el año) y, si la fecha de la URL cambia por fuera,
+ * el valor nuevo.
+ */
+function useTextoFecha(deLaUrl: string | null) {
+  const valor = deLaUrl ?? ""
+  const [texto, setTexto] = useState(valor)
+  const [previo, setPrevio] = useState(valor)
+  if (valor !== previo) {
+    setPrevio(valor)
+    setTexto(valor)
+  }
+  return [texto, setTexto] as const
+}
+
 export function Actividad() {
   return (
     <RequiereRol rol="admin">
@@ -75,6 +91,8 @@ function ContenidoActividad() {
   const desde = fecha(parametros.get("desde"))
   const hasta = fecha(parametros.get("hasta"))
   const pagina = enteroPositivo(parametros.get("pagina"), 1, 10_000)
+  const [textoDesde, setTextoDesde] = useTextoFecha(desde)
+  const [textoHasta, setTextoHasta] = useTextoFecha(hasta)
   const rangoInvalido = Boolean(desde && hasta && hasta < desde)
   const hayFiltros = Boolean(persona || tipo || desde || hasta)
   const [exportando, setExportando] = useState(false)
@@ -129,7 +147,20 @@ function ContenidoActividad() {
     }
   }
 
+  // La URL solo cambia con una fecha completa y dentro del rango (o al vaciar el campo).
+  function cambiarFecha(
+    clave: "desde" | "hasta",
+    texto: string,
+    guardarTexto: (texto: string) => void
+  ) {
+    guardarTexto(texto)
+    if (texto === "" || fecha(texto))
+      actualizar({ [clave]: texto || null, pagina: null })
+  }
+
   function limpiar() {
+    setTextoDesde("")
+    setTextoHasta("")
     actualizar({
       persona: null,
       tipo: null,
@@ -291,9 +322,9 @@ function ContenidoActividad() {
                 type="date"
                 min={FECHA_MINIMA}
                 max={FECHA_MAXIMA}
-                value={desde ?? ""}
+                value={textoDesde}
                 onChange={(e) =>
-                  actualizar({ desde: e.target.value || null, pagina: null })
+                  cambiarFecha("desde", e.target.value, setTextoDesde)
                 }
               />
             </div>
@@ -304,11 +335,11 @@ function ContenidoActividad() {
                 type="date"
                 min={FECHA_MINIMA}
                 max={FECHA_MAXIMA}
-                value={hasta ?? ""}
+                value={textoHasta}
                 aria-invalid={rangoInvalido || undefined}
                 aria-describedby={rangoInvalido ? `${id}-rango` : undefined}
                 onChange={(e) =>
-                  actualizar({ hasta: e.target.value || null, pagina: null })
+                  cambiarFecha("hasta", e.target.value, setTextoHasta)
                 }
               />
             </div>

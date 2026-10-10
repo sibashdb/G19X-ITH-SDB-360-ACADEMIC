@@ -140,6 +140,45 @@ describe("Actividad", () => {
     expect(ultima.searchParams.get("desde")).toBe("2026-10-01")
   })
 
+  it("al teclear el año, los campos de fecha conservan lo escrito y la URL espera una fecha válida", async () => {
+    api()
+    renderizarPagina(<Actividad />, { ruta: "/sistema/actividad" })
+    await screen.findByText("Importó 1,250 contratos")
+    for (const [etiqueta, clave] of [
+      ["Desde", "desde"],
+      ["Hasta", "hasta"],
+    ]) {
+      const campo = screen.getByLabelText(etiqueta)
+      // Chromium dispara un cambio por cada dígito del año: 0002, 0020, 0202 y por fin 2026.
+      for (const parcial of ["0002-10-01", "0020-10-01", "0202-10-01"]) {
+        fireEvent.change(campo, { target: { value: parcial } })
+        expect(campo).toHaveValue(parcial)
+        expect(ubicacionActual()).not.toContain(`${clave}=`)
+      }
+      fireEvent.change(campo, { target: { value: "2026-10-01" } })
+      expect(campo).toHaveValue("2026-10-01")
+      expect(ubicacionActual()).toContain(`${clave}=2026-10-01`)
+    }
+  })
+
+  it("al limpiar los filtros, los campos de fecha quedan vacíos aunque tuvieran un valor a medias", async () => {
+    api()
+    renderizarPagina(<Actividad />, {
+      ruta: "/sistema/actividad?tipo=sesiones&desde=2026-10-01",
+    })
+    await screen.findByText("Importó 1,250 contratos")
+    // "Hasta" queda a medias: la URL no cambia, así que solo limpiar puede vaciarlo.
+    fireEvent.change(screen.getByLabelText("Hasta"), {
+      target: { value: "0002-10-01" },
+    })
+    await userEvent.click(
+      screen.getByRole("button", { name: "Limpiar filtros" })
+    )
+    expect(ubicacionActual()).toBe("/sistema/actividad")
+    expect(screen.getByLabelText("Desde")).toHaveValue("")
+    expect(screen.getByLabelText("Hasta")).toHaveValue("")
+  })
+
   it("un rango invertido avisa junto a las fechas y no consulta", async () => {
     const simulado = api()
     renderizarPagina(<Actividad />, {
