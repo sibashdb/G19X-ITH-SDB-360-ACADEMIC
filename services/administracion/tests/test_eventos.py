@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import socket
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
@@ -130,18 +131,32 @@ class _MensajeFalso:
 class _FabricaRota:
     """Una fábrica de sesiones cuya base de datos no responde."""
 
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
     def __call__(self) -> "_FabricaRota":
         return self
 
     async def __aenter__(self) -> AsyncSession:
-        raise SQLAlchemyError("la base de datos no responde")
+        raise self._error
 
     async def __aexit__(self, *_excepcion: object) -> None:
         return None
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        SQLAlchemyError("la base de datos no responde"),
+        # Con PostgreSQL detenido o inalcanzable, asyncpg relanza el error de red tal cual.
+        ConnectionRefusedError("conexión rechazada"),
+        socket.gaierror("no se resuelve el nombre"),
+        TimeoutError("se agotó la espera"),
+    ],
+    ids=["sqlalchemy", "conexion_rechazada", "dns", "tiempo_agotado"],
+)
 async def test_si_falla_la_base_espera_y_devuelve_el_mensaje_a_la_cola(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, error: Exception
 ) -> None:
     anotaciones: list[tuple[Any, ...]] = []
 
@@ -156,7 +171,7 @@ async def test_si_falla_la_base_espera_y_devuelve_el_mensaje_a_la_cola(
         )
     ).encode()
     mensaje = cast(AbstractIncomingMessage, _MensajeFalso(cuerpo, anotaciones))
-    await atender(cast("async_sessionmaker[AsyncSession]", _FabricaRota()), mensaje)
+    await atender(cast("async_sessionmaker[AsyncSession]", _FabricaRota(error)), mensaje)
     # Sin la espera, el mensaje volvería de inmediato y agotaría las 5 entregas en milisegundos.
     assert anotaciones == [("sleep", REINTENTO_CONEXION_S), ("reject", True)]
 

@@ -122,7 +122,7 @@ async def atender(
     if registro is not None:
         try:
             await guardar(fabrica, registro)
-        except SQLAlchemyError:
+        except (SQLAlchemyError, OSError):  # asyncpg relanza los errores de red sin envolverlos
             log.exception("No se pudo guardar el evento %s; se reintentará", mensaje.message_id)
             # Sin esta espera el mensaje vuelve de inmediato y agota sus entregas en milisegundos.
             await asyncio.sleep(REINTENTO_CONEXION_S)
@@ -172,7 +172,8 @@ class ConsumidorEventos:
                 raise
             except Exception:
                 log.exception(
-                    "Sin conexión con RabbitMQ; se reintentará en %s s", REINTENTO_CONEXION_S
+                    "Se interrumpió el consumo de eventos; se reintentará en %s s",
+                    REINTENTO_CONEXION_S,
                 )
                 await self.cerrar()
                 await asyncio.sleep(REINTENTO_CONEXION_S)
