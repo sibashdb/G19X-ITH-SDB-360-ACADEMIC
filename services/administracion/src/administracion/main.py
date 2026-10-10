@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from administracion.api.rutas import router
 from administracion.config import Configuracion
+from administracion.eventos import ConsumidorEventos
 from administracion.identidad import ProveedorIdentidad
 from administracion.keycloak import IdentidadKeycloak
 from administracion.sesiones import ejecutar_periodicamente
@@ -40,15 +41,24 @@ def crear_app(
         config.url_app,
     )
 
+    consumidor = ConsumidorEventos(sesiones, config.rabbitmq_url)
+
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
-        tarea = asyncio.create_task(
-            ejecutar_periodicamente(proveedor, sesiones, config.intervalo_eventos_s)
-        )
+        tareas = [
+            asyncio.create_task(
+                ejecutar_periodicamente(proveedor, sesiones, config.intervalo_eventos_s)
+            )
+        ]
+        if config.consumir_eventos:
+            tareas.append(asyncio.create_task(consumidor.ejecutar()))
         yield
-        tarea.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await tarea
+        for tarea in tareas:
+            tarea.cancel()
+        for tarea in tareas:
+            with contextlib.suppress(asyncio.CancelledError):
+                await tarea
+        await consumidor.cerrar()
         if isinstance(proveedor, IdentidadKeycloak):
             await proveedor.cerrar()
 
@@ -61,6 +71,7 @@ def crear_app(
     app.state.fabrica = sesiones
     app.state.config = config
     app.state.identidad = proveedor
+    app.state.consumidor = consumidor
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )

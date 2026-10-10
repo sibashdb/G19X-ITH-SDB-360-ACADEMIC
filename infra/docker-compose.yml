@@ -108,6 +108,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://administracion:${ADMINISTRACION_DB_PASSWORD}@postgres:5432/administracion_db
       DATABASE_URL_MIGRACIONES: postgresql+asyncpg://administracion_dueno:${ADMINISTRACION_DUENO_DB_PASSWORD}@postgres:5432/administracion_db
+      RABBITMQ_URL: amqp://plataforma:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       OIDC_ISSUER: http://localhost:8080/auth/realms/plataforma
       OIDC_JWKS_URL: http://keycloak:8080/auth/realms/plataforma/protocol/openid-connect/certs
       ROOT_PATH: /api/administracion
@@ -117,6 +118,8 @@ services:
       BUZON_URL: http://localhost:8025
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       keycloak:
         condition: service_healthy

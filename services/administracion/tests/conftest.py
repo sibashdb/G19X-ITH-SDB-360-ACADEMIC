@@ -85,7 +85,9 @@ def app(
     identidad: IdentidadFalsa,
 ) -> FastAPI:
     return crear_app(
-        Configuracion(database_url=urls_bd[1], buzon_url="http://buzon:8025"),
+        Configuracion(
+            database_url=urls_bd[1], buzon_url="http://buzon:8025", consumir_eventos=False
+        ),
         claves.validador(),
         fabrica,
         identidad,

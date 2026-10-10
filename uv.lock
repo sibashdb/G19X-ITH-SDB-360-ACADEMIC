@@ -20,6 +20,7 @@ name = "administracion"
 version = "0.1.0"
 source = { editable = "services/administracion" }
 dependencies = [
+    { name = "aio-pika" },
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "comun" },
@@ -32,6 +33,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aio-pika", specifier = ">=9.5" },
     { name = "alembic", specifier = ">=1.14" },
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "comun", editable = "libs/comun" },

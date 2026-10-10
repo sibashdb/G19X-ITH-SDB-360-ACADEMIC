@@ -144,7 +144,8 @@ async def test_el_ciclo_de_vida_copia_los_eventos_y_se_apaga(
 ) -> None:
     falsa = IdentidadFalsa()
     falsa.eventos = [_evento("e1", "LOGIN", 5)]
-    app = crear_app(Configuracion(database_url=urls_bd[1]), claves.validador(), fabrica, falsa)
+    config = Configuracion(database_url=urls_bd[1], consumir_eventos=False)
+    app = crear_app(config, claves.validador(), fabrica, falsa)
     async with asyncio.timeout(20), app.router.lifespan_context(app):
         await _esperar_filas(fabrica, 1)
     assert [f[0] for f in await _filas(fabrica)] == ["sesion.iniciada"]

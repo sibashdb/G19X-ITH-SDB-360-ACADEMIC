@@ -19,3 +19,5 @@ class Configuracion(ConfiguracionBase):
     url_app: str = "http://localhost:8080/"
     buzon_url: str = ""
     intervalo_eventos_s: int = 30
+    # Las pruebas que levantan el ciclo de vida lo apagan: no hay RabbitMQ en ellas.
+    consumir_eventos: bool = True
