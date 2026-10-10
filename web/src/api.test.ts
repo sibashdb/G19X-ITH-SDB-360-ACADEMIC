@@ -25,7 +25,10 @@ async function errorDe(promesa: Promise<unknown>): Promise<ErrorApi> {
   return error as ErrorApi
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 describe("pedir", () => {
   it("devuelve el JSON y envía el token en Authorization", async () => {
@@ -195,6 +198,7 @@ describe("administración", () => {
 
 describe("descargar", () => {
   it("baja el archivo con el token y lo guarda con su nombre", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] })
     const simulado = simular("a,b\n", 200, "text/csv")
     const crear = vi.fn(() => "blob:archivo")
     const revocar = vi.fn()
@@ -219,6 +223,9 @@ describe("descargar", () => {
     expect(url).toBe("/api/administracion/actividad/exportar?tipo=sesiones")
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tk")
     expect(clic).toHaveBeenCalledOnce()
+    // Safari y algunas versiones de Firefox cancelan la descarga si se revoca en el mismo ciclo.
+    expect(revocar).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1000)
     expect(revocar).toHaveBeenCalledWith("blob:archivo")
     clic.mockRestore()
   })

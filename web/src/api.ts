@@ -118,7 +118,8 @@ export async function descargar(
   document.body.append(enlace)
   enlace.click()
   enlace.remove()
-  URL.revokeObjectURL(url)
+  // Safari y algunas versiones de Firefox cancelan la descarga si se revoca en el mismo ciclo.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 /** Opciones de fetch para enviar JSON. */
