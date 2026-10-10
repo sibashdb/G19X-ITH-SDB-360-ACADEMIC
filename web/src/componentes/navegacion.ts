@@ -1,7 +1,9 @@
 import {
+  Activity,
   Bell,
   Building2,
   FileUp,
+  Gauge,
   History,
   LayoutDashboard,
   Mail,
@@ -20,6 +22,8 @@ export type ElementoNavegacion = {
   descripcion: string
   icono: LucideIcon
   soloAdmin?: boolean
+  /** Solo cuenta como activa en su ruta exacta, no en sus subrutas (el Panel en /sistema). */
+  exacta?: boolean
 }
 export type SeccionNavegacion = {
   titulo: string
@@ -77,6 +81,14 @@ export const NAVEGACION: SeccionNavegacion[] = [
     titulo: "Sistema",
     elementos: [
       {
+        titulo: "Panel",
+        ruta: "/sistema",
+        descripcion: "Lo importante de un vistazo",
+        icono: Gauge,
+        soloAdmin: true,
+        exacta: true,
+      },
+      {
         titulo: "Usuarios",
         ruta: "/sistema/usuarios",
         descripcion: "Quién entra y con qué rol",
@@ -95,6 +107,13 @@ export const NAVEGACION: SeccionNavegacion[] = [
         ruta: "/sistema/catalogo",
         descripcion: "Servicios de TI que se compran",
         icono: Package,
+        soloAdmin: true,
+      },
+      {
+        titulo: "Estado del sistema",
+        ruta: "/sistema/estado",
+        descripcion: "Si cada servicio responde",
+        icono: Activity,
         soloAdmin: true,
       },
       {
@@ -131,8 +150,12 @@ export function navegacionPara(roles: Rol[]): SeccionNavegacion[] {
   })).filter((seccion) => seccion.elementos.length > 0)
 }
 
-export function estaActiva(ruta: string, pathname: string): boolean {
-  if (ruta === "/") return pathname === "/"
+export function estaActiva(
+  ruta: string,
+  pathname: string,
+  exacta = false
+): boolean {
+  if (ruta === "/" || exacta) return pathname === ruta
   return pathname === ruta || pathname.startsWith(`${ruta}/`)
 }
 
@@ -145,7 +168,7 @@ export function migasDe(pathname: string): Miga[] {
   } | null = null
   for (const seccion of NAVEGACION) {
     for (const elemento of seccion.elementos) {
-      const coincide = estaActiva(elemento.ruta, ruta)
+      const coincide = estaActiva(elemento.ruta, ruta, elemento.exacta)
       if (
         coincide &&
         (!mejor || elemento.ruta.length > mejor.elemento.ruta.length)

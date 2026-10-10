@@ -50,6 +50,11 @@ describe("estaActiva", () => {
   ])("ruta %s en %s → %s", (ruta, pathname, esperado) => {
     expect(estaActiva(ruta, pathname)).toBe(esperado)
   })
+
+  it("una ruta exacta no se activa en sus subrutas", () => {
+    expect(estaActiva("/sistema", "/sistema", true)).toBe(true)
+    expect(estaActiva("/sistema", "/sistema/usuarios", true)).toBe(false)
+  })
 })
 
 describe("migasDe", () => {
@@ -75,7 +80,12 @@ describe("migasDe", () => {
     ["/sistema/actividad", [{ titulo: "Sistema" }, { titulo: "Actividad" }]],
     ["/sistema/catalogo", [{ titulo: "Sistema" }, { titulo: "Catálogo" }]],
     ["/importacion", [{ titulo: "Sistema" }, { titulo: "Importación" }]],
-    ["/sistema", [{ titulo: "Página no encontrada" }]],
+    ["/sistema", [{ titulo: "Sistema" }, { titulo: "Panel" }]],
+    [
+      "/sistema/estado",
+      [{ titulo: "Sistema" }, { titulo: "Estado del sistema" }],
+    ],
+    ["/sistema/no-existe", [{ titulo: "Página no encontrada" }]],
     ["/no-existe", [{ titulo: "Página no encontrada" }]],
   ])("%s", (pathname, esperado) => {
     expect(migasDe(pathname)).toEqual(esperado)
@@ -95,9 +105,11 @@ describe("descripciones del menú", () => {
       Ranking: "Los mejores proveedores por categoría",
       Precios: "Cuánto debería pagar",
       Alertas: "Qué atender hoy",
+      Panel: "Lo importante de un vistazo",
       Usuarios: "Quién entra y con qué rol",
       Actividad: "Quién hizo qué y cuándo",
       Catálogo: "Servicios de TI que se compran",
+      "Estado del sistema": "Si cada servicio responde",
       Correos: "Invitaciones y restablecimientos enviados",
       Importación: "Cargar datos del ERP",
       Configuración: "Ajustes de puntuación y precios",

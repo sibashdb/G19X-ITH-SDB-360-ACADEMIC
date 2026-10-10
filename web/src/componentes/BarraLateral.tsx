@@ -115,7 +115,11 @@ export function BarraLateral() {
                     <ElementoMenu
                       key={elemento.ruta}
                       elemento={elemento}
-                      activa={estaActiva(elemento.ruta, pathname)}
+                      activa={estaActiva(
+                        elemento.ruta,
+                        pathname,
+                        elemento.exacta
+                      )}
                       alNavegar={alNavegar}
                     />
                   ))}

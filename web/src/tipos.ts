@@ -219,3 +219,21 @@ export type PaginaCorreos = {
   elementos: CorreoEnviado[]
   buzon_url: string | null
 }
+export type EstadoServicio = "sano" | "con_problemas" | "caido"
+export type ComprobacionServicio = {
+  clave: string
+  nombre: string
+  estado: EstadoServicio
+  tiempo_ms: number | null
+  detalle: string
+}
+export type EstadoSistema = {
+  version: string
+  comprobado_en: string
+  servicios: ComprobacionServicio[]
+}
+export type ResumenAdmin = {
+  usuarios_activos: number | null
+  intentos_fallidos_24h: number
+  correos_7d: number
+}

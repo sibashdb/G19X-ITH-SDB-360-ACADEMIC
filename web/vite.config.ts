@@ -17,5 +17,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/setupPruebas.ts"],
+    // Las pruebas de formularios largos (Catálogo, Usuarios) rozan los 5 s por defecto cuando
+    // todos los archivos corren en paralelo.
+    testTimeout: 15_000,
   },
 })
