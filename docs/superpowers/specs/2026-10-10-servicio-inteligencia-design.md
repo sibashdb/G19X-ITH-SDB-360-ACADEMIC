@@ -5,7 +5,7 @@
 | PRD padre | `docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md` |
 | Especificación de origen | `docs/superpowers/specs/2026-10-01-experiencia-e-inteligencia-design.md` (§4–§8; este documento las reemplaza) |
 | Fecha | 2026-10-10 |
-| Estado | Pendiente de revisión del residente |
+| Estado | Aprobada por el residente (2026-10-10); §4.2, §4.3 y §6 precisados con el plan B1 |
 | Base de código | `main` en `42d7103` (administración, planes 1 y 2, ya integrada) |
 
 ---
@@ -137,18 +137,27 @@ Se mantienen los de la especificación de origen (§4.4), con estos ajustes:
   línea base, ajuste por inflación con la tasa configurable (4.5 % anual por defecto).
 - **Línea base:** P25, P50 y P75 por servicio y tercil de cantidad con los contratos de los últimos 24 meses. Con menos de
   8 observaciones se usa la de la categoría y se marca **baja confianza**.
-- **Modelo ML:** tres `HistGradientBoostingRegressor(loss="quantile")` (0.25 / 0.5 / 0.75) sobre log(precio), con las
-  variables de la especificación de origen; predicciones ordenadas para garantizar P25 ≤ P50 ≤ P75; validación temporal
-  con los últimos 6 meses; **se promueve solo si mejora el MAPE de la línea base**. Artefacto con `joblib` en un volumen.
+- **Modelo ML:** tres `HistGradientBoostingRegressor(loss="quantile")` (0.25 / 0.5 / 0.75) sobre el logaritmo del
+  precio **deflactado**: cada precio se lleva a pesos de una fecha fija con la tasa de inflación configurada y, al
+  predecir, se lleva de vuelta a la fecha de la consulta. Usa las variables de la especificación de origen salvo "meses
+  transcurridos", porque un árbol no extrapola una tendencia a fechas que no vio (en el prototipo, el modelo sin
+  deflactar no mejoraba la línea base; deflactado dio MAPE 8.3 % contra 9.3 %). Predicciones ordenadas para garantizar
+  P25 ≤ P50 ≤ P75; validación temporal con los últimos 6 meses; **se promueve solo si mejora el MAPE de la línea
+  base**; solo responde por los servicios que estaban en su entrenamiento (los demás usan la línea base). Artefacto con
+  `joblib` en un volumen.
 - **Reentrenamiento:** por botón del administrador o automático al acumular ≥ 50 precios nuevos. Corre en segundo plano,
   nunca dos a la vez (un segundo pedido mientras corre responde 409 `entrenamiento_en_curso`). Publica
   `modelo.entrenado`.
 - **Precio justo** para (servicio, cantidad, plazo, fecha): el modelo promovido si existe; si no, la línea base.
-- **Puntuación (0–100):** KPIs de 12 meses con decaimiento exponencial (vida media 6 meses), percentiles por categoría
-  (resolución e incidentes invertidos), pesos configurables (SLA 30, resolución 20, incidentes 20, entregas 15,
+- **Puntuación (0–100):** KPIs de 12 meses con decaimiento exponencial (vida media 6 meses), percentiles dentro de la
+  categoría principal del proveedor (la primera de su lista) cuando esa categoría tiene al menos 20 proveedores con
+  desempeño y, si tiene menos, contra todos (con pocos proveedores por categoría los percentiles quedan gruesos: el
+  prototipo con el dataset por defecto dio Spearman 0.77 por categoría y 0.915 con esta regla); resolución e
+  incidentes invertidos; pesos configurables (SLA 30, resolución 20, incidentes 20, entregas 15,
   satisfacción 15), contracción bayesiana con k = 6 meses y tendencia contra hace 3 meses.
 - **Alertas** (se calculan al consultar): vencimiento a 90 / 60 / 30 días; sobreprecio sobre P75 con ahorro potencial =
-  (precio − P50) × cantidad × meses restantes; riesgo por puntuación menor que el umbral (40) o caída mayor a 10 puntos en
+  (precio − P50) × cantidad mensual × meses restantes (en las unidades por consumo, hora y ticket, la cantidad es la del
+  contrato completo y se reparte entre sus meses); riesgo por puntuación menor que el umbral (40) o caída mayor a 10 puntos en
   3 meses.
 - **KPIs del Tablero:** gasto anual contratado (valor mensual de los contratos vigentes × 12, en MXN al último tipo de
   cambio, con variación contra hace 12 meses), contratos por vencer, proveedores en riesgo, ahorro potencial total,
@@ -165,12 +174,12 @@ Se mantienen los de la especificación de origen (§4.4), con estos ajustes:
 | Método y ruta | Rol | Respuesta |
 |---|---|---|
 | `GET /tablero` | interno | KPIs, series y listas del Tablero |
-| `GET /alertas?tipo=&severidad=&limite=` | interno | Alertas activas (la campana usa `limite=5`) |
+| `GET /alertas?tipo=&severidad=&pagina=&limite=` | interno | Alertas activas (la campana usa `limite=5`) |
 | `GET /precios/servicios` | interno | Servicios activos con su categoría y número de observaciones |
 | `GET /precios/servicios/{codigo}/referencia?cantidad=&plazo=` | interno | P25, P50, P75, método, confianza y n |
 | `GET /precios/servicios/{codigo}/historial` | interno | Puntos de precio y bandas por mes |
 | `GET /precios/sobreprecios?codigo=` | interno | Contratos sobre P75 con ahorro potencial |
-| `GET /proveedores?busqueda=&categoria=&estado=&en_riesgo=&orden=&pagina=&tamano=` | interno | Lista con puntuación, confianza, gasto anual, contratos vigentes y alertas |
+| `GET /proveedores?busqueda=&categoria=&estado=&en_riesgo=&orden=&direccion=&pagina=&tamano=` | interno | Lista con puntuación, confianza, gasto anual, contratos vigentes y alertas |
 | `GET /proveedores/{id}/puntuacion` | interno | Puntuación, componentes contra la mediana de la categoría, historial de 12 meses y tendencia |
 | `GET /proveedores/{id}/mercado` | interno | Por línea de contrato vigente: posición ("bajo P25", "justo", "sobre P75"), P25, P50, P75 y ahorro |
 | `GET /ranking?categoria=` | interno | Ranking ajustado |
@@ -201,8 +210,9 @@ PostgreSQL).
   - "Cambió la configuración de la puntuación: pesos, umbral" (los nombres legibles de los campos cambiados).
   - "Reentrenó el modelo de precios: versión 4, MAPE 11.2 %, promovido" / "…, no se promovió (no mejoró la línea base)".
 - Actividad gana el filtro de tipo "Inteligencia".
-- Estado del sistema: sexto servicio "Inteligencia" (`/salud/listo` de `inteligencia`) y la cola
-  `inteligencia.eventos` entra en el umbral de mensajes pendientes.
+- Estado del sistema: sexto servicio "Inteligencia" (`/salud/listo` de `inteligencia`), la cola
+  `inteligencia.eventos` entra en el umbral de mensajes pendientes y la mensajería avisa si una cola de fallidos
+  (`.dlq`) tiene mensajes.
 
 ---
 
