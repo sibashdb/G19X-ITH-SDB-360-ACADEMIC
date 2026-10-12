@@ -6,15 +6,18 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from comun.auth import ValidadorJWT, validador_desde_jwks
+from comun.consumidor import ConsumidorEventos
 from comun.errores import registrar_manejadores
 from comun.logs import configurar_logs, middleware_correlacion
 from comun.outbox import RelayOutbox
 from comun.salud import crear_router_salud
+from comun.topologia import COLA_INTELIGENCIA
 from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from inteligencia.config import Configuracion
+from inteligencia.eventos import atendedor
 from inteligencia.modelos import Outbox
 
 
@@ -30,6 +33,7 @@ def crear_app(
         expire_on_commit=False,
     )
     relay = RelayOutbox(sesiones, Outbox, config.rabbitmq_url)
+    consumidor = ConsumidorEventos(config.rabbitmq_url, COLA_INTELIGENCIA, atendedor(sesiones))
 
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
@@ -37,6 +41,7 @@ def crear_app(
         if config.usar_rabbitmq:
             await relay.conectar()
             tareas.append(asyncio.create_task(relay.ejecutar()))
+            tareas.append(asyncio.create_task(consumidor.ejecutar()))
         yield
         for tarea in tareas:
             tarea.cancel()
@@ -44,6 +49,7 @@ def crear_app(
             with contextlib.suppress(asyncio.CancelledError):
                 await tarea
         if config.usar_rabbitmq:
+            await consumidor.cerrar()
             await relay.cerrar()
 
     app = FastAPI(
@@ -54,6 +60,7 @@ def crear_app(
     )
     app.state.fabrica = sesiones
     app.state.config = config
+    app.state.consumidor = consumidor
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )
