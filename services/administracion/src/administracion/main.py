@@ -7,9 +7,11 @@ from contextlib import asynccontextmanager
 
 import httpx
 from comun.auth import ValidadorJWT, validador_desde_jwks
+from comun.consumidor import ConsumidorEventos
 from comun.errores import registrar_manejadores
 from comun.logs import configurar_logs, middleware_correlacion
 from comun.salud import crear_router_salud
+from comun.topologia import COLA_ADMINISTRACION
 from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -18,7 +20,7 @@ from administracion import estado
 from administracion.api.rutas import router
 from administracion.api.sistema import router as router_sistema
 from administracion.config import Configuracion
-from administracion.eventos import ConsumidorEventos
+from administracion.eventos import atendedor
 from administracion.identidad import ProveedorIdentidad
 from administracion.keycloak import IdentidadKeycloak
 from administracion.sesiones import ejecutar_periodicamente
@@ -45,7 +47,7 @@ def crear_app(
         config.url_app,
     )
 
-    consumidor = ConsumidorEventos(sesiones, config.rabbitmq_url)
+    consumidor = ConsumidorEventos(config.rabbitmq_url, COLA_ADMINISTRACION, atendedor(sesiones))
     http = httpx.AsyncClient(timeout=estado.TIEMPO_LIMITE_S, transport=transporte_estado)
 
     @asynccontextmanager

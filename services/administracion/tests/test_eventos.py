@@ -1,28 +1,19 @@
 import asyncio
 import contextlib
 import json
-import socket
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 import aio_pika
 import pytest
 from administracion.bitacora import Actor, Objeto
-from administracion.eventos import (
-    COLA,
-    REINTENTO_CONEXION_S,
-    ConsumidorEventos,
-    EventoInvalido,
-    Registro,
-    atender,
-    traducir,
-)
-from aio_pika.abc import AbstractIncomingMessage
+from administracion.eventos import Registro, atendedor, traducir
+from comun.consumidor import ConsumidorEventos, EventoInvalido
 from comun.outbox import EXCHANGE_EVENTOS
+from comun.topologia import COLA_ADMINISTRACION
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from testcontainers.community.rabbitmq import RabbitMqContainer
 
@@ -109,73 +100,6 @@ def test_un_sobre_mal_formado_es_invalido() -> None:
         traducir(_sobre("servicio.actualizado", "no es un objeto"))  # type: ignore[arg-type]
 
 
-class _MensajeFalso:
-    """Lo mínimo de un mensaje entrante: anota ack/reject/nack en la lista compartida."""
-
-    message_id = "m-1"
-
-    def __init__(self, cuerpo: bytes, anotaciones: list[tuple[Any, ...]]) -> None:
-        self.body = cuerpo
-        self._anotaciones = anotaciones
-
-    async def ack(self) -> None:
-        self._anotaciones.append(("ack",))
-
-    async def reject(self, requeue: bool = False) -> None:
-        self._anotaciones.append(("reject", requeue))
-
-    async def nack(self, multiple: bool = False, requeue: bool = True) -> None:
-        self._anotaciones.append(("nack", requeue))
-
-
-class _FabricaRota:
-    """Una fábrica de sesiones cuya base de datos no responde."""
-
-    def __init__(self, error: Exception) -> None:
-        self._error = error
-
-    def __call__(self) -> "_FabricaRota":
-        return self
-
-    async def __aenter__(self) -> AsyncSession:
-        raise self._error
-
-    async def __aexit__(self, *_excepcion: object) -> None:
-        return None
-
-
-@pytest.mark.parametrize(
-    "error",
-    [
-        SQLAlchemyError("la base de datos no responde"),
-        # Con PostgreSQL detenido o inalcanzable, asyncpg relanza el error de red tal cual.
-        ConnectionRefusedError("conexión rechazada"),
-        socket.gaierror("no se resuelve el nombre"),
-        TimeoutError("se agotó la espera"),
-    ],
-    ids=["sqlalchemy", "conexion_rechazada", "dns", "tiempo_agotado"],
-)
-async def test_si_falla_la_base_espera_y_devuelve_el_mensaje_a_la_cola(
-    monkeypatch: pytest.MonkeyPatch, error: Exception
-) -> None:
-    anotaciones: list[tuple[Any, ...]] = []
-
-    async def dormir(segundos: float) -> None:
-        anotaciones.append(("sleep", segundos))
-
-    monkeypatch.setattr(asyncio, "sleep", dormir)
-    cuerpo = json.dumps(
-        _sobre(
-            "servicio.actualizado",
-            {"codigo": "NUBE-VM-2", "cambio": "creado", "campos": [], "actor": ADMIN},
-        )
-    ).encode()
-    mensaje = cast(AbstractIncomingMessage, _MensajeFalso(cuerpo, anotaciones))
-    await atender(cast("async_sessionmaker[AsyncSession]", _FabricaRota(error)), mensaje)
-    # Sin la espera, el mensaje volvería de inmediato y agotaría las 5 entregas en milisegundos.
-    assert anotaciones == [("sleep", REINTENTO_CONEXION_S), ("reject", True)]
-
-
 @pytest.fixture(scope="module")
 def url_rabbitmq() -> Iterator[str]:
     with RabbitMqContainer("rabbitmq:4.1-alpine", username="prueba", password="prueba") as rmq:
@@ -213,7 +137,7 @@ async def _esperar(fabrica: async_sessionmaker[AsyncSession], cuantos: int) -> l
 async def _consumidor(
     fabrica: async_sessionmaker[AsyncSession], url: str
 ) -> AsyncIterator[ConsumidorEventos]:
-    consumidor = ConsumidorEventos(fabrica, url)
+    consumidor = ConsumidorEventos(url, COLA_ADMINISTRACION, atendedor(fabrica))
     tarea = asyncio.create_task(consumidor.ejecutar())
     try:
         for _ in range(200):  # que la cola exista y esté enlazada antes de publicar
@@ -259,18 +183,3 @@ async def test_un_mensaje_mal_formado_no_detiene_la_cola(
         await _publicar(url_rabbitmq, b"no es json", "importacion.completada")
         await _publicar(url_rabbitmq, json.dumps(valido).encode(), "importacion.completada")
         assert await _esperar(fabrica, 1) == ["importacion.completada"]
-
-
-@pytest.mark.integracion
-async def test_la_cola_es_durable_de_tipo_quorum(
-    fabrica: async_sessionmaker[AsyncSession], url_rabbitmq: str
-) -> None:
-    async with _consumidor(fabrica, url_rabbitmq):
-        conexion = await aio_pika.connect_robust(url_rabbitmq)
-        async with conexion:
-            canal = await conexion.channel()
-            # Redeclarar con argumentos distintos falla (PRECONDITION_FAILED): si pasa, coinciden.
-            cola = await canal.declare_queue(
-                COLA, durable=True, arguments={"x-queue-type": "quorum", "x-delivery-limit": 5}
-            )
-            assert cola.name == COLA
