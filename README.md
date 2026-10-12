@@ -100,23 +100,28 @@ Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
    docker compose -f infra/docker-compose.yml up -d --build --wait
    ```
 
-4. Llene la copia local de la inteligencia con lo que ya estaba importado. El primer comando
-   publica el estado actual del catálogo y del tipo de cambio; el segundo vuelve a publicar todos
-   los eventos guardados. Los servicios ignoran lo que ya recibieron (la Actividad no se duplica),
-   así que repetirlos es seguro:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --instantanea
-   ```
+4. Llene la copia local de la inteligencia con lo que ya estaba importado. Corra los dos comandos
+   en este orden: el primero vuelve a publicar todos los eventos guardados y el segundo publica el
+   estado actual del catálogo y del tipo de cambio. La instantánea va al final porque la copia se
+   queda con lo último que recibe: si fuera antes, los eventos viejos que repite `--todo` (por
+   ejemplo, el nombre de un servicio anterior a su última edición) la dejarían con datos
+   desactualizados. Los servicios ignoran lo que ya recibieron (la Actividad no se duplica), así
+   que repetirlos es seguro:
 
    ```bash
    docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --todo
    ```
 
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --instantanea
+   ```
+
    Con el dataset por defecto, la copia tarda de uno a dos minutos en llenarse, según el equipo.
-   Espere a que termine antes de correr la prueba de humo o de usar la plataforma: consulte
-   `GET /api/inteligencia/datos` (con un token de administrador) y siga esperando mientras
-   `registros` crezca y `ultimo_evento` cambie. Después, el modelo de precios se entrena solo.
+   Espere a que termine antes de correr la prueba de humo o de usar la plataforma: abra la consola
+   de RabbitMQ (<http://localhost:15672>, usuario `plataforma` y la contraseña `RABBITMQ_PASSWORD`
+   de `infra/.env`) y, en *Queues*, espere a que la cola `inteligencia.eventos` muestre 0 mensajes
+   listos (*Ready*) y deje de recibir mensajes nuevos. Después, el modelo de precios se entrena
+   solo.
 
 ### Tema de inicio de sesión en un realm ya importado
 

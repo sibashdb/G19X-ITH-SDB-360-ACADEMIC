@@ -4,6 +4,11 @@ Uso (dentro del contenedor de proveedores, con el servicio corriendo: su relay l
   python -m proveedores.reproceso --todo         # todos los eventos del outbox, otra vez
   python -m proveedores.reproceso --instantanea  # el catálogo y el tipo de cambio actuales
 
+Para llenar una copia, corra primero --todo y al final --instantanea. Las copias se quedan con el
+último evento que reciben, y --todo también repite los eventos viejos que nunca recibieron (por
+ejemplo, el nombre de un servicio anterior a su última edición): la instantánea, que es lo más
+reciente, debe aplicarse al último. El relay publica por orden de `ocurrido_en`.
+
 Los consumidores ignoran los eventos repetidos, así que repetirlo es seguro.
 """
 
