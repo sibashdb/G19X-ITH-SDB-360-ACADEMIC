@@ -8,6 +8,7 @@ dependencies = []
 dev = [
     "comun",
     "administracion",
+    "inteligencia",
     "proveedores",
     "generador",
     "pytest>=8.3",
@@ -18,6 +19,7 @@ dev = [
     "testcontainers[postgres,rabbitmq]>=4.9",
     "ruff>=0.8",
     "mypy>=1.13",
+    "hypothesis>=6.120",
 ]
 
 [tool.uv]
@@ -29,6 +31,7 @@ members = ["libs/*", "services/*", "tools/*"]
 [tool.uv.sources]
 comun = { workspace = true }
 administracion = { workspace = true }
+inteligencia = { workspace = true }
 proveedores = { workspace = true }
 generador = { workspace = true }
 
@@ -46,7 +49,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["comun", "proveedores", "generador", "administracion"]
+source = ["comun", "proveedores", "generador", "administracion", "inteligencia"]
 
 [tool.coverage.report]
 fail_under = 80
@@ -69,5 +72,9 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["comun", "proveedores", "generador", "administracion"]
+packages = ["comun", "proveedores", "generador", "administracion", "inteligencia"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "joblib", "scipy.*"]
+ignore_missing_imports = true
