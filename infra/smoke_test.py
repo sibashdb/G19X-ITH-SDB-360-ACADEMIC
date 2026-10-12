@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+import uuid
 from decimal import Decimal
 from pathlib import Path
 
@@ -138,6 +139,9 @@ def verificar_administracion(cliente: httpx.Client) -> None:
 
 
 SERVICIO_HUMO = "HUMO-SERV"
+# Los eventos viajan por el outbox en orden: tras un reproceso o una importación grande, los
+# nuevos esperan detrás del resto (con el dataset completo, hasta un par de minutos).
+ESPERA_EVENTOS_S = 180
 
 
 def eventos_del_servicio_de_humo(cliente: httpx.Client, admin: dict[str, str]) -> set[str]:
@@ -193,23 +197,22 @@ def verificar_operacion(cliente: httpx.Client) -> None:
             f"cambiar el estado del servicio falló: {cambio.text}",
         )
     # Los cambios viajan por el outbox y RabbitMQ hasta la bitácora de administración.
-    limite = time.monotonic() + 30
+    limite = time.monotonic() + ESPERA_EVENTOS_S
     while time.monotonic() < limite:
         if len(eventos_del_servicio_de_humo(cliente, admin) - antes) >= 2:
             return
         time.sleep(1)
-    raise SystemExit("FALLA: los cambios del catálogo no llegaron a la bitácora en 30 s")
-
-
-ESPERA_COPIA_S = 180
+    raise SystemExit(
+        f"FALLA: los cambios del catálogo no llegaron a la bitácora en {ESPERA_EVENTOS_S} s"
+    )
 
 
 def verificar_inteligencia(cliente: httpx.Client) -> None:
     """La copia local de inteligencia recibe lo importado y los cambios del catálogo."""
     admin = token_de(cliente, "admin1")
     comprador = token_de(cliente, "comprador1")
-    # Inteligencia se llena por eventos: con el dataset completo tarda alrededor de un minuto.
-    limite = time.monotonic() + ESPERA_COPIA_S
+    # Inteligencia se llena por eventos: con el dataset completo tarda de uno a dos minutos.
+    limite = time.monotonic() + ESPERA_EVENTOS_S
     while True:
         tablero = cliente.get("/api/inteligencia/tablero", headers=comprador)
         verificar(tablero.status_code == 200, f"el tablero de inteligencia falló: {tablero.text}")
@@ -218,18 +221,28 @@ def verificar_inteligencia(cliente: httpx.Client) -> None:
             break
         verificar(
             time.monotonic() < limite,
-            f"los datos importados no llegaron a inteligencia en {ESPERA_COPIA_S} s",
+            f"los datos importados no llegaron a inteligencia en {ESPERA_EVENTOS_S} s",
         )
         time.sleep(2)
-    limite = time.monotonic() + 30
+    # El servicio de humo ya está en la copia de corridas anteriores: un nombre nuevo en cada
+    # corrida prueba que el cambio del catálogo llega por el evento.
+    nombre = f"Servicio de la prueba de humo {uuid.uuid4().hex[:8]}"
+    cambio = cliente.patch(
+        f"/api/proveedores/servicios/{SERVICIO_HUMO}", json={"nombre": nombre}, headers=admin
+    )
+    verificar(cambio.status_code == 200, f"renombrar el servicio de humo falló: {cambio.text}")
+    limite = time.monotonic() + ESPERA_EVENTOS_S
     while True:
         servicios = cliente.get("/api/inteligencia/precios/servicios", headers=comprador)
         verificar(
             servicios.status_code == 200, f"los servicios de precios fallaron: {servicios.text}"
         )
-        if SERVICIO_HUMO in {s["codigo"] for s in servicios.json()}:
+        if any(s["codigo"] == SERVICIO_HUMO and s["nombre"] == nombre for s in servicios.json()):
             break
-        verificar(time.monotonic() < limite, "el servicio de humo no llegó a inteligencia en 30 s")
+        verificar(
+            time.monotonic() < limite,
+            f"el nombre nuevo del servicio de humo no llegó a inteligencia en {ESPERA_EVENTOS_S} s",
+        )
         time.sleep(1)
     copia = cliente.get("/api/inteligencia/datos", headers=admin)
     verificar(

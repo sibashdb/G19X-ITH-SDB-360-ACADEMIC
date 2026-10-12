@@ -48,8 +48,10 @@ El volumen de PostgreSQL y el realm de Keycloak solo se inicializan la primera v
 ya existía antes de la administración, siga estos tres pasos, en este orden (en Git Bash, ejecute
 antes `export MSYS_NO_PATHCONV=1`).
 
-1. Agregue en `infra/.env` las tres variables de arriba y vuelva a crear PostgreSQL y Keycloak para
-   que las reciban:
+1. Agregue en `infra/.env` las tres variables de la administración (`ADMINISTRACION_DB_PASSWORD`,
+   `ADMINISTRACION_DUENO_DB_PASSWORD` y `KEYCLOAK_ADMINISTRACION_SECRET`). Defina también las dos
+   `INTELIGENCIA_*` (el `docker-compose.yml` las exige; vea la sección de la inteligencia, más
+   abajo) y vuelva a crear PostgreSQL y Keycloak para que las reciban:
 
    ```bash
    docker compose -f infra/docker-compose.yml up -d --wait postgres keycloak
@@ -111,8 +113,10 @@ Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
    docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --todo
    ```
 
-   Con el dataset por defecto, la copia se llena en alrededor de un minuto. Después, el modelo de
-   precios se entrena solo.
+   Con el dataset por defecto, la copia tarda de uno a dos minutos en llenarse, según el equipo.
+   Espere a que termine antes de correr la prueba de humo o de usar la plataforma: consulte
+   `GET /api/inteligencia/datos` (con un token de administrador) y siga esperando mientras
+   `registros` crezca y `ultimo_evento` cambie. Después, el modelo de precios se entrena solo.
 
 ### Tema de inicio de sesión en un realm ya importado
 
