@@ -6,8 +6,9 @@
    MIN_PROVEEDORES_CATEGORIA proveedores con desempeño; si tiene menos, frente a todos (con pocos
    proveedores, los percentiles quedan muy gruesos y la puntuación pierde orden).
 3. Los percentiles se combinan con los pesos (que suman 100).
-4. Contracción bayesiana hacia la media de la categoría: con pocos meses de historia, la puntuación
-   se acerca a la media en vez de quedar en un extremo.
+4. Contracción bayesiana hacia la media del grupo con que se comparó: su categoría o, con menos
+   de 20, todos. Con pocos meses de historia, la puntuación se acerca a esa media en vez de quedar
+   en un extremo.
 """
 
 import statistics
@@ -84,7 +85,8 @@ def promedio_ponderado(meses: Sequence[Mes], hasta: date) -> tuple[dict[str, flo
                 sumas[kpi] += peso * getattr(mes, kpi)
     if contados == 0:
         return None
-    return {kpi: suma / peso_total for kpi, suma in sumas.items()}, contados
+    # Redondear: el promedio con meses distintos deja ruido de punto flotante que rompe los empates.
+    return {kpi: round(suma / peso_total, 9) for kpi, suma in sumas.items()}, contados
 
 
 def percentil(valor: float, todos: Sequence[float]) -> float:
@@ -114,23 +116,25 @@ def puntuar(
     por_categoria: dict[str, list[str]] = defaultdict(list)
     for proveedor in resumen:
         por_categoria[categorias[proveedor]].append(proveedor)
+    # Grupo con que se compara cada categoría: ella misma si tiene al menos MIN; si no, todos.
+    grupos = {
+        categoria: proveedores if len(proveedores) >= MIN_PROVEEDORES_CATEGORIA else list(resumen)
+        for categoria, proveedores in por_categoria.items()
+    }
     pesos_kpi = pesos.como_dict()
     componentes: dict[str, dict[str, float]] = {}
     crudas: dict[str, float] = {}
     for proveedor, (valores, _) in resumen.items():
-        de_su_categoria = por_categoria[categorias[proveedor]]
-        pares = (
-            de_su_categoria if len(de_su_categoria) >= MIN_PROVEEDORES_CATEGORIA else list(resumen)
-        )
+        pares = grupos[categorias[proveedor]]
         propios: dict[str, float] = {}
         for kpi in KPIS:
             valor = percentil(valores[kpi], [resumen[otro][0][kpi] for otro in pares])
             propios[kpi] = 100 - valor if kpi in INVERSOS else valor
         componentes[proveedor] = propios
         crudas[proveedor] = sum(pesos_kpi[kpi] * propios[kpi] for kpi in KPIS) / 100
+    # La contracción va hacia la media de sin_ajuste del mismo grupo que dio los percentiles.
     medias = {
-        categoria: statistics.mean(crudas[p] for p in proveedores)
-        for categoria, proveedores in por_categoria.items()
+        categoria: statistics.mean(crudas[p] for p in grupo) for categoria, grupo in grupos.items()
     }
     return {
         proveedor: Puntuacion(

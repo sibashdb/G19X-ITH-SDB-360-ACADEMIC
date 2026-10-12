@@ -1,3 +1,4 @@
+import statistics
 from datetime import date
 
 import pytest
@@ -8,6 +9,7 @@ from inteligencia.dominio.puntuacion import (
     KPIS,
     Mes,
     Pesos,
+    Puntuacion,
     contraer,
     historial,
     percentil,
@@ -166,3 +168,72 @@ def test_la_contraccion_acerca_a_la_media_sin_cruzarla(
 def test_pesos_no_negativos_que_suman_100_son_validos(cuatro: list[int]) -> None:
     pesos = dict(zip(KPIS, [*cuatro, 100 - sum(cuatro)], strict=True))
     assert validar_pesos(pesos) is None
+
+
+def _desempeno_constante(meses: int) -> list[Mes]:
+    return [
+        Mes(
+            sumar_meses(HOY, -i),
+            sla=99,
+            resolucion=4,
+            incidentes=0,
+            entregas=95,
+            satisfaccion=4.5,
+        )
+        for i in range(meses)
+    ]
+
+
+def test_meses_distintos_con_el_mismo_desempeno_puntuan_igual() -> None:
+    # Errores de punto flotante no deben separar a proveedores con el mismo desempeño constante.
+    desempeno = {f"p{meses}": _desempeno_constante(meses) for meses in range(1, 13)}
+    categorias = dict.fromkeys(desempeno, "nube")
+    puntuaciones = puntuar(desempeno, categorias, Pesos(), HOY)
+    assert len({p.sin_ajuste for p in puntuaciones.values()}) == 1
+    for p in puntuaciones.values():
+        assert p.componentes == dict.fromkeys(KPIS, 50.0)
+
+
+def _media_del_grupo(
+    proveedor: str, puntuaciones: dict[str, Puntuacion], categorias: dict[str, str]
+) -> float:
+    """Media de sin_ajuste del grupo de comparación: la categoría si tiene 20, si no todos."""
+    de_su_categoria = [q for q in puntuaciones if categorias[q] == categorias[proveedor]]
+    grupo = de_su_categoria if len(de_su_categoria) >= 20 else list(puntuaciones)
+    return statistics.mean(puntuaciones[q].sin_ajuste for q in grupo)
+
+
+def test_la_contraccion_usa_la_media_del_grupo_con_que_se_comparo() -> None:
+    # Dos categorías de menos de 20: el grupo de comparación son todos los proveedores.
+    buenos = {f"b{i}": _historia(0.85 + i * 0.01) for i in range(5)}
+    malos = {f"m{i}": _historia(0.1 + i * 0.01) for i in range(5)}
+    categorias = dict.fromkeys(buenos, "nube") | dict.fromkeys(malos, "soporte")
+    puntuaciones = puntuar(buenos | malos, categorias, Pesos(), HOY)
+    for nombre, p in puntuaciones.items():
+        media = _media_del_grupo(nombre, puntuaciones, categorias)
+        assert p.puntuacion == pytest.approx(contraer(p.sin_ajuste, media, p.meses))
+    # Una categoría de 20 o más se compara consigo misma; la de 3 se compara con todos.
+    nube = {f"n{i}": _historia(0.8 + i * 0.005) for i in range(20)}
+    soporte = {f"s{i}": _historia(0.1 + i * 0.005) for i in range(3)}
+    categorias = dict.fromkeys(nube, "nube") | dict.fromkeys(soporte, "soporte")
+    puntuaciones = puntuar(nube | soporte, categorias, Pesos(), HOY)
+    for nombre, p in puntuaciones.items():
+        media = _media_del_grupo(nombre, puntuaciones, categorias)
+        assert p.puntuacion == pytest.approx(contraer(p.sin_ajuste, media, p.meses))
+
+
+def test_contraer_con_k_6() -> None:
+    assert contraer(80, 50, 6) == 65
+    assert contraer(80, 50, 2) == pytest.approx(57.5)
+
+
+def test_con_menos_meses_la_puntuacion_se_acerca_mas_a_la_media() -> None:
+    desempeno = {f"p{i}": _historia(0.2 + i * 0.1) for i in range(5)}
+    desempeno["corto"] = _historia(0.9, meses=2)
+    desempeno["largo"] = _historia(0.9, meses=12)
+    categorias = dict.fromkeys(desempeno, "nube")
+    puntuaciones = puntuar(desempeno, categorias, Pesos(), HOY)
+    media = statistics.mean(p.sin_ajuste for p in puntuaciones.values())
+    corto, largo = puntuaciones["corto"], puntuaciones["largo"]
+    assert corto.sin_ajuste == pytest.approx(largo.sin_ajuste)
+    assert abs(corto.puntuacion - media) < abs(largo.puntuacion - media)
