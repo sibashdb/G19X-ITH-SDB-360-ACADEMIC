@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -133,3 +134,51 @@ def test_ahorro_en_riesgo_y_destacados() -> None:
 
 def test_sin_tipo_de_cambio_los_montos_en_usd_no_cuentan() -> None:
     assert calcular([USD, MXN], {}, {}, {}, 2, [], HOY).gasto_anual == Decimal("198000.00")
+
+
+def _por_mes(contratos: list[ContratoInfo], tipos: dict[date, Decimal]) -> dict[date, Decimal]:
+    return dict(calcular(contratos, tipos, {}, {}, 1, [], HOY).gasto_por_mes)
+
+
+def _mensual(inicio: date, fin: date) -> ContratoInfo:
+    """Contrato en MXN de 1,000 al mes."""
+    return ContratoInfo(
+        id="c-mes",
+        folio="C-0003",
+        proveedor_id="p-3",
+        proveedor="Red Maya",
+        tipo="nuevo",
+        fecha_inicio=inicio,
+        fecha_fin=fin,
+        moneda="MXN",
+        lineas=(
+            Linea("SOP-MES", "Soporte mensual", "soporte", "mes", Decimal("1"), Decimal("1000")),
+        ),
+    )
+
+
+def test_serie_convierte_cada_mes_con_su_tipo_de_cambio() -> None:
+    tipos = {date(2025, 9, 1): Decimal("17"), date(2026, 9, 1): Decimal("18")}
+    usd = replace(USD, fecha_inicio=date(2024, 1, 1), fecha_fin=date(2027, 12, 31))
+    serie = _por_mes([usd], tipos)
+    # 100 x 20 = 2,000 USD al mes. Antes del primer periodo se usa el más viejo (17).
+    assert serie[date(2024, 11, 1)] == Decimal("34000.00")
+    # Entre los dos periodos: 2,000 x 17.
+    assert serie[date(2025, 10, 1)] == Decimal("34000.00")
+    # Después del segundo periodo: 2,000 x 18.
+    assert serie[date(2026, 10, 1)] == Decimal("36000.00")
+
+
+def test_serie_cuenta_cada_contrato_solo_en_sus_meses() -> None:
+    desde_noviembre = _por_mes([_mensual(date(2025, 11, 1), date(2027, 12, 31))], {})
+    desde_mitad = _por_mes([_mensual(date(2025, 11, 15), date(2027, 12, 31))], {})
+    hasta_marzo = _por_mes([_mensual(date(2025, 1, 1), date(2026, 3, 31))], {})
+    # Empieza el 1 de noviembre: cuenta en noviembre y no en octubre.
+    assert desde_noviembre[date(2025, 10, 1)] == Decimal("0.00")
+    assert desde_noviembre[date(2025, 11, 1)] == Decimal("1000.00")
+    # Empieza el 15 de noviembre: también cuenta en todo noviembre.
+    assert desde_mitad[date(2025, 10, 1)] == Decimal("0.00")
+    assert desde_mitad[date(2025, 11, 1)] == Decimal("1000.00")
+    # Termina el 31 de marzo: cuenta en marzo y no en abril.
+    assert hasta_marzo[date(2026, 3, 1)] == Decimal("1000.00")
+    assert hasta_marzo[date(2026, 4, 1)] == Decimal("0.00")
