@@ -128,7 +128,10 @@ def linea_base(
     por_servicio: dict[str, list[float]] = defaultdict(list)
     for o in ventana:
         por_servicio[o.servicio].append(ajustado(o))
-    razones = [p / statistics.median(precios) for precios in por_servicio.values() for p in precios]
+    razones: list[float] = []
+    for precios in por_servicio.values():
+        mediana = statistics.median(precios)
+        razones.extend(p / mediana for p in precios)
     base = statistics.median(ajustado(o) for o in propios)
     relativa = cuartiles(razones)
     banda = Banda(relativa.p25 * base, relativa.p50 * base, relativa.p75 * base)

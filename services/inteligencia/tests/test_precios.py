@@ -82,6 +82,9 @@ def test_con_pocas_observaciones_usa_la_categoria_con_baja_confianza() -> None:
     # La mediana del servicio (20) con la dispersión relativa de la categoría.
     assert referencia.banda.p50 == pytest.approx(20.0)
     assert referencia.banda.p25 < 20.0 < referencia.banda.p75
+    # 12 razones 0.9, 0.95, 0.95, 1.0 (x6), 1.05, 1.05, 1.1; P25 y P75 por interpolación.
+    assert referencia.banda.p25 == pytest.approx(19.75)
+    assert referencia.banda.p75 == pytest.approx(20.25)
 
 
 def test_lleva_los_precios_viejos_a_la_fecha_por_inflacion() -> None:
