@@ -248,6 +248,12 @@ def hoy() -> date:
     return HOY
 
 
+@pytest.fixture(scope="session")
+def id_estable() -> Callable[[str], str]:
+    """`id_de` para las pruebas: el id que la carga de datos dio a un RFC, código o folio."""
+    return id_de
+
+
 @pytest.fixture
 def comprador(claves: ClavesPrueba) -> dict[str, str]:
     return {"Authorization": f"Bearer {claves.token('comprador')}"}

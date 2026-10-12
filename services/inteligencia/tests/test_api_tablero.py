@@ -6,12 +6,17 @@ from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from generador.modelo import DatosSinteticos, generar
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 pytestmark = pytest.mark.integracion
 
+Fabrica = async_sessionmaker[AsyncSession]
 Cargar = Callable[[DatosSinteticos], Awaitable[None]]
 AplicarEvento = Callable[[str, dict[str, Any]], Awaitable[None]]
+IdDe = Callable[[str], str]
 Cabeceras = dict[str, str]
 SEVERIDADES = {"alta": 0, "media": 1, "informativa": 2}
 
@@ -144,3 +149,130 @@ async def test_alertas_valida_los_filtros(
 ) -> None:
     respuesta = await cliente.get("/alertas", params=params, headers=comprador)
     assert respuesta.status_code == 422
+
+
+async def test_el_tablero_se_recalcula_al_cambiar_el_dia(
+    app: FastAPI, cliente: httpx.AsyncClient, comprador: Cabeceras, cargar: Cargar
+) -> None:
+    await cargar(generar(42, n_proveedores=10))
+    antes = (await cliente.get("/tablero", headers=comprador)).json()
+    assert antes["fecha"] == "2026-09-15"
+    app.state.hoy = lambda: date(2026, 9, 16)
+    despues = (await cliente.get("/tablero", headers=comprador)).json()
+    assert despues["fecha"] == "2026-09-16"
+
+
+def _con_contrato_vigente(datos: DatosSinteticos, hoy: date) -> set[str]:
+    """RFC de los proveedores con algún contrato vigente en `hoy`, de los datos generados."""
+    return {
+        fila["rfc_proveedor"]
+        for fila in datos.contratos
+        if date.fromisoformat(fila["fecha_inicio"]) <= hoy <= date.fromisoformat(fila["fecha_fin"])
+    }
+
+
+async def _con_alerta_de_riesgo(cliente: httpx.AsyncClient, cabeceras: Cabeceras) -> set[str]:
+    pagina = (
+        await cliente.get("/alertas", params={"tipo": "riesgo", "limite": 200}, headers=cabeceras)
+    ).json()
+    return {a["proveedor_id"] for a in pagina["elementos"]}
+
+
+async def test_un_proveedor_inactivo_sale_de_las_listas_pero_su_gasto_sigue(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    cargar: Cargar,
+    aplicar_evento: AplicarEvento,
+    fabrica: Fabrica,
+    id_estable: IdDe,
+    hoy: date,
+) -> None:
+    datos = generar(42, n_proveedores=15)
+    await cargar(datos)
+    # Con el umbral en 100, todo proveedor activo con puntuación tiene una alerta de riesgo.
+    async with fabrica() as sesion, sesion.begin():
+        await sesion.execute(
+            text("UPDATE configuracion SET umbral_riesgo = 100, actualizado_en = now()")
+        )
+    antes = (await cliente.get("/tablero", headers=comprador)).json()
+    assert Decimal(antes["gasto_anual"]) > 0
+    assert (
+        sum(rango["proveedores"] for rango in antes["distribucion"]) == antes["total_proveedores"]
+    )
+    destacados = {d["proveedor_id"] for d in antes["mejores"] + antes["peores"]}
+    con_contrato = _con_contrato_vigente(datos, hoy)
+    proveedor = next(
+        (
+            p
+            for p in datos.proveedores
+            if p.activo and p.rfc in con_contrato and id_estable(p.rfc) in destacados
+        ),
+        None,
+    )
+    assert proveedor is not None
+    id_proveedor = id_estable(proveedor.rfc)
+    assert id_proveedor in await _con_alerta_de_riesgo(cliente, comprador)
+
+    await aplicar_evento(
+        "proveedor.actualizado",
+        {
+            "id": id_proveedor,
+            "rfc": proveedor.rfc,
+            "nombre": proveedor.nombre,
+            "tamano": proveedor.tamano,
+            "categorias": list(proveedor.categorias),
+            "activo": False,
+        },
+    )
+
+    despues = (await cliente.get("/tablero", headers=comprador)).json()
+    assert despues["total_proveedores"] == antes["total_proveedores"] - 1
+    assert id_proveedor not in {d["proveedor_id"] for d in despues["mejores"] + despues["peores"]}
+    assert sum(r["proveedores"] for r in despues["distribucion"]) == despues["total_proveedores"]
+    assert id_proveedor not in await _con_alerta_de_riesgo(cliente, comprador)
+    assert despues["gasto_anual"] == antes["gasto_anual"]
+
+
+async def test_un_servicio_inactivo_no_se_cotiza_pero_sus_contratos_siguen_contando(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    cargar: Cargar,
+    aplicar_evento: AplicarEvento,
+    id_estable: IdDe,
+) -> None:
+    datos = generar(42, n_proveedores=15)
+    await cargar(datos)
+    antes = (await cliente.get("/tablero", headers=comprador)).json()
+    sobreprecios = (await cliente.get("/precios/sobreprecios", headers=comprador)).json()
+    assert Decimal(antes["gasto_anual"]) > 0 and sobreprecios
+    codigo = sobreprecios[0]["codigo_servicio"]
+    servicio = next(s for s in datos.servicios if s.codigo == codigo)
+    catalogo = (await cliente.get("/precios/servicios", headers=comprador)).json()
+    assert codigo in {s["codigo"] for s in catalogo}
+    filtro = {"tipo": "sobreprecio", "limite": 1}
+    alertas = (await cliente.get("/alertas", params=filtro, headers=comprador)).json()
+
+    await aplicar_evento(
+        "servicio.actualizado",
+        {
+            "id": id_estable(codigo),
+            "codigo": codigo,
+            "nombre": servicio.nombre,
+            "categoria": servicio.categoria,
+            "unidad": servicio.unidad,
+            "moneda": servicio.moneda,
+            "activo": False,
+        },
+    )
+
+    despues = (await cliente.get("/tablero", headers=comprador)).json()
+    assert despues["gasto_anual"] == antes["gasto_anual"]
+    assert despues["ahorro_potencial"] == antes["ahorro_potencial"]
+    catalogo = (await cliente.get("/precios/servicios", headers=comprador)).json()
+    assert codigo not in {s["codigo"] for s in catalogo}
+    del_servicio = (
+        await cliente.get("/precios/sobreprecios", params={"codigo": codigo}, headers=comprador)
+    ).json()
+    assert del_servicio == [f for f in sobreprecios if f["codigo_servicio"] == codigo]
+    alertas_despues = (await cliente.get("/alertas", params=filtro, headers=comprador)).json()
+    assert alertas_despues["total"] == alertas["total"]

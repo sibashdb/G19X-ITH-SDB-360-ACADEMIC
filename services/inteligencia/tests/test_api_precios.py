@@ -167,6 +167,30 @@ async def test_la_referencia_usa_el_modelo_activo(
     assert Decimal(ref["p25"]) <= Decimal(ref["p50"]) <= Decimal(ref["p75"])
 
 
+async def test_promover_un_modelo_con_el_contexto_ya_calculado_cambia_la_referencia(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    cargar: Cargar,
+    fabrica: Fabrica,
+    generadas: list[Observacion],
+    tmp_path: Path,
+) -> None:
+    await cargar(generar(42, n_proveedores=15))
+    servicio = await _mas_visto(cliente, comprador)  # deja el contexto calculado
+    ruta_referencia = f"/precios/servicios/{servicio['codigo']}/referencia"
+    antes = (
+        await cliente.get(ruta_referencia, params={"cantidad": "50"}, headers=comprador)
+    ).json()
+    assert (antes["metodo"], antes["version"]) == ("linea_base", None)
+    ruta = tmp_path / "modelo-v1.joblib"
+    guardar_modelo(ajustar_modelo(generadas, 0.045, version=1), ruta)
+    await _registrar_modelo(fabrica, str(ruta))
+    despues = (
+        await cliente.get(ruta_referencia, params={"cantidad": "50"}, headers=comprador)
+    ).json()
+    assert (despues["metodo"], despues["version"]) == ("modelo", 1)
+
+
 async def test_un_modelo_sin_artefacto_usa_la_linea_base(
     cliente: httpx.AsyncClient,
     comprador: Cabeceras,
