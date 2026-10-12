@@ -1,14 +1,16 @@
 """Consumidor de eventos de RabbitMQ con reconexión.
 
 Cada mensaje se entrega como sobre (un dict) a la función `atender` del servicio:
-- Un mensaje mal formado (`ValueError`, incluido `EventoInvalido`) se descarta: reintentarlo no lo
-  arregla.
+- Un mensaje mal formado (`ValueError`, incluido `EventoInvalido`) se rechaza sin reintentarlo,
+  porque no se arregla solo: la política de la topología lo manda a la cola de fallidos
+  (`<cola>.dlq`).
 - Una falla de la base de datos (`SQLAlchemyError`, u `OSError`: asyncpg relanza los errores de red
   sin envolverlos) espera `REINTENTO_S` y devuelve el mensaje a la cola. Tras 5 entregas fallidas,
   RabbitMQ lo manda a la cola de fallidos (ver comun.topologia).
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -39,7 +41,9 @@ async def atender_mensaje(mensaje: AbstractIncomingMessage, atender: Atender) ->
         await atender(sobre)
     except ValueError as exc:  # JSON inválido o EventoInvalido
         log.warning(
-            "Evento con forma inesperada; se descarta (mensaje %s): %r", mensaje.message_id, exc
+            "Evento con forma inesperada; va a la cola de fallidos (mensaje %s): %r",
+            mensaje.message_id,
+            exc,
         )
         await mensaje.reject(requeue=False)
         return
@@ -97,5 +101,7 @@ class ConsumidorEventos:
                 log.exception(
                     "Se interrumpió el consumo de eventos; se reintentará en %s s", REINTENTO_S
                 )
-                await self.cerrar()
+                # Cerrar una conexión rota puede fallar; el bucle no debe terminar por eso.
+                with contextlib.suppress(Exception):
+                    await self.cerrar()
                 await asyncio.sleep(REINTENTO_S)

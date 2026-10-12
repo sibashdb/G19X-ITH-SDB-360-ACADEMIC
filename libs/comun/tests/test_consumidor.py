@@ -57,7 +57,7 @@ async def test_un_evento_atendido_se_confirma() -> None:
 @pytest.mark.parametrize(
     "cuerpo", [b"no es json", b"[1, 2]", b"\xff\xfe"], ids=["texto", "lista", "binario"]
 )
-async def test_un_mensaje_mal_formado_se_descarta(cuerpo: bytes) -> None:
+async def test_un_mensaje_mal_formado_se_rechaza_sin_reintentarlo(cuerpo: bytes) -> None:
     anotaciones: list[tuple[Any, ...]] = []
 
     async def atender(_sobre: dict[str, Any]) -> None:
@@ -67,7 +67,7 @@ async def test_un_mensaje_mal_formado_se_descarta(cuerpo: bytes) -> None:
     assert anotaciones == [("reject", False)]
 
 
-async def test_un_evento_invalido_se_descarta() -> None:
+async def test_un_evento_invalido_se_rechaza_sin_reintentarlo() -> None:
     anotaciones: list[tuple[Any, ...]] = []
 
     async def atender(_sobre: dict[str, Any]) -> None:
@@ -103,6 +103,37 @@ async def test_si_falla_la_base_espera_y_devuelve_el_mensaje_a_la_cola(
     await atender_mensaje(_mensaje(json.dumps(SOBRE).encode(), anotaciones), atender)
     # Sin la espera, el mensaje volvería de inmediato y agotaría las 5 entregas en milisegundos.
     assert anotaciones == [("sleep", REINTENTO_S), ("reject", True)]
+
+
+async def test_si_cerrar_falla_el_consumidor_sigue_reintentando(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def atender(_sobre: dict[str, Any]) -> None:
+        pytest.fail("no debe llegar ningún mensaje")
+
+    consumidor = ConsumidorEventos("amqp://sin-conexion", Cola("prueba.eventos", ()), atender)
+    intentos: list[int] = []
+    esperas: list[float] = []
+
+    async def consumir() -> None:
+        intentos.append(1)
+        raise ConnectionError("se cayó la conexión")
+
+    async def cerrar() -> None:
+        raise ConnectionError("la conexión ya estaba rota")
+
+    async def dormir(segundos: float) -> None:
+        esperas.append(segundos)
+        if len(esperas) == 2:
+            raise asyncio.CancelledError  # termina el bucle, como al apagar el servicio
+
+    monkeypatch.setattr(consumidor, "_consumir", consumir)
+    monkeypatch.setattr(consumidor, "cerrar", cerrar)
+    monkeypatch.setattr(asyncio, "sleep", dormir)
+    with pytest.raises(asyncio.CancelledError):
+        await consumidor.ejecutar()
+    # Un cerrar() que falla no debe sacar al consumidor del bucle: sigue reintentando.
+    assert (len(intentos), esperas) == (2, [REINTENTO_S, REINTENTO_S])
 
 
 @pytest.fixture(scope="module")
