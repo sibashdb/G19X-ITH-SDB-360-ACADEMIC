@@ -29,6 +29,8 @@ TABLAS = (
     "proveedor, servicio, tipo_cambio, contrato, linea_contrato, desempeno, "
     "evento_procesado, modelo_benchmark, outbox"
 )
+HOY = date(2026, 9, 15)  # dos semanas después del último mes de los datos generados
+AplicarEvento = Callable[[str, dict[str, Any]], Awaitable[None]]
 CONFIGURACION_INICIAL = (
     "UPDATE configuracion SET peso_sla = 30, peso_resolucion = 20, peso_incidentes = 20, "
     "peso_entregas = 15, peso_satisfaccion = 15, umbral_riesgo = 40, inflacion_anual = 4.50, "
@@ -101,6 +103,7 @@ def app(
         ),
         claves.validador(),
         fabrica,
+        hoy=lambda: HOY,
     )
 
 
@@ -238,3 +241,29 @@ def cargar(fabrica: async_sessionmaker[AsyncSession]) -> Cargar:
                 await aplicar(sesion, sobre)
 
     return _cargar
+
+
+@pytest.fixture
+def hoy() -> date:
+    return HOY
+
+
+@pytest.fixture
+def comprador(claves: ClavesPrueba) -> dict[str, str]:
+    return {"Authorization": f"Bearer {claves.token('comprador')}"}
+
+
+@pytest.fixture
+def admin(claves: ClavesPrueba) -> dict[str, str]:
+    return {"Authorization": f"Bearer {claves.token('admin', sub='admin-1')}"}
+
+
+@pytest.fixture
+def aplicar_evento(fabrica: async_sessionmaker[AsyncSession]) -> AplicarEvento:
+    """Aplica un evento suelto, como si hubiera llegado por la cola."""
+
+    async def _aplicar(tipo: str, payload: dict[str, Any]) -> None:
+        async with fabrica() as sesion, sesion.begin():
+            await aplicar(sesion, {"event_id": str(uuid.uuid4()), "type": tipo, "payload": payload})
+
+    return _aplicar

@@ -2,8 +2,10 @@
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from comun.auth import ValidadorJWT, validador_desde_jwks
 from comun.consumidor import ConsumidorEventos
@@ -16,16 +18,21 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from inteligencia.api import precios, tablero
 from inteligencia.config import Configuracion
+from inteligencia.contexto import CacheContexto
 from inteligencia.entrenamiento import Entrenador
 from inteligencia.eventos import atendedor
 from inteligencia.modelos import Outbox
+
+ZONA_NEGOCIO = ZoneInfo("America/Mexico_City")  # el "hoy" del negocio
 
 
 def crear_app(
     configuracion: Configuracion | None = None,
     validador: ValidadorJWT | None = None,
     fabrica: async_sessionmaker[AsyncSession] | None = None,
+    hoy: Callable[[], date] | None = None,
 ) -> FastAPI:
     config = configuracion or Configuracion()
     configurar_logs(config.nombre_servicio, config.log_level)
@@ -64,6 +71,8 @@ def crear_app(
     )
     app.state.fabrica = sesiones
     app.state.config = config
+    app.state.hoy = hoy or (lambda: datetime.now(ZONA_NEGOCIO).date())
+    app.state.contexto = CacheContexto()
     app.state.consumidor = consumidor
     app.state.entrenador = entrenador
     app.state.validador = validador or validador_desde_jwks(
@@ -77,4 +86,6 @@ def crear_app(
             await sesion.execute(text("SELECT 1"))
 
     app.include_router(crear_router_salud({"postgres": verificar_postgres}))
+    app.include_router(tablero.router)
+    app.include_router(precios.router)
     return app
