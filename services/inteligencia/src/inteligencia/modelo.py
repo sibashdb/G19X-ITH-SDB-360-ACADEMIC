@@ -15,6 +15,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import sklearn
 from numpy.typing import NDArray
 from sklearn.ensemble import HistGradientBoostingRegressor
 
@@ -83,6 +84,9 @@ class ModeloPrecios:
     tasa_inflacion: float
     categorias: dict[str, list[str]]
     regresores: list[HistGradientBoostingRegressor]
+    # scikit-learn no garantiza que un modelo guardado funcione con otra versión: sin valor por
+    # omisión, un artefacto anterior a este campo no lo tiene y se descarta al cargarlo.
+    version_sklearn: str
 
     def conoce(self, servicio: str) -> bool:
         return servicio in self.categorias["servicio"]
@@ -120,7 +124,7 @@ def ajustar_modelo(
         )
         regresor.fit(x, y)
         regresores.append(regresor)
-    return ModeloPrecios(version, tasa_inflacion, categorias, regresores)
+    return ModeloPrecios(version, tasa_inflacion, categorias, regresores, sklearn.__version__)
 
 
 @dataclass(frozen=True)

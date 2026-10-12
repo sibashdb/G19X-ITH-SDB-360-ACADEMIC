@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 import pytest
+import sklearn
 from generador.modelo import DatosSinteticos, generar
 from inteligencia.dominio.precios import Observacion
 from inteligencia.modelo import ajustar_modelo, guardar_modelo
@@ -210,6 +211,43 @@ async def test_un_modelo_sin_artefacto_usa_la_linea_base(
     assert respuesta.status_code == 200
     assert respuesta.json()["metodo"] == "linea_base"
     assert "No se pudo cargar el modelo de precios v1" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("version_guardada", "en_el_aviso"),
+    [("0.0.1", "0.0.1"), (None, "desconocida")],
+    ids=["otra_version", "sin_el_campo"],
+)
+async def test_un_modelo_de_otra_version_de_scikit_learn_usa_la_linea_base(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    cargar: Cargar,
+    fabrica: Fabrica,
+    generadas: list[Observacion],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    version_guardada: str | None,
+    en_el_aviso: str,
+) -> None:
+    await cargar(generar(42, n_proveedores=15))
+    modelo = ajustar_modelo(generadas, 0.045, version=1)
+    if version_guardada is None:
+        del modelo.version_sklearn  # un artefacto anterior a este campo
+    else:
+        modelo.version_sklearn = version_guardada
+    ruta = tmp_path / "modelo-v1.joblib"
+    guardar_modelo(modelo, ruta)
+    await _registrar_modelo(fabrica, str(ruta))
+    servicio = await _mas_visto(cliente, comprador)
+    respuesta = await cliente.get(
+        f"/precios/servicios/{servicio['codigo']}/referencia",
+        params={"cantidad": "50"},
+        headers=comprador,
+    )
+    assert respuesta.status_code == 200
+    assert (respuesta.json()["metodo"], respuesta.json()["version"]) == ("linea_base", None)
+    assert "El modelo de precios v1 se entrenó con la versión" in caplog.text
+    assert f"{en_el_aviso} de scikit-learn y está instalada la {sklearn.__version__}" in caplog.text
 
 
 async def test_historial_de_precios(

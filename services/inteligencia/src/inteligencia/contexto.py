@@ -14,6 +14,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+import sklearn
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from inteligencia import consultas
@@ -270,13 +271,25 @@ def _cargar_modelo(registro: ModeloBenchmark | None) -> ModeloPrecios | None:
     if registro is None or registro.artefacto is None:
         return None
     try:
-        return cargar_modelo(Path(registro.artefacto))
+        modelo = cargar_modelo(Path(registro.artefacto))
     except Exception:
         # El volumen de modelos se perdió o el archivo está dañado: la línea base sigue sirviendo.
         log.exception(
             "No se pudo cargar el modelo de precios v%s; se usa la línea base", registro.version
         )
         return None
+    guardada = getattr(modelo, "version_sklearn", None)
+    if guardada != sklearn.__version__:
+        # Tras actualizar scikit-learn, el modelo guardado puede fallar o predecir distinto.
+        log.warning(
+            "El modelo de precios v%s se entrenó con la versión %s de scikit-learn y está "
+            "instalada la %s; se usa la línea base hasta reentrenarlo",
+            registro.version,
+            guardada or "desconocida",
+            sklearn.__version__,
+        )
+        return None
+    return modelo
 
 
 async def armar(sesion: AsyncSession, hoy: date) -> Contexto:

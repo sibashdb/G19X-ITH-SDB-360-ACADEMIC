@@ -2,6 +2,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+import sklearn
 from generador.modelo import generar
 from generador.salida import escribir
 from inteligencia.modelo import ModeloPrecios, Resultado
@@ -18,7 +19,13 @@ def _validacion(
     spearman: float = 0.92,
 ) -> Validacion:
     """Una validación armada a mano, sin entrenar: lo que importa son las métricas."""
-    modelo = ModeloPrecios(version=0, tasa_inflacion=0.045, categorias={}, regresores=[])
+    modelo = ModeloPrecios(
+        version=0,
+        tasa_inflacion=0.045,
+        categorias={},
+        regresores=[],
+        version_sklearn=sklearn.__version__,
+    )
     resultado = Resultado(
         modelo=modelo if promovido else None,
         observaciones=3553,

@@ -2,6 +2,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import pytest
+import sklearn
 from inteligencia.dominio.precios import Observacion
 from inteligencia.modelo import (
     Consulta,
@@ -89,4 +90,25 @@ def test_guardar_y_cargar(generadas: list[Observacion], tmp_path: Path) -> None:
     cargado = cargar_modelo(ruta)
     consulta = consulta_de(generadas[0])
     assert cargado.version == 5
+    assert cargado.version_sklearn == sklearn.__version__
     assert cargado.predecir([consulta]) == modelo.predecir([consulta])
+
+
+def test_si_el_modelo_falla_al_predecir_se_usa_la_linea_base(
+    generadas: list[Observacion],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    modelo = ajustar_modelo(generadas, INFLACION, version=4)
+
+    def falla(_consultas: object) -> None:
+        raise ValueError("el artefacto no es compatible con esta versión")
+
+    monkeypatch.setattr(modelo, "predecir", falla)
+    o = generadas[0]
+    consulta = Consulta(o.servicio, o.categoria, o.moneda, 100.0, 12, o.fecha)
+    [con_falla] = referencias([consulta], _por_categoria(generadas), modelo, INFLACION)
+    [sin_modelo] = referencias([consulta], _por_categoria(generadas), None, INFLACION)
+    assert con_falla is not None and con_falla.metodo == "linea_base"
+    assert con_falla == sin_modelo
+    assert "El modelo de precios v4 falló al predecir" in caplog.text
