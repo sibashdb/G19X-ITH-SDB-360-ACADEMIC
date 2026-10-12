@@ -19,6 +19,6 @@ Meta: MAPE del P50 ≤ 15.0 % y cobertura entre 40.0 % y 60.0 %. En uso: el mode
 
 | Medida | Valor | Meta |
 |---|---|---|
-| Spearman entre la puntuación y la calidad oculta | 0.924 | ≥ 0.8 |
+| Spearman entre la puntuación y la calidad oculta | 0.923 | ≥ 0.8 |
 
 Con los pesos por defecto. Cumple: sí.

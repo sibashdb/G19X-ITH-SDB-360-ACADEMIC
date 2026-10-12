@@ -237,3 +237,20 @@ def test_con_menos_meses_la_puntuacion_se_acerca_mas_a_la_media() -> None:
     corto, largo = puntuaciones["corto"], puntuaciones["largo"]
     assert corto.sin_ajuste == pytest.approx(largo.sin_ajuste)
     assert abs(corto.puntuacion - media) < abs(largo.puntuacion - media)
+
+
+def test_los_meses_son_todo_el_historial_hasta_la_fecha_y_no_solo_los_de_la_ventana() -> None:
+    desempeno = {f"p{i}": _historia(0.2 + i * 0.1) for i in range(5)}
+    desempeno["doce"] = _historia(0.9, meses=12)
+    desempeno["veinticuatro"] = _historia(0.9, meses=24)
+    categorias = dict.fromkeys(desempeno, "nube")
+    puntuaciones = puntuar(desempeno, categorias, Pesos(), HOY)
+    media = statistics.mean(p.sin_ajuste for p in puntuaciones.values())
+    doce, veinticuatro = puntuaciones["doce"], puntuaciones["veinticuatro"]
+    assert (doce.meses, veinticuatro.meses) == (12, 24)
+    # Mismo desempeño en la ventana: la misma puntuación sin ajuste; contrae menos el de 24 meses.
+    assert veinticuatro.sin_ajuste == pytest.approx(doce.sin_ajuste)
+    assert abs(veinticuatro.puntuacion - media) > abs(doce.puntuacion - media)
+    # El historial posterior a la fecha de cálculo no cuenta.
+    antes = puntuar(desempeno, categorias, Pesos(), sumar_meses(HOY, -6))
+    assert antes["veinticuatro"].meses == 18

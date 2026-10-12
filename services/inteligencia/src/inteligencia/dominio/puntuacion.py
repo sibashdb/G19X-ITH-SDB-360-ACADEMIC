@@ -8,7 +8,9 @@
 3. Los percentiles se combinan con los pesos (que suman 100).
 4. Contracción bayesiana hacia la media del grupo con que se comparó: su categoría o, con menos
    de 20, todos. Con pocos meses de historia, la puntuación se acerca a esa media en vez de quedar
-   en un extremo.
+   en un extremo. Los meses que pesan son todo el historial de desempeño hasta la fecha de cálculo,
+   sin el tope de 12 de la ventana de los promedios: con el tope, hasta el proveedor más antiguo se
+   acercaría un tercio a la media.
 """
 
 import statistics
@@ -62,7 +64,7 @@ def validar_pesos(pesos: Mapping[str, int]) -> str | None:
 class Puntuacion:
     puntuacion: float  # ajustada por la contracción; la que se muestra
     sin_ajuste: float
-    meses: int  # meses con desempeño dentro de la ventana
+    meses: int  # todo el historial de desempeño hasta la fecha, no solo la ventana de 12
     componentes: dict[str, float]  # percentil de cada KPI, más es mejor
     valores: dict[str, float]  # promedio ponderado de cada KPI
 
@@ -72,21 +74,27 @@ class Puntuacion:
 
 
 def promedio_ponderado(meses: Sequence[Mes], hasta: date) -> tuple[dict[str, float], int] | None:
+    """El promedio de cada KPI en la ventana y los meses de historial hasta `hasta`.
+
+    None si no hay ningún mes dentro de la ventana.
+    """
     sumas = dict.fromkeys(KPIS, 0.0)
     peso_total = 0.0
-    contados = 0
+    historial = 0
     for mes in meses:
         antiguedad = meses_entre(mes.periodo, hasta)
-        if 0 <= antiguedad < VENTANA_MESES:
+        if antiguedad < 0:
+            continue
+        historial += 1
+        if antiguedad < VENTANA_MESES:
             peso = 0.5 ** (antiguedad / VIDA_MEDIA_MESES)
             peso_total += peso
-            contados += 1
             for kpi in KPIS:
                 sumas[kpi] += peso * getattr(mes, kpi)
-    if contados == 0:
+    if peso_total == 0:
         return None
     # Redondear: el promedio con meses distintos deja ruido de punto flotante que rompe los empates.
-    return {kpi: round(suma / peso_total, 9) for kpi, suma in sumas.items()}, contados
+    return {kpi: round(suma / peso_total, 9) for kpi, suma in sumas.items()}, historial
 
 
 def percentil(valor: float, todos: Sequence[float]) -> float:
