@@ -42,7 +42,7 @@ const EDITABLES = ["nombre", "categoria", "unidad", "moneda"] as const
 const AYUDA_CODIGO =
   "Letras, números y guiones (3 a 30). No cambia después de crearlo: las importaciones lo usan para identificar el servicio."
 const AVISO_CONTRATOS =
-  "La categoría y la moneda no se pueden cambiar: el servicio ya tiene contratos y sus precios dependen de ellas."
+  "La categoría, la unidad y la moneda no se pueden cambiar: el servicio ya tiene contratos y sus precios dependen de ellas."
 
 /** Alta (servicio null) o edición de un servicio del catálogo, en un panel lateral. */
 export function FormularioServicio({
@@ -251,7 +251,8 @@ export function FormularioServicio({
           {campoLista(
             "unidad",
             "Unidad",
-            UNIDADES.map((u) => [u, NOMBRES_UNIDAD[u]])
+            UNIDADES.map((u) => [u, NOMBRES_UNIDAD[u]]),
+            true
           )}
           {campoLista(
             "moneda",

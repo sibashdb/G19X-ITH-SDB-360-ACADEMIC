@@ -100,9 +100,10 @@ async def test_la_cli_imprime_un_resumen_por_entidad(
     assert salida.err == ""
     folios = len({fila["folio"] for fila in datos.contratos})
     assert salida.out.splitlines() == [
-        "servicios: 40 registros, 0 omitidos, 0 eventos",
+        "servicios: 40 registros, 0 omitidos, 40 eventos",
         "proveedores: 3 registros, 0 omitidos, 3 eventos",
-        f"tipo_cambio: {len(datos.tipo_cambio)} registros, 0 omitidos, 0 eventos",
+        f"tipo_cambio: {len(datos.tipo_cambio)} registros, 0 omitidos, "
+        f"{len(datos.tipo_cambio)} eventos",
         f"contratos: {folios} registros, 0 omitidos, {folios} eventos",
         f"desempeno: {len(datos.desempeno)} registros, 0 omitidos, {len(datos.desempeno)} eventos",
     ]

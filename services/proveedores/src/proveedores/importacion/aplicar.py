@@ -2,6 +2,8 @@
 
 import uuid
 from dataclasses import asdict, dataclass
+from datetime import date
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -98,6 +100,27 @@ def registrar_rechazo(
     )
 
 
+# El catálogo de un servicio con contratos no cambia en lo que define sus precios.
+CAMPOS_BLOQUEADOS_CON_CONTRATOS = {"categoria": "categoría", "unidad": "unidad", "moneda": "moneda"}
+
+
+def copia_servicio(servicio: ServicioCatalogo) -> dict[str, Any]:
+    """Payload de servicio.actualizado sin cambio ni actor: el estado, no una acción."""
+    return {
+        "id": servicio.id,
+        "codigo": servicio.codigo,
+        "nombre": servicio.nombre,
+        "categoria": servicio.categoria,
+        "unidad": servicio.unidad,
+        "moneda": servicio.moneda,
+        "activo": servicio.activo,
+    }
+
+
+def copia_tipo_cambio(periodo: date, usd_mxn: Decimal) -> dict[str, Any]:
+    return {"periodo": periodo, "usd_mxn": usd_mxn}
+
+
 class ErrorImportacion(ErrorDominio):
     def __init__(self, errores: list[ErrorFila]) -> None:
         super().__init__(
@@ -138,16 +161,47 @@ async def importar(sesion: AsyncSession, entidad: Entidad, contenido: bytes) -> 
 
 async def _servicios(sesion: AsyncSession, contenido: bytes) -> ResumenImportacion:
     resultado = leer_csv(contenido, FilaServicio)
-    _exigir_sin_errores(resultado.errores + duplicados(resultado, lambda f: f.codigo, "codigo"))
-    datos = [fila.model_dump() for _, fila in resultado.filas]
-    if datos:
-        consulta = insert(ServicioCatalogo)
-        consulta = consulta.on_conflict_do_update(
-            index_elements=[ServicioCatalogo.codigo],
-            set_={c: consulta.excluded[c] for c in ("nombre", "categoria", "unidad", "moneda")},
+    errores = resultado.errores + duplicados(resultado, lambda f: f.codigo, "codigo")
+    codigos = [fila.codigo for _, fila in resultado.filas]
+    existentes = {
+        s.codigo: s
+        for s in await sesion.scalars(
+            select(ServicioCatalogo).where(ServicioCatalogo.codigo.in_(codigos))
         )
-        await sesion.execute(consulta, datos)
-    return ResumenImportacion(Entidad.SERVICIOS, len(datos), len(datos), 0, 0)
+    }
+    con_contratos = set(
+        await sesion.scalars(
+            select(LineaContrato.servicio_id)
+            .where(LineaContrato.servicio_id.in_([s.id for s in existentes.values()]))
+            .distinct()
+        )
+    )
+    for numero, fila in resultado.filas:
+        actual = existentes.get(fila.codigo)
+        if actual is None or actual.id not in con_contratos:
+            continue
+        errores += [
+            ErrorFila(
+                numero, campo, f"El servicio tiene contratos: no se puede cambiar la {nombre}"
+            )
+            for campo, nombre in CAMPOS_BLOQUEADOS_CON_CONTRATOS.items()
+            if getattr(fila, campo) != getattr(actual, campo)
+        ]
+    _exigir_sin_errores(errores)
+    datos = [fila.model_dump() for _, fila in resultado.filas]
+    if not datos:
+        return ResumenImportacion(Entidad.SERVICIOS, 0, 0, 0, 0)
+    insercion = insert(ServicioCatalogo)
+    consulta = insercion.on_conflict_do_update(
+        index_elements=[ServicioCatalogo.codigo],
+        set_={c: insercion.excluded[c] for c in ("nombre", "categoria", "unidad", "moneda")},
+    ).returning(ServicioCatalogo)
+    servicios = (
+        await sesion.scalars(consulta, datos, execution_options={"populate_existing": True})
+    ).all()
+    for servicio in servicios:
+        registrar_evento(sesion, Outbox, "servicio.actualizado", copia_servicio(servicio))
+    return ResumenImportacion(Entidad.SERVICIOS, len(datos), len(servicios), 0, len(servicios))
 
 
 async def _proveedores(sesion: AsyncSession, contenido: bytes) -> ResumenImportacion:
@@ -191,7 +245,14 @@ async def _tipo_cambio(sesion: AsyncSession, contenido: bytes) -> ResumenImporta
             index_elements=[TipoCambio.periodo], set_={"usd_mxn": consulta.excluded.usd_mxn}
         )
         await sesion.execute(consulta, datos)
-    return ResumenImportacion(Entidad.TIPO_CAMBIO, len(datos), len(datos), 0, 0)
+    for fila in datos:
+        registrar_evento(
+            sesion,
+            Outbox,
+            "tipo_cambio.registrado",
+            copia_tipo_cambio(fila["periodo"], fila["usd_mxn"]),
+        )
+    return ResumenImportacion(Entidad.TIPO_CAMBIO, len(datos), len(datos), 0, len(datos))
 
 
 async def _desempeno(sesion: AsyncSession, contenido: bytes) -> ResumenImportacion:

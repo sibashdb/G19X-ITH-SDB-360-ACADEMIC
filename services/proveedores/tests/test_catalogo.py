@@ -50,7 +50,7 @@ async def _eventos_servicio(fabrica: async_sessionmaker[AsyncSession]) -> list[d
         filas = await sesion.scalars(
             select(Outbox).where(Outbox.tipo == "servicio.actualizado").order_by(Outbox.ocurrido_en)
         )
-        return [f.payload for f in filas]
+        return [f.payload for f in filas if "cambio" in f.payload]
 
 
 async def test_lista_solo_activos_y_marca_los_que_tienen_contratos(
@@ -170,21 +170,26 @@ async def test_desactivar_lo_oculta_y_activar_lo_devuelve(
     assert [e["cambio"] for e in await _eventos_servicio(fabrica)] == ["desactivado", "activado"]
 
 
-async def test_categoria_y_moneda_bloqueadas_con_contratos(
+async def test_categoria_unidad_y_moneda_bloqueadas_con_contratos(
     con_catalogo: httpx.AsyncClient, claves: ClavesPrueba
 ) -> None:
     admin = _auth(claves, "admin")
     bloqueado = await con_catalogo.patch(
-        "/servicios/SAAS-OFI-EMP", json={"categoria": "nube", "moneda": "MXN"}, headers=admin
+        "/servicios/SAAS-OFI-EMP",
+        json={"categoria": "nube", "unidad": "vcpu_mes", "moneda": "MXN"},
+        headers=admin,
     )
     assert bloqueado.status_code == 409
     assert bloqueado.json()["codigo"] == "servicio_con_contratos"
-    assert [e["campo"] for e in bloqueado.json()["errores"]] == ["categoria", "moneda"]
+    assert bloqueado.json()["detail"] == (
+        "El servicio ya tiene contratos: su categoría, su unidad y su moneda no se pueden cambiar."
+    )
+    assert [e["campo"] for e in bloqueado.json()["errores"]] == ["categoria", "unidad", "moneda"]
     libre = await con_catalogo.patch(
-        "/servicios/SOP-MESA-TK", json={"categoria": "consultoria"}, headers=admin
+        "/servicios/SOP-MESA-TK", json={"categoria": "consultoria", "unidad": "hora"}, headers=admin
     )
     assert libre.status_code == 200
-    assert libre.json()["categoria"] == "consultoria"
+    assert (libre.json()["categoria"], libre.json()["unidad"]) == ("consultoria", "hora")
 
 
 async def test_editar_sin_cambios_no_publica_nada(

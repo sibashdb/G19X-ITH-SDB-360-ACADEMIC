@@ -19,7 +19,7 @@ Sesion = Annotated[AsyncSession, Depends(obtener_sesion)]
 Interno = Annotated[Usuario, Depends(requiere_rol(*ROLES_INTERNOS))]
 Admin = Annotated[Usuario, Depends(requiere_rol("admin"))]
 CodigoEnRuta = Annotated[str, Path(pattern=r"^[A-Za-z0-9-]{3,30}$")]
-CAMPOS_CON_CONTRATOS = ("categoria", "moneda")  # los precios históricos dependen de ellos
+CAMPOS_CON_CONTRATOS = ("categoria", "unidad", "moneda")  # los precios históricos dependen de ellos
 
 router = APIRouter(tags=["catalogo"])
 
@@ -137,7 +137,8 @@ async def editar_servicio(
             raise ErrorDominio(
                 409,
                 "Conflicto",
-                "El servicio ya tiene contratos: su categoría y su moneda no se pueden cambiar.",
+                "El servicio ya tiene contratos: su categoría, su unidad y su moneda no se pueden "
+                "cambiar.",
                 {
                     "codigo": "servicio_con_contratos",
                     "errores": [

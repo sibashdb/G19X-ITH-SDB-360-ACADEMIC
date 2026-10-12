@@ -7,7 +7,14 @@ from proveedores.importacion.aplicar import (
     ResumenImportacion,
     importar,
 )
-from proveedores.modelos import Contrato, Outbox, Proveedor, RegistroDesempeno, TipoCambio
+from proveedores.modelos import (
+    Contrato,
+    Outbox,
+    Proveedor,
+    RegistroDesempeno,
+    ServicioCatalogo,
+    TipoCambio,
+)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -164,13 +171,54 @@ async def test_desempeno_se_actualiza_por_periodo(fabrica: Fabrica) -> None:
     assert len(await _eventos(fabrica, "desempeno.registrado")) == 4
 
 
-async def test_tipo_cambio_se_actualiza_sin_eventos(fabrica: Fabrica) -> None:
+async def test_tipo_cambio_se_actualiza_y_publica_cada_periodo(fabrica: Fabrica) -> None:
     await _importar(fabrica, Entidad.TIPO_CAMBIO, "periodo,usd_mxn\n2025-01-01,20.4512\n")
-    await _importar(fabrica, Entidad.TIPO_CAMBIO, "periodo,usd_mxn\n2025-01-01,20.1000\n")
+    resumen = await _importar(fabrica, Entidad.TIPO_CAMBIO, "periodo,usd_mxn\n2025-01-01,20.1000\n")
+    assert resumen == ResumenImportacion("tipo_cambio", 1, 1, 0, 1)
     async with fabrica() as sesion:
         [valor] = (await sesion.scalars(select(TipoCambio.usd_mxn))).all()
     assert valor == Decimal("20.1000")
-    assert await _contar(fabrica, Outbox) == 0
+    eventos = sorted(await _eventos(fabrica, "tipo_cambio.registrado"), key=lambda e: e.ocurrido_en)
+    assert [e.payload for e in eventos] == [
+        {"periodo": "2025-01-01", "usd_mxn": "20.4512"},
+        {"periodo": "2025-01-01", "usd_mxn": "20.1000"},
+    ]
+
+
+async def test_importar_servicios_publica_una_copia_por_servicio(fabrica: Fabrica) -> None:
+    resumen = await _importar(fabrica, Entidad.SERVICIOS, SERVICIOS)
+    assert resumen == ResumenImportacion("servicios", 2, 2, 0, 2)
+    eventos = await _eventos(fabrica, "servicio.actualizado")
+    [copia] = [e.payload for e in eventos if e.payload["codigo"] == "CONS-DEV-SR"]
+    # Una copia es el estado del servicio, no una acción: no lleva cambio, campos ni actor.
+    assert set(copia) == {"id", "codigo", "nombre", "categoria", "unidad", "moneda", "activo"}
+    assert (copia["categoria"], copia["unidad"], copia["moneda"], copia["activo"]) == (
+        "consultoria",
+        "hora",
+        "MXN",
+        True,
+    )
+
+
+async def test_con_contratos_no_cambia_categoria_unidad_ni_moneda(fabrica: Fabrica) -> None:
+    await _catalogo_y_proveedores(fabrica)
+    await _importar(fabrica, Entidad.CONTRATOS, CONTRATOS)
+    cambiado = SERVICIOS.replace("consultoria,hora,MXN", "soporte,ticket,USD")
+    with pytest.raises(ErrorImportacion) as error:
+        await _importar(fabrica, Entidad.SERVICIOS, cambiado)
+    assert [(e.fila, e.campo, e.mensaje) for e in error.value.errores] == [
+        (3, "categoria", "El servicio tiene contratos: no se puede cambiar la categoría"),
+        (3, "moneda", "El servicio tiene contratos: no se puede cambiar la moneda"),
+        (3, "unidad", "El servicio tiene contratos: no se puede cambiar la unidad"),
+    ]
+    # El nombre sí se puede cambiar aunque haya contratos.
+    renombrado = SERVICIOS.replace("Desarrollador(a) senior - hora", "Desarrollo senior")
+    await _importar(fabrica, Entidad.SERVICIOS, renombrado)
+    async with fabrica() as sesion:
+        nombre = await sesion.scalar(
+            select(ServicioCatalogo.nombre).where(ServicioCatalogo.codigo == "CONS-DEV-SR")
+        )
+    assert nombre == "Desarrollo senior"
 
 
 async def test_archivo_solo_con_encabezado_no_hace_nada(fabrica: Fabrica) -> None:

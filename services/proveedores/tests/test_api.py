@@ -111,7 +111,7 @@ async def test_importar_devuelve_resumen(cliente: httpx.AsyncClient, claves: Cla
         "filas": 2,
         "registros": 2,
         "omitidos": 0,
-        "eventos": 0,
+        "eventos": 2,
     }
 
 
@@ -128,7 +128,7 @@ async def test_importar_registra_resumen_y_usuario_sin_contenido_ni_token(
     assert respuesta.status_code == 200
     [registro] = [r for r in caplog.records if r.name == "proveedores.api.rutas"]
     assert registro.getMessage() == (
-        "Importación de servicios confirmada: 2 filas, 2 registros, 0 omitidos, 0 eventos "
+        "Importación de servicios confirmada: 2 filas, 2 registros, 0 omitidos, 2 eventos "
         "(usuario admin-42)"
     )
     assert "SAAS-OFI-EMP" not in caplog.text

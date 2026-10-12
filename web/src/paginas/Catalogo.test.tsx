@@ -196,7 +196,7 @@ describe("Catalogo", () => {
     )
   })
 
-  it("con contratos bloquea categoría y moneda y solo envía lo que cambió", async () => {
+  it("con contratos bloquea categoría, unidad y moneda y solo envía lo que cambió", async () => {
     const simulado = catalogo()
     renderizarPagina(<Catalogo />, { ruta: "/sistema/catalogo" })
     await screen.findByText("Suite de productividad")
@@ -204,11 +204,11 @@ describe("Catalogo", () => {
       screen.getByRole("button", { name: "Editar SAAS-OFI-EMP" })
     )
     expect(screen.getByLabelText("Código")).toHaveAttribute("readonly")
-    for (const combo of ["Categoría", "Moneda"]) {
+    for (const combo of ["Categoría", "Unidad", "Moneda"]) {
       const campo = screen.getByRole("combobox", { name: combo })
       expect(campo).toBeDisabled()
       expect(campo).toHaveAccessibleDescription(
-        "La categoría y la moneda no se pueden cambiar: el servicio ya tiene contratos y sus precios dependen de ellas."
+        "La categoría, la unidad y la moneda no se pueden cambiar: el servicio ya tiene contratos y sus precios dependen de ellas."
       )
     }
     const nombre = screen.getByLabelText("Nombre")
