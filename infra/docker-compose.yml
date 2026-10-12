@@ -43,7 +43,7 @@ services:
       retries: 12
 
   rabbitmq-topologia:
-    image: curlimages/curl:8.11.1
+    image: curlimages/curl:8.22.0
     # Declara colas, enlaces y colas de fallidos antes de que alguien publique. La API de
     # administración fusiona: no borra nada ni toca los usuarios. Aplicarla de nuevo no cambia nada.
     environment:
