@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from inteligencia.config import Configuracion
+from inteligencia.entrenamiento import Entrenador
 from inteligencia.eventos import atendedor
 from inteligencia.modelos import Outbox
 
@@ -34,6 +35,7 @@ def crear_app(
     )
     relay = RelayOutbox(sesiones, Outbox, config.rabbitmq_url)
     consumidor = ConsumidorEventos(config.rabbitmq_url, COLA_INTELIGENCIA, atendedor(sesiones))
+    entrenador = Entrenador(sesiones, config.directorio_modelos)
 
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
@@ -42,6 +44,8 @@ def crear_app(
             await relay.conectar()
             tareas.append(asyncio.create_task(relay.ejecutar()))
             tareas.append(asyncio.create_task(consumidor.ejecutar()))
+        if config.entrenamiento_automatico:
+            tareas.append(asyncio.create_task(entrenador.ejecutar_periodicamente()))
         yield
         for tarea in tareas:
             tarea.cancel()
@@ -61,6 +65,7 @@ def crear_app(
     app.state.fabrica = sesiones
     app.state.config = config
     app.state.consumidor = consumidor
+    app.state.entrenador = entrenador
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )

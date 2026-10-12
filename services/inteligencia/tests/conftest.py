@@ -1,6 +1,10 @@
 import os
-from collections.abc import AsyncIterator, Iterator
+import uuid
+from collections import defaultdict
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from datetime import date
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -8,7 +12,10 @@ from alembic import command
 from alembic.config import Config
 from comun.pruebas import ClavesPrueba
 from fastapi import FastAPI
+from generador.modelo import DatosSinteticos, generar
 from inteligencia.config import Configuracion
+from inteligencia.dominio.precios import Observacion, plazo_en_meses
+from inteligencia.eventos import aplicar
 from inteligencia.main import crear_app
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
@@ -102,3 +109,132 @@ async def cliente(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
     transporte = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as cliente:
         yield cliente
+
+
+# Datos del generador como observaciones (para el dominio) y como eventos (para la copia local).
+ESPACIO = uuid.UUID("0b8f4c1e-7c55-4c5f-9a43-2f6f0a1d3b10")
+Cargar = Callable[[DatosSinteticos], Awaitable[None]]
+
+
+def id_de(clave: str) -> str:
+    """Un id estable por RFC, código o folio: el mismo dato da el mismo id en cada prueba."""
+    return str(uuid.uuid5(ESPACIO, clave))
+
+
+def observaciones(datos: DatosSinteticos) -> list[Observacion]:
+    servicios = {s.codigo: s for s in datos.servicios}
+    tamanos = {p.rfc: p.tamano for p in datos.proveedores}
+    resultado = []
+    for fila in datos.contratos:
+        servicio = servicios[fila["codigo_servicio"]]
+        inicio = date.fromisoformat(fila["fecha_inicio"])
+        fin = date.fromisoformat(fila["fecha_fin"])
+        resultado.append(
+            Observacion(
+                servicio=servicio.codigo,
+                categoria=servicio.categoria,
+                moneda=servicio.moneda,
+                fecha=inicio,
+                cantidad=float(fila["cantidad"]),
+                precio=float(fila["precio_unitario"]),
+                plazo_meses=plazo_en_meses(inicio, fin),
+                tamano=tamanos[fila["rfc_proveedor"]],
+                tipo=fila["tipo"],
+            )
+        )
+    return resultado
+
+
+def sobres(datos: DatosSinteticos) -> list[dict[str, Any]]:
+    """Los eventos que publicaría proveedores al importar esos datos, en el orden de carga."""
+    eventos: list[tuple[str, dict[str, Any]]] = []
+    for s in datos.servicios:
+        eventos.append(
+            (
+                "servicio.actualizado",
+                {
+                    "id": id_de(s.codigo),
+                    "codigo": s.codigo,
+                    "nombre": s.nombre,
+                    "categoria": s.categoria,
+                    "unidad": s.unidad,
+                    "moneda": s.moneda,
+                    "activo": True,
+                },
+            )
+        )
+    for p in datos.proveedores:
+        eventos.append(
+            (
+                "proveedor.actualizado",
+                {
+                    "id": id_de(p.rfc),
+                    "rfc": p.rfc,
+                    "nombre": p.nombre,
+                    "tamano": p.tamano,
+                    "categorias": list(p.categorias),
+                    "activo": p.activo,
+                },
+            )
+        )
+    eventos += [("tipo_cambio.registrado", dict(fila)) for fila in datos.tipo_cambio]
+    servicios = {s.codigo: s for s in datos.servicios}
+    por_folio: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for fila in datos.contratos:
+        por_folio[fila["folio"]].append(fila)
+    for folio, lineas in por_folio.items():
+        cabecera = lineas[0]
+        eventos.append(
+            (
+                "contrato.registrado",
+                {
+                    "id": id_de(folio),
+                    "proveedor_id": id_de(cabecera["rfc_proveedor"]),
+                    "folio": folio,
+                    "tipo": cabecera["tipo"],
+                    "fecha_inicio": cabecera["fecha_inicio"],
+                    "fecha_fin": cabecera["fecha_fin"],
+                    "moneda": cabecera["moneda"],
+                    "lineas": [
+                        {
+                            "codigo_servicio": linea["codigo_servicio"],
+                            "categoria": servicios[linea["codigo_servicio"]].categoria,
+                            "unidad": servicios[linea["codigo_servicio"]].unidad,
+                            "cantidad": linea["cantidad"],
+                            "precio_unitario": linea["precio_unitario"],
+                        }
+                        for linea in lineas
+                    ],
+                },
+            )
+        )
+    for fila in datos.desempeno:
+        eventos.append(
+            (
+                "desempeno.registrado",
+                {"proveedor_id": id_de(fila["rfc_proveedor"])}
+                | {k: v for k, v in fila.items() if k != "rfc_proveedor"},
+            )
+        )
+    return [
+        {"event_id": str(uuid.uuid4()), "type": tipo, "payload": payload}
+        for tipo, payload in eventos
+    ]
+
+
+@pytest.fixture(scope="session")
+def generadas() -> list[Observacion]:
+    """Las líneas de contrato de 30 proveedores generados, como precios observados."""
+    return observaciones(generar(42, n_proveedores=30))
+
+
+@pytest.fixture
+def cargar(fabrica: async_sessionmaker[AsyncSession]) -> Cargar:
+    """Aplica todos los eventos de los datos en una sola transacción (rápido para las pruebas)."""
+
+    async def _cargar(datos: DatosSinteticos) -> None:
+        async with fabrica() as sesion, sesion.begin():
+            for sobre in sobres(datos):
+                await aplicar(sesion, sobre)
+
+    return _cargar
