@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+from decimal import Decimal
 from pathlib import Path
 
 import httpx
@@ -200,6 +201,45 @@ def verificar_operacion(cliente: httpx.Client) -> None:
     raise SystemExit("FALLA: los cambios del catálogo no llegaron a la bitácora en 30 s")
 
 
+ESPERA_COPIA_S = 180
+
+
+def verificar_inteligencia(cliente: httpx.Client) -> None:
+    """La copia local de inteligencia recibe lo importado y los cambios del catálogo."""
+    admin = token_de(cliente, "admin1")
+    comprador = token_de(cliente, "comprador1")
+    # Inteligencia se llena por eventos: con el dataset completo tarda alrededor de un minuto.
+    limite = time.monotonic() + ESPERA_COPIA_S
+    while True:
+        tablero = cliente.get("/api/inteligencia/tablero", headers=comprador)
+        verificar(tablero.status_code == 200, f"el tablero de inteligencia falló: {tablero.text}")
+        cuerpo = tablero.json()
+        if cuerpo["total_proveedores"] > 0 and Decimal(cuerpo["gasto_anual"]) > 0:
+            break
+        verificar(
+            time.monotonic() < limite,
+            f"los datos importados no llegaron a inteligencia en {ESPERA_COPIA_S} s",
+        )
+        time.sleep(2)
+    limite = time.monotonic() + 30
+    while True:
+        servicios = cliente.get("/api/inteligencia/precios/servicios", headers=comprador)
+        verificar(
+            servicios.status_code == 200, f"los servicios de precios fallaron: {servicios.text}"
+        )
+        if SERVICIO_HUMO in {s["codigo"] for s in servicios.json()}:
+            break
+        verificar(time.monotonic() < limite, "el servicio de humo no llegó a inteligencia en 30 s")
+        time.sleep(1)
+    copia = cliente.get("/api/inteligencia/datos", headers=admin)
+    verificar(
+        copia.status_code == 200 and copia.json()["registros"]["contratos"] > 0,
+        f"los datos de inteligencia fallaron: {copia.text}",
+    )
+    sin_permiso = cliente.get("/api/inteligencia/datos", headers=comprador)
+    verificar(sin_permiso.status_code == 403, "un comprador no debe ver los datos de inteligencia")
+
+
 def main() -> int:
     with httpx.Client(base_url=BASE, timeout=10) as cliente:
         spa = cliente.get("/")
@@ -275,9 +315,10 @@ def main() -> int:
 
         verificar_administracion(cliente)
         verificar_operacion(cliente)
+        verificar_inteligencia(cliente)
 
     print(
-        f"OK: SPA, Keycloak, proveedores, administración y operación responden "
+        f"OK: SPA, Keycloak, proveedores, administración, operación e inteligencia responden "
         f"({lista.json()['total']} proveedores)."
     )
     return 0

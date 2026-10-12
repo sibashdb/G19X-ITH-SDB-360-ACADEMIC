@@ -36,6 +36,12 @@ Los secretos van en `infra/.env` (cópielo desde `infra/.env.example`). Los de l
 - `KEYCLOAK_ADMINISTRACION_SECRET`: secreto del cliente de Keycloak con el que `administracion`
   gestiona usuarios y lee los inicios de sesión.
 
+Los de la inteligencia son:
+
+- `INTELIGENCIA_DB_PASSWORD`: contraseña con la que el servicio `inteligencia` entra a su base
+  (consulta, inserta y actualiza su copia local; nunca borra).
+- `INTELIGENCIA_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
+
 ### Activar la administración en un entorno ya creado
 
 El volumen de PostgreSQL y el realm de Keycloak solo se inicializan la primera vez. Si su entorno
@@ -67,6 +73,46 @@ antes `export MSYS_NO_PATHCONV=1`).
    ```bash
    docker compose -f infra/docker-compose.yml up -d --build --wait
    ```
+
+### Activar la inteligencia en un entorno ya creado
+
+Si su entorno ya existía antes del servicio de inteligencia, siga estos pasos, en este orden (en
+Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
+
+1. Agregue en `infra/.env` las dos variables de la inteligencia (cópielas de `infra/.env.example`)
+   y vuelva a crear PostgreSQL para que las reciba:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --wait postgres
+   ```
+
+2. Cree la base de la inteligencia y sus dos usuarios. El comando es idempotente:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/30-inteligencia.sh
+   ```
+
+3. Levante el resto del stack. El contenedor `rabbitmq-topologia` declara las colas y termina:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --build --wait
+   ```
+
+4. Llene la copia local de la inteligencia con lo que ya estaba importado. El primer comando
+   publica el estado actual del catálogo y del tipo de cambio; el segundo vuelve a publicar todos
+   los eventos guardados. Los servicios ignoran lo que ya recibieron (la Actividad no se duplica),
+   así que repetirlos es seguro:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --instantanea
+   ```
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --todo
+   ```
+
+   Con el dataset por defecto, la copia se llena en alrededor de un minuto. Después, el modelo de
+   precios se entrena solo.
 
 ### Tema de inicio de sesión en un realm ya importado
 
@@ -131,6 +177,8 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 | Contrato OpenAPI de proveedores | <http://localhost:8080/api/proveedores/docs> |
 | Consola de RabbitMQ | <http://localhost:15672> |
 | Contrato OpenAPI de administración | <http://localhost:8080/api/administracion/docs> |
+| Contrato OpenAPI de inteligencia | <http://localhost:8080/api/inteligencia/docs> |
+| Validación de la inteligencia contra la verdad oculta (escribe `docs/qa/validacion-inteligencia.md`) | `uv run python -m inteligencia.validacion --verdad datos/verdad_oculta.json` |
 | Mailpit, buzón de desarrollo de los correos de Keycloak (solo en este equipo) | <http://localhost:8025> |
 | Versión que muestra el Estado del sistema | variable `VERSION_APP` de `infra/.env` (por defecto `desarrollo`) |
 
@@ -153,20 +201,19 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 
 | Carpeta | Contenido |
 |---|---|
-| `libs/comun` | Infraestructura compartida: logs, errores RFC 9457, JWT, salud, outbox |
+| `libs/comun` | Infraestructura compartida: logs, errores RFC 9457, JWT, salud, outbox, topología de RabbitMQ y consumidor de eventos |
 | `services/proveedores` | Microservicio de proveedores, contratos, precios y desempeño |
 | `services/administracion` | Microservicio de administración: usuarios, bitácora, correos, estado del sistema y panel (`/api/administracion/`) |
+| `services/inteligencia` | Microservicio de inteligencia: precio justo, puntuación de proveedores, alertas y Tablero (`/api/inteligencia/`) |
 | `tools/generador` | Datos sintéticos reproducibles del ERP simulado |
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |
 
 ## Limitaciones conocidas (Incremento 1)
 
-- **Eventos sin cola enlazada.** Un evento que se publica sin colas enlazadas al exchange se
-  descarta; el outbox conserva el registro. `administracion` declara su cola
-  (`administracion.actividad`) al arrancar, así que solo se pierden los eventos publicados antes
-  de su primer arranque. El Plan B declarará toda la topología antes de publicar y agregará el
-  reproceso.
+- **Mensajes fallidos sin pantalla propia.** Un evento que falla 5 veces queda en la cola
+  `<cola>.dlq` y el Estado del sistema lo avisa, pero todavía no hay una pantalla para revisarlo
+  o reintentarlo: se hace desde la consola de RabbitMQ.
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.

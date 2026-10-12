@@ -7,6 +7,10 @@
 | Estado | Pendiente de revisión del residente |
 | Base de código | Incremento 1 (rama `worktree-feat+incremento-1`, commit `a44ee57`) |
 
+> **Nota (2026-10-10):** las secciones §4 a §8 las reemplaza
+> `docs/superpowers/specs/2026-10-10-servicio-inteligencia-design.md`, que las reconcilia con la
+> administración ya construida.
+
 ---
 
 ## 0. Contexto y decisiones

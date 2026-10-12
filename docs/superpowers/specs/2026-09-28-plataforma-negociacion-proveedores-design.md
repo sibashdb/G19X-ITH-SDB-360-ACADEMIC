@@ -130,7 +130,7 @@ flowchart LR
 | **identidad** | Keycloak (solo configuración, sin código propio) | Usuarios internos y roles; login OIDC; emite JWT (RS256) con JWKS público. Equivalente a Entra ID: migrar = cambiar emisor OIDC. | `keycloak_db` |
 | **proveedores** | FastAPI | Proveedores, catálogo de servicios TI, contratos, historial de precios, KPIs de desempeño, importación CSV (adaptador ERP/SRM). | `proveedores_db` |
 | **administracion** | FastAPI | Usuarios y roles (vía la API de Keycloak), bitácora de actividad de solo inserción, correos del sistema, estado de los servicios y panel de administración. | `administracion_db` |
-| **inteligencia** | FastAPI + scikit-learn | Benchmark de precio justo, puntuación de proveedores, recomendación de adjudicación, simulador de escenarios, alertas. | `inteligencia_db` (modelo de lectura + modelos entrenados versionados) |
+| **inteligencia** | FastAPI + scikit-learn | Precio justo (línea base y modelo por cuantiles), puntuación de proveedores, alertas y KPIs del Tablero, a partir de una copia local alimentada por eventos; después, recomendación de adjudicación y simulador de escenarios. | `inteligencia_db` (copia local, configuración y registro de modelos) y el volumen `modelos` (artefactos) |
 | **negociacion** | FastAPI | Eventos de negociación, límites, sesiones por proveedor, **motor de concesiones**, API del portal del proveedor (tokens de invitación), propuestas de negociación, aprobaciones, bitácora de auditoría. | `negociacion_db` |
 | **ia** | FastAPI | Único acceso al LLM: plantillas de prompt versionadas, salidas estructuradas validadas con esquema, cola de concurrencia hacia la GPU, timeouts, cambio de proveedor LLM por configuración, métricas de tokens y latencia. **No expuesto por el gateway.** | Sin estado |
 | **web** | React + TypeScript (Vite) | Panel de comprador/aprobador/admin y portal del proveedor en una sola SPA (rutas separadas). | — |
@@ -147,7 +147,7 @@ flowchart LR
 2. **HTTP síncrono solo para consultas que necesitan respuesta inmediata**: `negociacion → inteligencia` (benchmark, recomendación), `negociacion → ia`, `inteligencia → ia`. Sin ciclos. Toda llamada tiene timeout, reintentos con backoff y comportamiento de degradación definido (sección 5).
 3. **Eventos asíncronos para propagar cambios de estado.** Cada servicio guarda copia local de lo que necesita (p. ej. `inteligencia` mantiene su historial a partir de eventos de `proveedores`).
 4. **Entrega fiable:** patrón *transactional outbox* (el evento se guarda en la misma transacción que el cambio y un proceso lo publica), entrega *al menos una vez*, **consumidores idempotentes** (registro de `event_id` procesados) y cola de mensajes fallidos (*dead letter*).
-5. **Contratos documentados automáticamente:** OpenAPI por servicio (FastAPI) y AsyncAPI para eventos (FastStream).
+5. **Contratos documentados:** OpenAPI por servicio (FastAPI). Los tipos de evento, las colas y sus bindings se declaran en `libs/comun/src/comun/topologia.py`, y una prueba verifica que `infra/rabbitmq/definitions.json` diga lo mismo.
 
 **Sobre de evento (envelope):** `event_id`, `type`, `version`, `occurred_at`, `correlation_id`, `payload`.
 
@@ -159,8 +159,13 @@ flowchart LR
 | `contrato.registrado` | proveedores | inteligencia | Historial de precios y condiciones. |
 | `desempeno.registrado` | proveedores | inteligencia | KPIs para puntuación. |
 | `negociacion.adjudicada` | negociacion | proveedores, inteligencia | Crear contrato nuevo y actualizar historial. |
-| `servicio.actualizado` | proveedores | administracion, inteligencia | Cambios del catálogo (con quién los hizo) y copia local del servicio. |
+| `servicio.actualizado` | proveedores | administracion, inteligencia | Cambios del catálogo (con quién los hizo) y copia local del servicio, también al importar el catálogo. |
 | `importacion.completada` · `importacion.rechazada` | proveedores | administracion | Bitácora de importaciones con quién las hizo. |
+| `tipo_cambio.registrado` | proveedores | inteligencia | Tipo de cambio mensual para llevar los montos a MXN. |
+| `configuracion.actualizada` | inteligencia | administracion | Bitácora de los cambios de pesos, umbral e inflación. |
+| `modelo.entrenado` | inteligencia | administracion | Bitácora de cada entrenamiento del modelo de precios. |
+
+Colas: `inteligencia.eventos` y `administracion.actividad`, *quorum* con 5 entregas como máximo; lo que falla 5 veces pasa a `<cola>.dlq` (detalle en `docs/superpowers/specs/2026-10-10-servicio-inteligencia-design.md`, §3).
 
 Cierra el ciclo: una negociación adjudicada genera un contrato, que mejora el benchmark de la siguiente negociación.
 
@@ -323,7 +328,7 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 | Servicio | Entidades |
 |---|---|
 | proveedores | Proveedor, ServicioCatalogo, Contrato, LineaContrato, RegistroDesempeno, TipoCambio, Outbox, EventoProcesado |
-| inteligencia | HistorialPrecio y DesempenoProveedor (modelos de lectura alimentados por eventos), ModeloBenchmark (registro de modelos), Escenario, EventoProcesado |
+| inteligencia | Proveedor, Servicio, TipoCambio, Contrato, LineaContrato y Desempeno (copia local alimentada por eventos), Configuracion, ModeloBenchmark (registro de modelos), Outbox, EventoProcesado; Escenario (más adelante) |
 | negociacion | EventoNegociacion, LineaEvento, Palanca, Sesion, Mensaje, Oferta (origen: formulario / interpretada / agente / comprador; confirmada sí/no), Decision (traza), Adjudicacion, Aprobacion, Bitacora, ProveedorLocal (copia), Outbox, EventoProcesado |
 | administracion | Actividad (bitácora de solo inserción), CorreoEnviado, CursorEventos |
 
@@ -428,6 +433,7 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 | Acción | Admin | Comprador | Aprobador | Proveedor |
 |---|:-:|:-:|:-:|:-:|
 | Configurar catálogos, pesos, umbrales y usuarios | ✔ | | | |
+| Reentrenar el modelo de precios y ver el estado de los datos de la inteligencia | ✔ | | | |
 | Importar datos | ✔ | | | |
 | Gestionar usuarios y ver actividad, correos y estado del sistema | ✔ | | | |
 | Crear/editar eventos propios y supervisar sus sesiones | | ✔ | | |
