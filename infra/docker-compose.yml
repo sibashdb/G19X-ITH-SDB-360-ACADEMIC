@@ -26,7 +26,7 @@ services:
       retries: 20
 
   rabbitmq:
-    image: rabbitmq:4.1-management-alpine
+    image: rabbitmq:4.3-management-alpine
     # Nombre de nodo estable: sin esto RabbitMQ usa el id del contenedor y pierde su mnesia al recrearlo.
     hostname: rabbitmq
     environment:
