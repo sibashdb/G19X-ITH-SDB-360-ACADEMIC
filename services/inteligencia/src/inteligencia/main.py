@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from inteligencia.api import precios, tablero
+from inteligencia.api import ajustes, precios, proveedores, tablero
 from inteligencia.config import Configuracion
 from inteligencia.contexto import CacheContexto
 from inteligencia.entrenamiento import Entrenador
@@ -88,4 +88,6 @@ def crear_app(
     app.include_router(crear_router_salud({"postgres": verificar_postgres}))
     app.include_router(tablero.router)
     app.include_router(precios.router)
+    app.include_router(proveedores.router)
+    app.include_router(ajustes.router)
     return app

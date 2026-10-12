@@ -1,10 +1,14 @@
 """Respuestas de la API: montos como texto decimal y puntuaciones con un decimal."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+Categoria = Literal["licencia_saas", "nube", "consultoria", "soporte"]
+Confianza = Literal["normal", "baja"]
+Peso = Annotated[int, Field(ge=0, le=100)]
 
 
 def unitario(valor: float) -> Decimal:
@@ -148,3 +152,135 @@ class Sobreprecio(BaseModel):
     fecha_fin: date
     ahorro_potencial: Decimal  # en la moneda del contrato, por lo que le resta
     ahorro_potencial_mxn: Decimal
+
+
+class ProveedorResumen(BaseModel):
+    id: str
+    rfc: str
+    nombre: str
+    tamano: str
+    categorias: list[str]
+    activo: bool
+    puntuacion: float | None  # None: sin desempeño registrado
+    confianza: Confianza | None  # baja: menos de 6 meses de historial
+    tendencia: float | None  # puntos contra hace 3 meses
+    gasto_anual: Decimal  # MXN, contratos vigentes
+    contratos_vigentes: int
+    alertas: int
+    en_riesgo: bool
+
+
+class PaginaProveedores(BaseModel):
+    total: int
+    elementos: list[ProveedorResumen]
+
+
+class Componente(BaseModel):
+    kpi: str
+    valor: float  # promedio ponderado de 12 meses
+    mediana_categoria: float
+    percentil: float  # 0 a 100, más es mejor
+
+
+class PuntoPuntuacion(BaseModel):
+    mes: date
+    puntuacion: float
+
+
+class PuntuacionSalida(BaseModel):
+    proveedor_id: str
+    categoria: str | None  # la principal: contra la que se compara
+    puntuacion: float | None
+    sin_ajuste: float | None
+    meses: int
+    historial_corto: bool
+    tendencia: float | None
+    componentes: list[Componente]
+    historial: list[PuntoPuntuacion]
+
+
+class MercadoLinea(BaseModel):
+    contrato_id: str
+    folio: str
+    codigo_servicio: str
+    servicio: str
+    moneda: str
+    precio: Decimal
+    posicion: Literal["bajo_p25", "justo", "sobre_p75"] | None  # None: sin referencia
+    p25: Decimal | None
+    p50: Decimal | None
+    p75: Decimal | None
+    metodo: Literal["linea_base", "modelo"] | None
+    confianza: Confianza | None
+    ahorro_potencial: Decimal
+
+
+class FilaRanking(BaseModel):
+    posicion: int
+    proveedor_id: str
+    nombre: str
+    categoria: str
+    puntuacion: float
+    componentes: dict[str, float]
+    meses: int
+    historial_corto: bool
+    tendencia: float | None
+
+
+class ConfiguracionSalida(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    peso_sla: int
+    peso_resolucion: int
+    peso_incidentes: int
+    peso_entregas: int
+    peso_satisfaccion: int
+    umbral_riesgo: int
+    inflacion_anual: Decimal
+    actualizado_en: datetime | None
+    actualizado_por: str | None
+
+
+class ConfiguracionEntrada(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    peso_sla: Peso
+    peso_resolucion: Peso
+    peso_incidentes: Peso
+    peso_entregas: Peso
+    peso_satisfaccion: Peso
+    umbral_riesgo: Annotated[int, Field(ge=0, le=100)]
+    inflacion_anual: Annotated[Decimal, Field(ge=0, le=50, decimal_places=2)]
+
+
+class ModeloSalida(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    version: int
+    entrenado_en: datetime
+    origen: str
+    actor_nombre: str
+    observaciones: int
+    datos_hasta: date
+    mape: Decimal
+    mape_linea_base: Decimal
+    cobertura: Decimal
+    pinball: Decimal
+    promovido: bool
+
+
+class RegistroModelos(BaseModel):
+    entrenando: bool
+    activo: int | None  # versión en uso; None: se usa la línea base
+    elementos: list[ModeloSalida]
+
+
+class EntrenamientoIniciado(BaseModel):
+    entrenando: bool
+
+
+class DatosSalida(BaseModel):
+    registros: dict[str, int]
+    ultimo_evento: datetime | None
+    modelo: ModeloSalida | None  # el activo
+    entrenando: bool
