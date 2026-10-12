@@ -14,9 +14,10 @@ from comun.pruebas import ClavesPrueba
 from fastapi import FastAPI
 from generador.modelo import DatosSinteticos, generar
 from inteligencia.config import Configuracion
-from inteligencia.dominio.precios import Observacion, plazo_en_meses
+from inteligencia.dominio.precios import Observacion
 from inteligencia.eventos import aplicar
 from inteligencia.main import crear_app
+from inteligencia.validacion import observaciones_de
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -125,27 +126,11 @@ def id_de(clave: str) -> str:
 
 
 def observaciones(datos: DatosSinteticos) -> list[Observacion]:
-    servicios = {s.codigo: s for s in datos.servicios}
-    tamanos = {p.rfc: p.tamano for p in datos.proveedores}
-    resultado = []
-    for fila in datos.contratos:
-        servicio = servicios[fila["codigo_servicio"]]
-        inicio = date.fromisoformat(fila["fecha_inicio"])
-        fin = date.fromisoformat(fila["fecha_fin"])
-        resultado.append(
-            Observacion(
-                servicio=servicio.codigo,
-                categoria=servicio.categoria,
-                moneda=servicio.moneda,
-                fecha=inicio,
-                cantidad=float(fila["cantidad"]),
-                precio=float(fila["precio_unitario"]),
-                plazo_meses=plazo_en_meses(inicio, fin),
-                tamano=tamanos[fila["rfc_proveedor"]],
-                tipo=fila["tipo"],
-            )
-        )
-    return resultado
+    return observaciones_de(
+        datos.contratos,
+        {s.codigo: s.categoria for s in datos.servicios},
+        {p.rfc: p.tamano for p in datos.proveedores},
+    )
 
 
 def sobres(datos: DatosSinteticos) -> list[dict[str, Any]]:
