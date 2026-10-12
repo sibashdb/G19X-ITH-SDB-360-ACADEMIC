@@ -14,7 +14,7 @@ dependencies = [
     "numpy>=2.1",
     "scikit-learn>=1.6",
     "scipy>=1.14",  # Spearman en la validación contra la verdad oculta
-    "tzdata>=2024.1",  # base IANA para ZoneInfo en Windows e imágenes slim
+    "tzdata>=2026.5",  # base IANA para ZoneInfo en Windows e imágenes slim
 ]
 
 [tool.uv.sources]
