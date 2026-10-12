@@ -1,5 +1,8 @@
 import threading
 from collections.abc import Awaitable, Callable
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -8,7 +11,7 @@ from fastapi import FastAPI
 from generador.modelo import DatosSinteticos, generar
 from inteligencia import entrenamiento
 from inteligencia.modelo import DatosInsuficientes
-from inteligencia.modelos import Outbox
+from inteligencia.modelos import ModeloBenchmark, Outbox
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -117,7 +120,13 @@ async def test_la_configuracion_cambia_los_calculos(
 
 async def test_registro_de_modelos_vacio(cliente: httpx.AsyncClient, comprador: Cabeceras) -> None:
     respuesta = await cliente.get("/modelos", headers=comprador)
-    assert respuesta.json() == {"entrenando": False, "activo": None, "elementos": []}
+    assert respuesta.json() == {
+        "entrenando": False,
+        "activo": None,
+        "en_uso": None,
+        "ultimo_error": None,
+        "elementos": [],
+    }
 
 
 async def test_un_segundo_entrenamiento_mientras_corre_el_primero(
@@ -159,6 +168,8 @@ async def test_entrenar_registra_el_modelo(
     assert (modelo["version"], modelo["origen"], modelo["actor_nombre"]) == (1, "manual", "admin-1")
     assert "artefacto" not in modelo
     assert registro["activo"] == (1 if modelo["promovido"] else None)
+    assert registro["en_uso"] == registro["activo"]
+    assert registro["ultimo_error"] is None
 
 
 async def test_datos_de_la_copia_local(
@@ -177,4 +188,35 @@ async def test_datos_de_la_copia_local(
         "tipo_cambio": len(datos.tipo_cambio),
     }
     assert cuerpo["ultimo_evento"] is not None
-    assert (cuerpo["modelo"], cuerpo["entrenando"]) == (None, False)
+    assert (cuerpo["modelo"], cuerpo["en_uso"], cuerpo["entrenando"]) == (None, None, False)
+
+
+async def test_un_modelo_que_no_carga_esta_activo_pero_no_en_uso(
+    cliente: httpx.AsyncClient,
+    admin: Cabeceras,
+    comprador: Cabeceras,
+    fabrica: Fabrica,
+    tmp_path: Path,
+) -> None:
+    """Si el archivo del modelo promovido se perdió, se usa la línea base y la API lo dice."""
+    async with fabrica() as sesion, sesion.begin():
+        sesion.add(
+            ModeloBenchmark(
+                version=1,
+                entrenado_en=datetime.now(UTC),
+                origen="manual",
+                actor_nombre="admin1",
+                observaciones=100,
+                datos_hasta=date(2026, 9, 30),
+                mape=Decimal("0.100000"),
+                mape_linea_base=Decimal("0.120000"),
+                cobertura=Decimal("0.500000"),
+                pinball=Decimal("0.010000"),
+                promovido=True,
+                artefacto=str(tmp_path / "no-existe.joblib"),
+            )
+        )
+    registro = (await cliente.get("/modelos", headers=comprador)).json()
+    assert (registro["activo"], registro["en_uso"]) == (1, None)
+    datos = (await cliente.get("/datos", headers=admin)).json()
+    assert (datos["modelo"]["version"], datos["en_uso"]) == (1, None)

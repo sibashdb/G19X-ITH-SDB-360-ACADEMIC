@@ -11,7 +11,8 @@ from sqlalchemy import func, select
 
 from inteligencia import consultas
 from inteligencia.api import esquemas
-from inteligencia.api.dependencias import Admin, Interno, Sesion
+from inteligencia.api.dependencias import Admin, Ctx, Interno, Sesion
+from inteligencia.contexto import Contexto
 from inteligencia.db import Base
 from inteligencia.dominio.puntuacion import validar_pesos
 from inteligencia.entrenamiento import Entrenador
@@ -44,6 +45,12 @@ ENTIDADES: dict[str, type[Base]] = {
 
 def _para_evento(valor: Any) -> Any:
     return f"{valor:.2f}" if isinstance(valor, Decimal) else valor
+
+
+def _en_uso(contexto: Contexto) -> int | None:
+    """La versión que de verdad responde: la promovida puede no cargar (archivo perdido o de otra
+    versión de scikit-learn) y entonces se usa la línea base."""
+    return None if contexto.modelo is None else contexto.modelo.version
 
 
 @router.get("/configuracion")
@@ -93,7 +100,9 @@ async def guardar_configuracion(
 
 
 @router.get("/modelos")
-async def modelos(request: Request, sesion: Sesion, _: Interno) -> esquemas.RegistroModelos:
+async def modelos(
+    request: Request, _: Interno, sesion: Sesion, contexto: Ctx
+) -> esquemas.RegistroModelos:
     registros = await sesion.scalars(
         select(ModeloBenchmark).order_by(ModeloBenchmark.version.desc()).limit(MAX_MODELOS)
     )
@@ -102,6 +111,8 @@ async def modelos(request: Request, sesion: Sesion, _: Interno) -> esquemas.Regi
     return esquemas.RegistroModelos(
         entrenando=entrenador.entrenando,
         activo=None if activo is None else activo.version,
+        en_uso=_en_uso(contexto),
+        ultimo_error=entrenador.ultimo_error,
         elementos=[esquemas.ModeloSalida.model_validate(r) for r in registros],
     )
 
@@ -120,7 +131,7 @@ async def entrenar(request: Request, usuario: Admin) -> esquemas.EntrenamientoIn
 
 
 @router.get("/datos")
-async def datos(request: Request, sesion: Sesion, _: Admin) -> esquemas.DatosSalida:
+async def datos(request: Request, _: Admin, sesion: Sesion, contexto: Ctx) -> esquemas.DatosSalida:
     """Lo que llegó a la copia local, para la tarjeta "Datos y modelo" del Panel."""
     fila = (
         await sesion.execute(
@@ -139,5 +150,6 @@ async def datos(request: Request, sesion: Sesion, _: Admin) -> esquemas.DatosSal
         registros=dict(zip(ENTIDADES, fila[:-1], strict=True)),
         ultimo_evento=fila[-1],
         modelo=None if activo is None else esquemas.ModeloSalida.model_validate(activo),
+        en_uso=_en_uso(contexto),
         entrenando=entrenador.entrenando,
     )

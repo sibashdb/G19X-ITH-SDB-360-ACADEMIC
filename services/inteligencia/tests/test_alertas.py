@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -106,3 +107,20 @@ def test_ordenar_por_severidad_y_fecha() -> None:
         "media",
         "informativa",
     ]
+
+
+def test_en_la_misma_severidad_los_sobreprecios_van_de_mayor_a_menor_ahorro_en_mxn() -> None:
+    contrato = _contrato(date(2026, 12, 31))
+    base = sobreprecio(contrato, LINEA, Banda(18.0, 20.0, 22.0), HOY)
+    caida = riesgo("p-3", "Redes del Sur", 55.0, 70.0, 40, HOY)
+    assert base is not None and caida is not None and caida.severidad == "media"
+    pesos = replace(base, id="sobreprecio:a", ahorro_potencial=Decimal("1000.00"), moneda="MXN")
+    dolares = replace(base, id="sobreprecio:b", ahorro_potencial=Decimal("100.00"), moneda="USD")
+    # 100 USD a 20 MXN por dólar son 2,000 MXN: más que los 1,000 MXN del otro contrato.
+    assert [a.id for a in ordenar([pesos, dolares, caida], Decimal("20"))] == [
+        caida.id,
+        "sobreprecio:b",
+        "sobreprecio:a",
+    ]
+    # Sin tipo de cambio, el ahorro en USD no se puede convertir y cuenta como 0.
+    assert [a.id for a in ordenar([dolares, pesos])] == ["sobreprecio:a", "sobreprecio:b"]

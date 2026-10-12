@@ -13,8 +13,8 @@ from inteligencia.api import esquemas
 from inteligencia.api.dependencias import CodigoServicio, Ctx
 from inteligencia.api.esquemas import unitario
 from inteligencia.contexto import Contexto
+from inteligencia.dominio.monedas import CENTAVOS, a_mxn, tipo_cambio_en
 from inteligencia.dominio.precios import VENTANA_MESES, linea_base, sumar_meses
-from inteligencia.dominio.tablero import CENTAVOS, a_mxn, tipo_cambio_en
 from inteligencia.modelo import Consulta
 from inteligencia.modelos import Servicio
 from inteligencia.precio_justo import referencias

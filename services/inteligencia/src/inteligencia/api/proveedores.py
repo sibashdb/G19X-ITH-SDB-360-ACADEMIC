@@ -14,8 +14,8 @@ from inteligencia.api import esquemas
 from inteligencia.api.dependencias import Ctx
 from inteligencia.api.esquemas import unitario
 from inteligencia.contexto import Contexto, LineaMercado
+from inteligencia.dominio.monedas import CENTAVOS, a_mxn, tipo_cambio_en
 from inteligencia.dominio.puntuacion import KPIS
-from inteligencia.dominio.tablero import CENTAVOS, a_mxn, tipo_cambio_en
 from inteligencia.modelos import Proveedor
 
 router = APIRouter(tags=["proveedores"])

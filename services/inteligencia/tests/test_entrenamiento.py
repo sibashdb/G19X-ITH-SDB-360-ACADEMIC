@@ -33,6 +33,7 @@ async def test_entrenar_registra_el_modelo_y_publica_el_evento(
     assert not entrenador.iniciar("manual", ADMIN)  # un segundo pedido mientras corre
     await entrenador.esperar()
     assert not entrenador.entrenando
+    assert entrenador.ultimo_error is None
 
     [registro] = await _registros(fabrica)
     assert (registro.version, registro.origen, registro.actor_nombre) == (1, "manual", "admin1")
@@ -70,8 +71,10 @@ async def test_un_entrenamiento_fallido_libera_el_candado(
     assert entrenador.iniciar("manual", ADMIN)
     await entrenador.esperar()
     assert not entrenador.entrenando
+    assert entrenador.ultimo_error == entrenamiento.ERROR_INTERNO
     assert await _registros(fabrica) == []
     assert entrenador.iniciar("manual", ADMIN)  # se puede volver a intentar
+    assert entrenador.ultimo_error is None  # un intento nuevo borra el error anterior
     await entrenador.esperar()
 
 
@@ -83,6 +86,9 @@ async def test_sin_datos_no_registra_nada(
     await entrenador.esperar()
     assert await _registros(fabrica) == []
     assert "No se entrenó el modelo de precios" in caplog.text
+    assert entrenador.ultimo_error == (
+        "No hay datos suficientes para entrenar. Solo hay 0 líneas de contrato."
+    )
 
 
 async def test_el_automatico_espera_a_que_termine_la_importacion(

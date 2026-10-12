@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import Literal
 
 from inteligencia.dominio.contratos import ContratoInfo, Linea
+from inteligencia.dominio.monedas import a_mxn
 from inteligencia.dominio.precios import (
     Banda,
     ahorro_potencial,
@@ -20,6 +21,9 @@ from inteligencia.dominio.precios import (
 Severidad = Literal["alta", "media", "informativa"]
 TipoAlerta = Literal["vencimiento", "sobreprecio", "riesgo"]
 ORDEN_SEVERIDAD: dict[str, int] = {"alta": 0, "media": 1, "informativa": 2}
+# En la misma severidad y fecha: primero el proveedor en riesgo, luego el vencimiento y al final
+# los sobreprecios, de mayor a menor ahorro (decisión del residente para la campana y Alertas).
+ORDEN_TIPO: dict[str, int] = {"riesgo": 0, "vencimiento": 1, "sobreprecio": 2}
 DIAS_VENCIMIENTO: tuple[tuple[int, Severidad], ...] = (
     (30, "alta"),
     (60, "media"),
@@ -151,5 +155,17 @@ def riesgo(
     )
 
 
-def ordenar(alertas: Iterable[Alerta]) -> list[Alerta]:
-    return sorted(alertas, key=lambda a: (ORDEN_SEVERIDAD[a.severidad], a.fecha, a.id))
+def ordenar(alertas: Iterable[Alerta], usd_mxn: Decimal | None = None) -> list[Alerta]:
+    """Por severidad y fecha; los sobreprecios, de mayor a menor ahorro en MXN."""
+
+    def clave(alerta: Alerta) -> tuple[int, date, int, Decimal, str]:
+        ahorro = a_mxn(alerta.ahorro_potencial or Decimal(0), alerta.moneda or "MXN", usd_mxn)
+        return (
+            ORDEN_SEVERIDAD[alerta.severidad],
+            alerta.fecha,
+            ORDEN_TIPO[alerta.tipo],
+            -ahorro,
+            alerta.id,
+        )
+
+    return sorted(alertas, key=clave)

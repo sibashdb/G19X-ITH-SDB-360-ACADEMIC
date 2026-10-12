@@ -141,8 +141,30 @@ async def test_alertas_filtra_pagina_y_ordena(
     assert segunda["elementos"] == todas["elementos"][5:10]
 
 
+async def test_alertas_filtra_por_proveedor(
+    cliente: httpx.AsyncClient, comprador: Cabeceras, cargar: Cargar
+) -> None:
+    await cargar(generar(42, n_proveedores=10))
+    todas = (await cliente.get("/alertas", params={"limite": 200}, headers=comprador)).json()
+    proveedor = todas["elementos"][0]["proveedor_id"]
+    suyas = (
+        await cliente.get(
+            "/alertas", params={"proveedor": proveedor, "limite": 200}, headers=comprador
+        )
+    ).json()
+    esperadas = [a for a in todas["elementos"] if a["proveedor_id"] == proveedor]
+    assert suyas == {"total": len(esperadas), "elementos": esperadas}
+
+
 @pytest.mark.parametrize(
-    "params", [{"tipo": "otro"}, {"severidad": "baja"}, {"limite": "0"}, {"pagina": "0"}]
+    "params",
+    [
+        {"tipo": "otro"},
+        {"severidad": "baja"},
+        {"limite": "0"},
+        {"pagina": "0"},
+        {"proveedor": "no-es-un-uuid"},
+    ],
 )
 async def test_alertas_valida_los_filtros(
     cliente: httpx.AsyncClient, comprador: Cabeceras, params: dict[str, str]

@@ -271,7 +271,9 @@ class ModeloSalida(BaseModel):
 
 class RegistroModelos(BaseModel):
     entrenando: bool
-    activo: int | None  # versión en uso; None: se usa la línea base
+    activo: int | None  # el último promovido; None: ninguno mejoró la línea base
+    en_uso: int | None  # el que responde las consultas; None: se usa la línea base
+    ultimo_error: str | None  # por qué falló el último entrenamiento
     elementos: list[ModeloSalida]
 
 
@@ -282,5 +284,6 @@ class EntrenamientoIniciado(BaseModel):
 class DatosSalida(BaseModel):
     registros: dict[str, int]
     ultimo_evento: datetime | None
-    modelo: ModeloSalida | None  # el activo
+    modelo: ModeloSalida | None  # el activo (último promovido)
+    en_uso: int | None  # el que responde las consultas; None: se usa la línea base
     entrenando: bool

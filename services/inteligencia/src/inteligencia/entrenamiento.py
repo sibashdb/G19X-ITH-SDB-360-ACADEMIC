@@ -26,6 +26,7 @@ ACTOR_AUTOMATICO: dict[str, str | None] = {"id": None, "nombre": "Sistema (autom
 MIN_LINEAS_NUEVAS = 50
 ESPERA_TRAS_ULTIMA_S = 30
 INTERVALO_REVISION_S = 60
+ERROR_INTERNO = "El entrenamiento falló por un error interno; revise los registros del servicio."
 
 
 def _metrica(valor: float, decimales: int = 6) -> Decimal:
@@ -44,15 +45,22 @@ class Entrenador:
         self._ahora = ahora or (lambda: datetime.now(UTC))
         self._en_curso = False
         self._tarea: asyncio.Task[None] | None = None
+        self._ultimo_error: str | None = None
 
     @property
     def entrenando(self) -> bool:
         return self._en_curso
 
+    @property
+    def ultimo_error(self) -> str | None:
+        """Por qué falló el último entrenamiento; None si terminó bien o no ha corrido ninguno."""
+        return self._ultimo_error
+
     def iniciar(self, origen: str, actor: dict[str, str | None]) -> bool:
         """Lanza un entrenamiento en segundo plano; False si ya hay uno en curso."""
         if self._en_curso:
             return False
+        self._ultimo_error = None
         self._en_curso = True  # antes de crear la tarea: dos pedidos seguidos no lanzan dos
         self._tarea = asyncio.create_task(self._entrenar(origen, actor))
         return True
@@ -114,8 +122,10 @@ class Entrenador:
             )
         except DatosInsuficientes as exc:
             log.warning("No se entrenó el modelo de precios: %s", exc)
+            self._ultimo_error = f"No hay datos suficientes para entrenar. {exc}"
         except Exception:
             log.exception("Falló el entrenamiento del modelo de precios")
+            self._ultimo_error = ERROR_INTERNO
         finally:
             self._en_curso = False
 
@@ -141,7 +151,7 @@ class Entrenador:
 
     async def ejecutar_periodicamente(self, intervalo: float = INTERVALO_REVISION_S) -> None:
         # ponytail: si el entrenamiento falla siempre (p. ej. pocos datos), se reintenta cada
-        # `intervalo` y solo deja un aviso en el log; un estado de "último error" si molesta.
+        # `intervalo`; el motivo queda en `ultimo_error` y Configuración lo muestra.
         while True:
             try:
                 await self.revisar_automatico()

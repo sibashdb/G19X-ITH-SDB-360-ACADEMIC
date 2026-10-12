@@ -4,7 +4,8 @@ from decimal import Decimal
 
 from inteligencia.dominio.alertas import Alerta
 from inteligencia.dominio.contratos import ContratoInfo, Linea
-from inteligencia.dominio.tablero import a_mxn, calcular, tipo_cambio_en
+from inteligencia.dominio.monedas import a_mxn, tipo_cambio_en
+from inteligencia.dominio.tablero import calcular
 
 HOY = date(2026, 10, 10)
 TIPOS_CAMBIO = {date(2026, 9, 1): Decimal("18.0000")}

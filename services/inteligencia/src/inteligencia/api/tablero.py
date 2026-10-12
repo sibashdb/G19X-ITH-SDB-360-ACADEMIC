@@ -1,6 +1,7 @@
 """Tablero y alertas: lo que cada persona ve al iniciar sesión."""
 
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Query
 
@@ -65,13 +66,16 @@ async def alertas(
     contexto: Ctx,
     tipo: Literal["vencimiento", "sobreprecio", "riesgo"] | None = None,
     severidad: Literal["alta", "media", "informativa"] | None = None,
+    proveedor: UUID | None = None,
     pagina: Annotated[int, Query(ge=1, le=10_000)] = 1,
     limite: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> esquemas.PaginaAlertas:
     filtradas = [
         a
         for a in contexto.alertas
-        if (tipo is None or a.tipo == tipo) and (severidad is None or a.severidad == severidad)
+        if (tipo is None or a.tipo == tipo)
+        and (severidad is None or a.severidad == severidad)
+        and (proveedor is None or a.proveedor_id == str(proveedor))
     ]
     visibles = filtradas[(pagina - 1) * limite : pagina * limite]
     return esquemas.PaginaAlertas(

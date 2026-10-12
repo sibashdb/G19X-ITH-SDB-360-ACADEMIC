@@ -5,7 +5,7 @@
 | PRD padre | `docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md` |
 | Especificación de origen | `docs/superpowers/specs/2026-10-01-experiencia-e-inteligencia-design.md` (§4–§8; este documento las reemplaza) |
 | Fecha | 2026-10-10 |
-| Estado | Aprobada por el residente (2026-10-10); §4.2, §4.3 y §6 precisados con el plan B1 |
+| Estado | Aprobada por el residente (2026-10-10); §4.2, §4.3 y §6 precisados con el plan B1; §4.3, con el plan B2 |
 | Base de código | `main` en `42d7103` (administración, planes 1 y 2, ya integrada) |
 
 ---
@@ -174,7 +174,7 @@ Se mantienen los de la especificación de origen (§4.4), con estos ajustes:
 | Método y ruta | Rol | Respuesta |
 |---|---|---|
 | `GET /tablero` | interno | KPIs, series y listas del Tablero |
-| `GET /alertas?tipo=&severidad=&pagina=&limite=` | interno | Alertas activas (la campana usa `limite=5`) |
+| `GET /alertas?tipo=&severidad=&proveedor=&pagina=&limite=` | interno | Alertas activas por severidad y fecha; en la misma severidad, los sobreprecios de mayor a menor ahorro en MXN (la campana usa `limite=5`) |
 | `GET /precios/servicios` | interno | Servicios activos con su categoría y número de observaciones |
 | `GET /precios/servicios/{codigo}/referencia?cantidad=&plazo=` | interno | P25, P50, P75, método, confianza y n |
 | `GET /precios/servicios/{codigo}/historial` | interno | Puntos de precio y bandas por mes |
@@ -183,9 +183,9 @@ Se mantienen los de la especificación de origen (§4.4), con estos ajustes:
 | `GET /proveedores/{id}/puntuacion` | interno | Puntuación, componentes contra la mediana de la categoría, historial de 12 meses y tendencia |
 | `GET /proveedores/{id}/mercado` | interno | Por línea de contrato vigente: posición ("bajo P25", "justo", "sobre P75"), P25, P50, P75 y ahorro |
 | `GET /ranking?categoria=` | interno | Ranking ajustado |
-| `GET /modelos` · `POST /modelos/entrenar` | interno · admin | Registro de modelos · entrenamiento (202) |
+| `GET /modelos` · `POST /modelos/entrenar` | interno · admin | Registro de modelos, versión activa (promovida), versión en uso (`null` si se usa la línea base) y error del último entrenamiento · entrenamiento (202) |
 | `GET /configuracion` · `PUT /configuracion` | interno · admin | Pesos, umbral e inflación |
-| `GET /datos` | admin | Registros por entidad en la copia local, último evento recibido y modelo activo con su MAPE |
+| `GET /datos` | admin | Registros por entidad en la copia local, último evento recibido, modelo activo con su MAPE y versión en uso |
 
 Todas cumplen lo mismo que `proveedores` y `administracion`: Problem Details en español con `codigo` y errores
 `{campo, mensaje}`, montos como texto decimal, `correlation_id`, logs JSON y `/salud/vivo` y `/salud/listo` (esta, solo

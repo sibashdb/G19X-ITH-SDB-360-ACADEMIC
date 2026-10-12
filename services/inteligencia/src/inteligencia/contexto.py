@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from inteligencia import consultas
 from inteligencia.dominio.alertas import Alerta, ordenar, riesgo, sobreprecio, vencimiento
 from inteligencia.dominio.contratos import ContratoInfo, Linea
+from inteligencia.dominio.monedas import tipo_cambio_en
 from inteligencia.dominio.precios import (
     Observacion,
     Posicion,
@@ -237,7 +238,7 @@ def construir(datos: Datos, modelo: ModeloPrecios | None, hoy: date) -> Contexto
         )
         if alerta is not None:
             avisos.append(alerta)
-    alertas = ordenar(avisos)
+    alertas = ordenar(avisos, tipo_cambio_en(datos.tipos_cambio, hoy))
     activos = {pid for pid, p in proveedores.items() if p.activo}
     tablero = calcular(
         contratos,

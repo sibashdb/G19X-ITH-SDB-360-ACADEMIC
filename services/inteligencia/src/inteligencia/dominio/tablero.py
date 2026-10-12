@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from inteligencia.dominio.alertas import Alerta, ordenar
 from inteligencia.dominio.contratos import ContratoInfo
+from inteligencia.dominio.monedas import CENTAVOS, a_mxn, tipo_cambio_en
 from inteligencia.dominio.precios import cantidad_mensual, sumar_meses
 
 MESES_SERIE = 24
@@ -22,7 +23,6 @@ RANGOS_PUNTUACION = (
     ("60-79", 60, 80),
     ("80-100", 80, 101),
 )
-CENTAVOS = Decimal("0.01")
 
 
 @dataclass(frozen=True)
@@ -54,22 +54,6 @@ class Tablero:
     mejores: list[Destacado]
     peores: list[Destacado]
     distribucion: list[tuple[str, int]]
-
-
-def tipo_cambio_en(tipos: Mapping[date, Decimal], fecha: date) -> Decimal | None:
-    """El tipo de cambio vigente en `fecha` (o el más viejo si `fecha` es anterior a todos)."""
-    if not tipos:
-        return None
-    anteriores = [periodo for periodo in tipos if periodo <= fecha]
-    return tipos[max(anteriores)] if anteriores else tipos[min(tipos)]
-
-
-def a_mxn(monto: Decimal, moneda: str, usd_mxn: Decimal | None) -> Decimal:
-    if moneda == "MXN":
-        return monto
-    # ponytail: sin tipo de cambio registrado, los montos en USD no se pueden convertir y no
-    # cuentan; con el ERP de verdad siempre hay al menos un periodo.
-    return monto * usd_mxn if usd_mxn is not None else Decimal(0)
 
 
 def _gasto_anual(
@@ -156,7 +140,7 @@ def calcular(
         },
         gasto_por_mes=serie,
         proximos_vencimientos=proximos[:MAX_VENCIMIENTOS],
-        alertas_principales=ordenar(alertas)[:CUANTAS_ALERTAS],
+        alertas_principales=ordenar(alertas, ultimo)[:CUANTAS_ALERTAS],
         mejores=destacados[:CUANTOS_DESTACADOS],
         peores=destacados[::-1][:CUANTOS_DESTACADOS],
         distribucion=[
