@@ -57,6 +57,22 @@ async def fabrica(url_postgres: str) -> AsyncIterator[async_sessionmaker[AsyncSe
     await motor.dispose()
 
 
+@pytest.fixture
+async def cola_comodin(url_rabbitmq: str) -> AsyncIterator[None]:
+    """Una cola que recibe todo: sin ella, con mandatory=True los eventos vuelven sin publicarse."""
+    conexion = await aio_pika.connect_robust(url_rabbitmq)
+    try:
+        canal = await conexion.channel()
+        exchange = await canal.declare_exchange(
+            EXCHANGE_EVENTOS, aio_pika.ExchangeType.TOPIC, durable=True
+        )
+        cola = await canal.declare_queue(exclusive=True)
+        await cola.bind(exchange, routing_key="#")
+        yield
+    finally:
+        await conexion.close()
+
+
 async def _todas(fabrica: async_sessionmaker[AsyncSession]) -> list[OutboxPrueba]:
     async with fabrica() as sesion:
         return list((await sesion.scalars(select(OutboxPrueba))).all())
@@ -137,6 +153,7 @@ async def test_relay_publica_cada_pendiente_una_sola_vez(
     assert all(fila.publicado_en is not None for fila in await _todas(fabrica))
 
 
+@pytest.mark.usefixtures("cola_comodin")
 async def test_ejecutar_publica_en_segundo_plano(
     fabrica: async_sessionmaker[AsyncSession], url_rabbitmq: str
 ) -> None:
@@ -176,6 +193,7 @@ class ExchangeQueFalla:
         return await self._real.publish(mensaje, routing_key, **opciones)
 
 
+@pytest.mark.usefixtures("cola_comodin")
 async def test_falla_de_publicacion_revierte_la_transaccion_y_se_reintenta(
     fabrica: async_sessionmaker[AsyncSession], url_rabbitmq: str
 ) -> None:
@@ -195,7 +213,7 @@ async def test_falla_de_publicacion_revierte_la_transaccion_y_se_reintenta(
         # El 2.º mensaje falló: se revierte todo el lote, ninguna fila queda marcada
         # (el 1.º ya salió al broker; por eso la entrega es "al menos una vez").
         assert falla.llamadas == 2
-        assert falla.opciones == {"mandatory": False, "timeout": TIMEOUT_PUBLICACION}
+        assert falla.opciones == {"mandatory": True, "timeout": TIMEOUT_PUBLICACION}
         assert [fila.publicado_en for fila in await _todas(fabrica)] == [None, None, None]
 
         # Al recuperarse el broker el siguiente ciclo publica las tres filas.
@@ -206,6 +224,7 @@ async def test_falla_de_publicacion_revierte_la_transaccion_y_se_reintenta(
         await relay.cerrar()
 
 
+@pytest.mark.usefixtures("cola_comodin")
 async def test_ejecutar_sobrevive_a_una_publicacion_fallida(
     fabrica: async_sessionmaker[AsyncSession],
     url_rabbitmq: str,
@@ -241,3 +260,40 @@ async def test_publicar_sin_conectar_es_un_error(
 ) -> None:
     with pytest.raises(RuntimeError, match="conectar"):
         await RelayOutbox(fabrica, OutboxPrueba, "amqp://nadie").publicar_pendientes()
+
+
+async def test_un_evento_sin_cola_queda_pendiente_y_no_frena_a_los_demas(
+    fabrica: async_sessionmaker[AsyncSession],
+    url_rabbitmq: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    relay = RelayOutbox(fabrica, OutboxPrueba, url_rabbitmq)
+    await relay.conectar()
+    conexion = await aio_pika.connect_robust(url_rabbitmq)
+    try:
+        canal = await conexion.channel()
+        exchange = await canal.declare_exchange(
+            EXCHANGE_EVENTOS, aio_pika.ExchangeType.TOPIC, durable=True
+        )
+        cola = await canal.declare_queue(exclusive=True)
+        await cola.bind(exchange, routing_key="contrato.*")
+        async with fabrica() as sesion, sesion.begin():
+            registrar_evento(sesion, OutboxPrueba, "huerfano.creado", {"n": 1})
+            registrar_evento(sesion, OutboxPrueba, "contrato.registrado", {"n": 2})
+
+        assert await relay.publicar_pendientes() == 1
+        mensaje = await cola.get(timeout=5)
+        await mensaje.ack()
+        assert json.loads(mensaje.body)["type"] == "contrato.registrado"
+        pendientes = [f.tipo for f in await _todas(fabrica) if f.publicado_en is None]
+        assert pendientes == ["huerfano.creado"]
+        assert "sin cola de destino" in caplog.text
+
+        # Cuando aparece una cola para ese tipo, el siguiente ciclo lo publica.
+        otra = await canal.declare_queue(exclusive=True)
+        await otra.bind(exchange, routing_key="huerfano.*")
+        assert await relay.publicar_pendientes() == 1
+        assert all(f.publicado_en is not None for f in await _todas(fabrica))
+    finally:
+        await conexion.close()
+        await relay.cerrar()

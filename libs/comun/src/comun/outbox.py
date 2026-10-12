@@ -11,6 +11,7 @@ from typing import Any
 
 import aio_pika
 from aio_pika.abc import AbstractExchange, AbstractRobustConnection
+from aio_pika.exceptions import PublishError
 from pydantic_core import to_jsonable_python
 from sqlalchemy import DateTime, String, select
 from sqlalchemy.dialects.postgresql import JSONB
@@ -85,7 +86,8 @@ class RelayOutbox:
 
     async def conectar(self) -> None:
         self._conexion = await aio_pika.connect_robust(self._url)
-        canal = await self._conexion.channel(publisher_confirms=True)
+        # on_return_raises: un evento que ninguna cola recibe vuelve y publish lanza PublishError.
+        canal = await self._conexion.channel(publisher_confirms=True, on_return_raises=True)
         self._exchange = await canal.declare_exchange(
             EXCHANGE_EVENTOS, aio_pika.ExchangeType.TOPIC, durable=True
         )
@@ -110,6 +112,7 @@ class RelayOutbox:
                 .with_for_update(skip_locked=True)
             )
             filas = (await sesion.scalars(consulta)).all()
+            publicados = 0
             for fila in filas:
                 mensaje = aio_pika.Message(
                     json.dumps(sobre_evento(fila)).encode(),
@@ -119,18 +122,27 @@ class RelayOutbox:
                     correlation_id=fila.correlation_id,
                     type=fila.tipo,
                 )
-                # mandatory=False: mientras no haya colas enlazadas (incremento 2),
-                # RabbitMQ descarta el mensaje en lugar de devolverlo.
-                # timeout: un broker detenido no debe retener la transacción ni los
-                # bloqueos de fila (FOR UPDATE) indefinidamente.
-                await self._exchange.publish(
-                    mensaje,
-                    routing_key=fila.tipo,
-                    mandatory=False,
-                    timeout=TIMEOUT_PUBLICACION,
-                )
+                # mandatory=True: si ninguna cola recibe este tipo (topología sin aplicar), RabbitMQ
+                # lo devuelve; queda pendiente y se reintenta, sin frenar a los demás.
+                # timeout: un broker detenido no debe retener la transacción ni los bloqueos de
+                # fila (FOR UPDATE) indefinidamente.
+                try:
+                    await self._exchange.publish(
+                        mensaje,
+                        routing_key=fila.tipo,
+                        mandatory=True,
+                        timeout=TIMEOUT_PUBLICACION,
+                    )
+                except PublishError:
+                    # ponytail: si hay más de `lote` eventos sin cola delante, los que sí tienen
+                    # cola esperan detrás de ellos; solo pasa con la topología sin aplicar.
+                    log.warning(
+                        "Evento %s (%s) sin cola de destino; queda pendiente", fila.id, fila.tipo
+                    )
+                    continue
                 fila.publicado_en = datetime.now(UTC)
-        return len(filas)
+                publicados += 1
+        return publicados
 
     async def ejecutar(self, intervalo: float = 1.0) -> None:
         # ponytail: sondeo cada `intervalo` s; cambiar a LISTEN/NOTIFY si la latencia importa.
