@@ -224,6 +224,9 @@ def verificar_inteligencia(cliente: httpx.Client) -> None:
             f"los datos importados no llegaron a inteligencia en {ESPERA_EVENTOS_S} s",
         )
         time.sleep(2)
+    # Cada espera puede durar hasta ESPERA_EVENTOS_S y los tokens duran 300 s: se piden de nuevo.
+    admin = token_de(cliente, "admin1")
+    comprador = token_de(cliente, "comprador1")
     # El servicio de humo ya está en la copia de corridas anteriores: un nombre nuevo en cada
     # corrida prueba que el cambio del catálogo llega por el evento.
     nombre = f"Servicio de la prueba de humo {uuid.uuid4().hex[:8]}"
@@ -244,6 +247,8 @@ def verificar_inteligencia(cliente: httpx.Client) -> None:
             f"el nombre nuevo del servicio de humo no llegó a inteligencia en {ESPERA_EVENTOS_S} s",
         )
         time.sleep(1)
+    admin = token_de(cliente, "admin1")
+    comprador = token_de(cliente, "comprador1")
     copia = cliente.get("/api/inteligencia/datos", headers=admin)
     verificar(
         copia.status_code == 200 and copia.json()["registros"]["contratos"] > 0,
