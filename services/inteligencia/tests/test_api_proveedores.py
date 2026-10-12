@@ -9,10 +9,15 @@ from typing import Any
 import httpx
 import pytest
 from generador.modelo import DatosSinteticos, generar
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 pytestmark = pytest.mark.integracion
 
+Fabrica = async_sessionmaker[AsyncSession]
 Cargar = Callable[[DatosSinteticos], Awaitable[None]]
+AplicarEvento = Callable[[str, dict[str, Any]], Awaitable[None]]
+IdDe = Callable[[str], str]
 Cabeceras = dict[str, str]
 KPIS = ["sla", "resolucion", "incidentes", "entregas", "satisfaccion"]
 
@@ -88,6 +93,106 @@ async def test_lista_filtra_ordena_y_pagina(
         await cliente.get("/proveedores", params={"pagina": 2, "tamano": 5}, headers=comprador)
     ).json()
     assert pagina == {"total": 15, "elementos": todos[5:10]}
+
+
+async def test_la_busqueda_ignora_acentos_y_mayusculas(
+    cliente: httpx.AsyncClient, comprador: Cabeceras, datos: DatosSinteticos
+) -> None:
+    [con_acento] = [p for p in datos.proveedores if p.nombre.startswith("Código")]
+    for busqueda in ("codigo", "CODIGO", "código", "CÓDIGO azteca"):
+        encontrados = await _lista(cliente, comprador, busqueda=busqueda)
+        assert [p["rfc"] for p in encontrados] == [con_acento.rfc], busqueda
+
+
+async def test_un_proveedor_sin_puntuacion_va_al_final_en_las_dos_direcciones(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    datos: DatosSinteticos,
+    aplicar_evento: AplicarEvento,
+) -> None:
+    sin_desempeno = str(uuid.uuid4())
+    await aplicar_evento(
+        "proveedor.actualizado",
+        {
+            "id": sin_desempeno,
+            "rfc": "AAA010101AAA",
+            "nombre": "Aaa Recién Llegado S.A.",  # el primero por nombre, para que el orden cuente
+            "tamano": "micro",
+            "categorias": ["nube"],
+            "activo": True,
+        },
+    )
+    for direccion in ("asc", "desc"):
+        lista = await _lista(cliente, comprador, orden="puntuacion", direccion=direccion)
+        assert len(lista) == 16, direccion
+        ultimo = lista[-1]
+        assert ultimo["id"] == sin_desempeno, direccion
+        assert (ultimo["puntuacion"], ultimo["confianza"], ultimo["tendencia"]) == (
+            None,
+            None,
+            None,
+        )
+        puntuaciones = [p["puntuacion"] for p in lista[:-1]]
+        assert None not in puntuaciones
+        assert puntuaciones == sorted(puntuaciones, reverse=direccion == "desc"), direccion
+
+
+async def test_en_riesgo_devuelve_a_los_activos_con_puntuacion(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    datos: DatosSinteticos,
+    aplicar_evento: AplicarEvento,
+    fabrica: Fabrica,
+    id_estable: IdDe,
+) -> None:
+    # Con el umbral en 100, todo proveedor activo con puntuación tiene una alerta de riesgo.
+    async with fabrica() as sesion, sesion.begin():
+        await sesion.execute(
+            text("UPDATE configuracion SET umbral_riesgo = 100, actualizado_en = now()")
+        )
+    inactivo = datos.proveedores[0]
+    await aplicar_evento(
+        "proveedor.actualizado",
+        {
+            "id": id_estable(inactivo.rfc),
+            "rfc": inactivo.rfc,
+            "nombre": inactivo.nombre,
+            "tamano": inactivo.tamano,
+            "categorias": list(inactivo.categorias),
+            "activo": False,
+        },
+    )
+    sin_desempeno = str(uuid.uuid4())
+    await aplicar_evento(
+        "proveedor.actualizado",
+        {
+            "id": sin_desempeno,
+            "rfc": "BBB020202BBB",
+            "nombre": "Sin Desempeño S.A.",
+            "tamano": "micro",
+            "categorias": ["soporte"],
+            "activo": True,
+        },
+    )
+    todos = await _lista(cliente, comprador)
+    esperados = {p["id"] for p in todos if p["activo"] and p["puntuacion"] is not None}
+    assert len(esperados) == 14  # 15 menos el inactivo; el nuevo no tiene puntuación
+    en_riesgo = await _lista(cliente, comprador, en_riesgo="true")
+    assert {p["id"] for p in en_riesgo} == esperados
+    assert all(p["en_riesgo"] for p in en_riesgo)
+    resto = await _lista(cliente, comprador, en_riesgo="false")
+    assert {p["id"] for p in resto} == {id_estable(inactivo.rfc), sin_desempeno}
+    assert not any(p["en_riesgo"] for p in resto)
+
+
+async def test_ordena_por_gasto_anual(
+    cliente: httpx.AsyncClient, comprador: Cabeceras, datos: DatosSinteticos
+) -> None:
+    for direccion in ("asc", "desc"):
+        lista = await _lista(cliente, comprador, orden="gasto_anual", direccion=direccion)
+        gastos = [Decimal(p["gasto_anual"]) for p in lista]
+        assert gastos == sorted(gastos, reverse=direccion == "desc"), direccion
+        assert len(set(gastos)) > 1, direccion  # que el orden no sea trivial
 
 
 @pytest.mark.parametrize(
