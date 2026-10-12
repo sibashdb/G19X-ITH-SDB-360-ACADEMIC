@@ -17,7 +17,7 @@ dev = [
     "httpx>=0.28",
     "asyncpg>=0.30",
     "testcontainers[postgres,rabbitmq]>=4.9",
-    "ruff>=0.8",
+    "ruff>=0.16.10",
     "mypy>=1.13",
     "hypothesis>=6.120",
 ]
