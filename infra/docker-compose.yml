@@ -140,6 +140,7 @@ services:
       URL_APP: http://localhost:8080/
       BUZON_URL: http://localhost:8025
       PROVEEDORES_URL: http://proveedores:8000
+      INTELIGENCIA_URL: http://inteligencia:8000
       MAILPIT_URL: http://mailpit:8025
       RABBITMQ_API_URL: http://rabbitmq:15672/api
       VERSION_APP: ${VERSION_APP:-desarrollo}

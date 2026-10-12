@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 UMBRAL_LENTO_S = 1.0
 TIEMPO_LIMITE_S = 2.0
 MAX_MENSAJES_EN_COLA = 100
+SUFIJO_FALLIDOS = ".dlq"
 
 Estado = Literal["sano", "con_problemas", "caido"]
 Prueba = Callable[[], Awaitable[str | None]]  # devuelve un problema, o None si todo está bien
@@ -70,6 +71,9 @@ async def comprobar_todo(
     async def proveedores() -> None:
         await obtener(f"{config.proveedores_url}/salud/listo")
 
+    async def inteligencia() -> None:
+        await obtener(f"{config.inteligencia_url}/salud/listo")
+
     async def identidad() -> None:
         await obtener(
             f"{config.keycloak_url}/realms/{config.keycloak_realm}/.well-known/openid-configuration"
@@ -84,9 +88,21 @@ async def comprobar_todo(
         atrasadas = [
             f"{c['name']} ({c.get('messages_ready', 0)})"
             for c in colas
-            if c.get("messages_ready", 0) > MAX_MENSAJES_EN_COLA
+            if not c["name"].endswith(SUFIJO_FALLIDOS)
+            and c.get("messages_ready", 0) > MAX_MENSAJES_EN_COLA
         ]
-        return f"Mensajes pendientes en: {', '.join(atrasadas)}." if atrasadas else None
+        # Un mensaje en una cola de fallidos agotó sus 5 entregas: alguien debe revisarlo.
+        fallidas = [
+            f"{c['name']} ({c.get('messages', 0)})"
+            for c in colas
+            if c["name"].endswith(SUFIJO_FALLIDOS) and c.get("messages", 0) > 0
+        ]
+        problemas = []
+        if atrasadas:
+            problemas.append(f"Mensajes pendientes en: {', '.join(atrasadas)}.")
+        if fallidas:
+            problemas.append(f"Mensajes fallidos en: {', '.join(fallidas)}.")
+        return " ".join(problemas) or None
 
     async def correo() -> None:
         await obtener(f"{config.mailpit_url}/readyz")
@@ -94,6 +110,7 @@ async def comprobar_todo(
     pruebas: list[tuple[str, str, Prueba]] = [
         ("base_de_datos", "Base de datos de administración", base_de_datos),
         ("proveedores", "Servicio de proveedores", proveedores),
+        ("inteligencia", "Servicio de inteligencia", inteligencia),
         ("identidad", "Identidad (Keycloak)", identidad),
         ("mensajeria", "Mensajería (RabbitMQ)", mensajeria),
         ("correo", "Buzón de correo (Mailpit)", correo),

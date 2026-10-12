@@ -22,6 +22,7 @@ class Configuracion(ConfiguracionBase):
     # Las pruebas que levantan el ciclo de vida lo apagan: no hay RabbitMQ en ellas.
     consumir_eventos: bool = True
     proveedores_url: str = "http://localhost:8000"
+    inteligencia_url: str = "http://localhost:8000"
     mailpit_url: str = "http://localhost:8025"
     rabbitmq_api_url: str = "http://localhost:15672/api"
     version_app: str = "desarrollo"

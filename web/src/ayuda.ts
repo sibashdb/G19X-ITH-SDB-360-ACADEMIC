@@ -261,7 +261,7 @@ export const ARTICULOS: Articulo[] = [
     secciones: [
       {
         parrafos: [
-          "Estado del sistema comprueba cada 30 segundos la base de datos, el servicio de proveedores, la identidad (Keycloak), la mensajería (RabbitMQ) y el buzón de correo.",
+          "Estado del sistema comprueba cada 30 segundos la base de datos, los servicios de proveedores y de inteligencia, la identidad (Keycloak), la mensajería (RabbitMQ) y el buzón de correo. En la mensajería avisa si una cola acumula mensajes sin procesar o si algún mensaje falló 5 veces y quedó apartado.",
           "Sano: responde en menos de un segundo. Con problemas: responde con lentitud o hay muchos mensajes pendientes. Caído: no responde en dos segundos o responde con un error.",
           "Si un servicio sigue caído, avise al equipo técnico con la hora y el detalle que muestra su tarjeta.",
         ],
