@@ -43,6 +43,7 @@ const GRUPOS = [
   ["usuarios", "Usuarios"],
   ["importaciones", "Importaciones"],
   ["catalogo", "Catálogo"],
+  ["inteligencia", "Inteligencia"],
 ] as const
 const CLAVES_GRUPO = GRUPOS.map(([clave]) => clave)
 const FECHA_MINIMA = "2000-01-01"
@@ -194,7 +195,7 @@ function ContenidoActividad() {
         <EstadoVacio
           icono={History}
           titulo="Aún no hay actividad registrada"
-          descripcion="Aquí aparecerán los inicios de sesión, las acciones sobre usuarios, las importaciones y los cambios del catálogo."
+          descripcion="Aquí aparecerán los inicios de sesión, las acciones sobre usuarios, las importaciones, los cambios del catálogo y los de la puntuación y el modelo de precios."
         />
       )
     return (
@@ -259,7 +260,7 @@ function ContenidoActividad() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Actividad"
-        descripcion="Quién hizo qué y cuándo: inicios de sesión, cambios de usuarios, importaciones y catálogo. Nada de esto se puede borrar."
+        descripcion="Quién hizo qué y cuándo: inicios de sesión, cambios de usuarios, importaciones, catálogo y puntuación. Nada de esto se puede borrar."
         acciones={
           <Button
             variant="outline"

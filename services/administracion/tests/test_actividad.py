@@ -54,6 +54,42 @@ async def test_filtros_y_dia_en_hora_de_mexico(
     assert [e["objeto_nombre"] for e in usuarios["elementos"]] == ["Ana López"]
 
 
+async def test_filtro_de_inteligencia(
+    cliente: httpx.AsyncClient, admin: dict[str, str], fabrica: async_sessionmaker[AsyncSession]
+) -> None:
+    async with fabrica() as sesion:
+        await registrar(
+            sesion,
+            "configuracion.actualizada",
+            Actor("admin-1", "admin1"),
+            objeto=Objeto("configuracion", "puntuacion", "configuración de la puntuación"),
+            origen="inteligencia",
+        )
+        await registrar(
+            sesion,
+            "modelo.entrenado",
+            Actor(None, "Sistema (automático)"),
+            objeto=Objeto("modelo", "1", "modelo de precios v1"),
+            detalle={"version": 1, "mape": 0.08, "promovido": True},
+            origen="inteligencia",
+        )
+        await registrar(
+            sesion,
+            "servicio.creado",
+            Actor("admin-1", "admin1"),
+            objeto=Objeto("servicio", "SOP-X", "SOP-X"),
+            origen="proveedores",
+        )
+        await sesion.commit()
+    cuerpo = (
+        await cliente.get("/actividad", params={"tipo": "inteligencia"}, headers=admin)
+    ).json()
+    assert sorted(e["tipo"] for e in cuerpo["elementos"]) == [
+        "configuracion.actualizada",
+        "modelo.entrenado",
+    ]
+
+
 async def test_rango_invertido(cliente: httpx.AsyncClient, admin: dict[str, str]) -> None:
     respuesta = await cliente.get(
         "/actividad", params={"desde": "2026-10-08", "hasta": "2026-10-01"}, headers=admin

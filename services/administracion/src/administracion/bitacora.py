@@ -11,12 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from administracion.modelos import Actividad
 
-GrupoTipo = Literal["sesiones", "usuarios", "importaciones", "catalogo"]
-PREFIJOS_GRUPO: dict[str, str] = {
-    "sesiones": "sesion.",
-    "usuarios": "usuario.",
-    "importaciones": "importacion.",
-    "catalogo": "servicio.",
+GrupoTipo = Literal["sesiones", "usuarios", "importaciones", "catalogo", "inteligencia"]
+PREFIJOS_GRUPO: dict[str, tuple[str, ...]] = {
+    "sesiones": ("sesion.",),
+    "usuarios": ("usuario.",),
+    "importaciones": ("importacion.",),
+    "catalogo": ("servicio.",),
+    "inteligencia": ("configuracion.", "modelo."),
 }
 MAX_NOMBRE = 200  # largo de actor_nombre y objeto_nombre; Keycloak admite usuarios de hasta 255
 
@@ -83,7 +84,9 @@ def _filtrada(filtro: FiltroActividad) -> Select[Actividad]:
             or_(Actividad.actor_id == filtro.persona, Actividad.objeto_id == filtro.persona)
         )
     if filtro.tipo:
-        consulta = consulta.where(Actividad.tipo.startswith(PREFIJOS_GRUPO[filtro.tipo]))
+        consulta = consulta.where(
+            or_(*(Actividad.tipo.startswith(p) for p in PREFIJOS_GRUPO[filtro.tipo]))
+        )
     if filtro.desde:
         consulta = consulta.where(Actividad.fecha >= filtro.desde)
     if filtro.hasta:

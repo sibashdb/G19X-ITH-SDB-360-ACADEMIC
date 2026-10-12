@@ -5,6 +5,7 @@ tipos.
 """
 
 from collections.abc import Callable
+from decimal import ROUND_HALF_UP, Decimal
 
 from administracion.modelos import Actividad
 
@@ -39,6 +40,39 @@ def _sesion_fallida(a: Actividad) -> str:
     )
 
 
+NOMBRES_AJUSTE = {"umbral_riesgo": "umbral de riesgo", "inflacion_anual": "inflación anual"}
+CONFIGURACION = "Cambió la configuración de la puntuación"
+
+
+def _ajustes(a: Actividad) -> str:
+    """Los campos cambiados en lenguaje llano; los cinco pesos se nombran una vez."""
+    cambios = a.detalle.get("cambios")
+    nombres: list[str] = []
+    for cambio in cambios if isinstance(cambios, list) else []:
+        campo = str(cambio.get("campo", "")) if isinstance(cambio, dict) else ""
+        nombre = "pesos" if campo.startswith("peso_") else NOMBRES_AJUSTE.get(campo, campo)
+        if nombre not in nombres:
+            nombres.append(nombre)
+    return f"{CONFIGURACION}: {', '.join(nombres)}" if nombres else CONFIGURACION
+
+
+def _entrenamiento(a: Actividad) -> str:
+    mape = a.detalle.get("mape")
+    # Medio hacia arriba, como toFixed en la web; f"{x:.1f}" redondea al par (11.25 → 11.2).
+    porcentaje = (
+        str(Decimal(mape * 100).quantize(Decimal("0.1"), ROUND_HALF_UP))
+        if isinstance(mape, int | float)
+        else "?"
+    )
+    resultado = (
+        "promovido" if a.detalle.get("promovido") else "no se promovió (no mejoró la línea base)"
+    )
+    return (
+        f"Reentrenó el modelo de precios: versión {a.detalle.get('version', '?')}, "
+        f"MAPE {porcentaje} %, {resultado}"
+    )
+
+
 TEXTOS: dict[str, Callable[[Actividad], str]] = {
     "sesion.iniciada": lambda a: "Inició sesión",
     "sesion.fallida": _sesion_fallida,
@@ -67,6 +101,8 @@ TEXTOS: dict[str, Callable[[Actividad], str]] = {
     "servicio.actualizado": lambda a: f"Editó el servicio {a.objeto_nombre}",
     "servicio.desactivado": lambda a: f"Desactivó el servicio {a.objeto_nombre}",
     "servicio.activado": lambda a: f"Activó el servicio {a.objeto_nombre}",
+    "configuracion.actualizada": _ajustes,
+    "modelo.entrenado": _entrenamiento,
 }
 
 

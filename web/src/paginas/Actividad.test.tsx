@@ -140,6 +140,17 @@ describe("Actividad", () => {
     expect(ultima.searchParams.get("desde")).toBe("2026-10-01")
   })
 
+  it("filtra la configuración y los entrenamientos de inteligencia", async () => {
+    const simulado = api()
+    renderizarPagina(<Actividad />, { ruta: "/sistema/actividad" })
+    await screen.findByText("Importó 1,250 contratos")
+    await userEvent.click(screen.getByRole("button", { name: "Inteligencia" }))
+    expect(ubicacionActual()).toBe("/sistema/actividad?tipo=inteligencia")
+    await vi.waitFor(() =>
+      expect(llamadasDeLista(simulado).at(-1)).toContain("tipo=inteligencia")
+    )
+  })
+
   it("al teclear el año, los campos de fecha conservan lo escrito y la URL espera una fecha válida", async () => {
     api()
     renderizarPagina(<Actividad />, { ruta: "/sistema/actividad" })

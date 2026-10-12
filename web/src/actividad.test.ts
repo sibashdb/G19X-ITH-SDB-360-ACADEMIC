@@ -56,6 +56,32 @@ describe("describirActividad", () => {
       {},
       "Envió a Ana López un correo para definir su contraseña",
     ],
+    [
+      "configuracion.actualizada",
+      {
+        cambios: [
+          { campo: "peso_sla", anterior: 30, nuevo: 40 },
+          { campo: "peso_entregas", anterior: 15, nuevo: 5 },
+          { campo: "inflacion_anual", anterior: "4.50", nuevo: "5.20" },
+        ],
+      },
+      "Cambió la configuración de la puntuación: pesos, inflación anual",
+    ],
+    [
+      "modelo.entrenado",
+      { version: 4, mape: 0.112, promovido: true },
+      "Reentrenó el modelo de precios: versión 4, MAPE 11.2 %, promovido",
+    ],
+    [
+      "modelo.entrenado",
+      { version: 5, mape: 0.0934, promovido: false },
+      "Reentrenó el modelo de precios: versión 5, MAPE 9.3 %, no se promovió (no mejoró la línea base)",
+    ],
+    [
+      "modelo.entrenado",
+      { version: 6, mape: 0.1125, promovido: true },
+      "Reentrenó el modelo de precios: versión 6, MAPE 11.3 %, promovido",
+    ],
   ])("%s", (tipo, detalle, esperado) => {
     expect(describirActividad({ ...base, tipo, detalle })).toBe(esperado)
   })

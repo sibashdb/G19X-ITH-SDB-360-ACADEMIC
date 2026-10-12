@@ -17,6 +17,7 @@ NOMBRES_ENTIDAD = {
     "desempeno": "registros de desempeño",
 }
 CAMBIOS_SERVICIO = frozenset({"creado", "actualizado", "desactivado", "activado"})
+TIPOS_INTELIGENCIA = ("configuracion.", "modelo.")  # los publica inteligencia
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class Registro:
     resultado: str
     clave_origen: str
     fecha: datetime
+    origen: str = "proveedores"
 
 
 def _actor(payload: dict[str, Any]) -> Actor:
@@ -40,7 +42,8 @@ def traducir(sobre: dict[str, Any]) -> Registro | None:
     try:
         tipo = sobre["type"]
         payload = sobre["payload"]
-        clave = f"proveedores:{sobre['event_id']}"
+        origen = "inteligencia" if tipo.startswith(TIPOS_INTELIGENCIA) else "proveedores"
+        clave = f"{origen}:{sobre['event_id']}"
         fecha = datetime.fromisoformat(sobre["occurred_at"])
         if tipo in ("importacion.completada", "importacion.rechazada"):
             entidad = str(payload["entidad"])
@@ -69,6 +72,40 @@ def traducir(sobre: dict[str, Any]) -> Registro | None:
                 clave,
                 fecha,
             )
+        if tipo == "configuracion.actualizada":
+            cambios = [
+                {"campo": str(c["campo"]), "anterior": c["anterior"], "nuevo": c["nuevo"]}
+                for c in payload["cambios"]
+            ]
+            return Registro(
+                tipo,
+                _actor(payload),
+                Objeto("configuracion", "puntuacion", "configuración de la puntuación"),
+                {"cambios": cambios},
+                "exito",
+                clave,
+                fecha,
+                origen,
+            )
+        if tipo == "modelo.entrenado":
+            version = int(payload["version"])
+            detalle = {
+                "version": version,
+                "mape": float(payload["mape"]),
+                "mape_linea_base": float(payload["mape_linea_base"]),
+                "promovido": bool(payload["promovido"]),
+                "origen": str(payload["origen"]),
+            }
+            return Registro(
+                tipo,
+                _actor(payload),
+                Objeto("modelo", str(version), f"modelo de precios v{version}"),
+                detalle,
+                "exito",
+                clave,
+                fecha,
+                origen,
+            )
         return None
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise EventoInvalido(str(exc)) from exc
@@ -84,7 +121,7 @@ async def guardar(fabrica: async_sessionmaker[AsyncSession], registro: Registro)
             objeto=registro.objeto,
             detalle=registro.detalle,
             resultado=registro.resultado,
-            origen="proveedores",
+            origen=registro.origen,
             clave_origen=registro.clave_origen,
             fecha=registro.fecha,
         )

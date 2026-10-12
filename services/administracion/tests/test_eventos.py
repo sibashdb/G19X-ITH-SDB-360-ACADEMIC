@@ -19,6 +19,15 @@ from testcontainers.community.rabbitmq import RabbitMqContainer
 
 ADMIN = {"id": "admin-1", "nombre": "admin1"}
 FECHA = "2026-10-09T15:00:00+00:00"
+ENTRENAMIENTO = {
+    "version": 4,
+    "mape": 0.112,
+    "mape_linea_base": 0.12,
+    "cobertura": 0.48,
+    "promovido": True,
+    "origen": "automatico",
+    "actor": {"id": None, "nombre": "Sistema (automático)"},
+}
 
 
 def _sobre(tipo: str, payload: dict[str, Any], event_id: str | None = None) -> dict[str, Any]:
@@ -87,6 +96,41 @@ def test_traduce_los_cambios_del_catalogo(cambio: str, detalle: dict[str, Any]) 
     assert registro.detalle == detalle
 
 
+def test_traduce_un_cambio_de_configuracion() -> None:
+    cambios = [
+        {"campo": "peso_sla", "anterior": 30, "nuevo": 40},
+        {"campo": "inflacion_anual", "anterior": "4.50", "nuevo": "5.20"},
+    ]
+    sobre = _sobre("configuracion.actualizada", {"cambios": cambios, "actor": ADMIN}, "e-9")
+    assert traducir(sobre) == Registro(
+        tipo="configuracion.actualizada",
+        actor=Actor("admin-1", "admin1"),
+        objeto=Objeto("configuracion", "puntuacion", "configuración de la puntuación"),
+        detalle={"cambios": cambios},
+        resultado="exito",
+        clave_origen="inteligencia:e-9",
+        fecha=datetime(2026, 10, 9, 15, tzinfo=UTC),
+        origen="inteligencia",
+    )
+
+
+@pytest.mark.parametrize("promovido", [True, False])
+def test_traduce_un_entrenamiento_del_modelo(promovido: bool) -> None:
+    registro = traducir(_sobre("modelo.entrenado", {**ENTRENAMIENTO, "promovido": promovido}))
+    assert registro is not None
+    assert (registro.tipo, registro.origen) == ("modelo.entrenado", "inteligencia")
+    assert registro.actor == Actor(None, "Sistema (automático)")
+    assert registro.objeto == Objeto("modelo", "4", "modelo de precios v4")
+    assert registro.detalle == {
+        "version": 4,
+        "mape": 0.112,
+        "mape_linea_base": 0.12,
+        "promovido": promovido,
+        "origen": "automatico",
+    }
+    assert registro.clave_origen.startswith("inteligencia:")
+
+
 def test_ignora_lo_que_no_va_a_la_bitacora() -> None:
     assert traducir(_sobre("proveedor.actualizado", {"id": "x"})) is None
     # Un servicio.actualizado sin cambio ni actor (p. ej. una instantánea del Plan B): no es acción.
@@ -98,6 +142,10 @@ def test_un_sobre_mal_formado_es_invalido() -> None:
         traducir({"type": "importacion.completada", "payload": {}})
     with pytest.raises(EventoInvalido):  # un payload que no es un objeto tampoco debe escapar
         traducir(_sobre("servicio.actualizado", "no es un objeto"))  # type: ignore[arg-type]
+    with pytest.raises(EventoInvalido):
+        traducir(_sobre("modelo.entrenado", {**ENTRENAMIENTO, "version": "cuatro"}))
+    with pytest.raises(EventoInvalido):
+        traducir(_sobre("configuracion.actualizada", {"cambios": ["peso_sla"], "actor": ADMIN}))
 
 
 @pytest.fixture(scope="module")
@@ -169,6 +217,23 @@ async def test_un_evento_repetido_deja_un_solo_registro(
         await _esperar(fabrica, 1)
         await asyncio.sleep(0.5)  # tiempo para que la segunda entrega llegue si se fuera a duplicar
     assert await _tipos(fabrica) == ["servicio.creado"]
+
+
+@pytest.mark.integracion
+async def test_guarda_los_registros_de_inteligencia_una_sola_vez(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    sobre = _sobre("modelo.entrenado", ENTRENAMIENTO)
+    atender = atendedor(fabrica)
+    await atender(sobre)
+    await atender(sobre)  # el mismo evento entregado dos veces
+    async with fabrica() as sesion:
+        filas = await sesion.execute(
+            text("SELECT origen, clave_origen, objeto_nombre, actor_id FROM actividad")
+        )
+        assert [tuple(f) for f in filas] == [
+            ("inteligencia", f"inteligencia:{sobre['event_id']}", "modelo de precios v4", None)
+        ]
 
 
 @pytest.mark.integracion

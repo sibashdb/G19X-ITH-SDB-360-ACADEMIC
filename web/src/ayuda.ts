@@ -230,7 +230,7 @@ export const ARTICULOS: Articulo[] = [
     secciones: [
       {
         parrafos: [
-          "Actividad reúne los inicios de sesión (incluidos los intentos fallidos), las acciones sobre usuarios, las importaciones y los cambios del catálogo. Nada de esto se puede borrar ni modificar.",
+          "Actividad reúne los inicios de sesión (incluidos los intentos fallidos), las acciones sobre usuarios, las importaciones, los cambios del catálogo y los cambios de la configuración de la puntuación y los entrenamientos del modelo de precios. Nada de esto se puede borrar ni modificar.",
           "Filtre por persona, tipo y fechas. Con «Exportar CSV» descarga los registros filtrados para abrirlos en Excel; se exportan como máximo los 10,000 más recientes, así que acote las fechas si necesita más.",
         ],
       },

@@ -19,7 +19,10 @@ class Actividad(Base):
     __tablename__ = "actividad"
     __table_args__ = (
         CheckConstraint("resultado IN ('exito', 'fallo')", name="resultado"),
-        CheckConstraint("origen IN ('keycloak', 'proveedores', 'administracion')", name="origen"),
+        CheckConstraint(
+            "origen IN ('keycloak', 'proveedores', 'administracion', 'inteligencia')",
+            name="origen",
+        ),
         Index("ix_actividad_fecha", "fecha"),
         Index("ix_actividad_actor_id", "actor_id"),
         Index("ix_actividad_objeto_id", "objeto_id"),

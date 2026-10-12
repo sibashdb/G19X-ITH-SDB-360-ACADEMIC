@@ -19,6 +19,8 @@ export const TIPOS_ACTIVIDAD = [
   "servicio.actualizado",
   "servicio.desactivado",
   "servicio.activado",
+  "configuracion.actualizada",
+  "modelo.entrenado",
 ] as const
 type TipoActividad = (typeof TIPOS_ACTIVIDAD)[number]
 
@@ -33,6 +35,40 @@ function roles(valor: unknown): string {
   return Array.isArray(valor)
     ? valor.map((r) => NOMBRES_ROL[r as Rol] ?? String(r)).join(", ")
     : ""
+}
+
+const NOMBRES_AJUSTE: Record<string, string> = {
+  umbral_riesgo: "umbral de riesgo",
+  inflacion_anual: "inflación anual",
+}
+const CONFIGURACION = "Cambió la configuración de la puntuación"
+
+/** Los campos cambiados en lenguaje llano; los cinco pesos se nombran una vez. */
+function ajustes(a: RegistroActividad): string {
+  const cambios = Array.isArray(a.detalle.cambios) ? a.detalle.cambios : []
+  const nombres: string[] = []
+  for (const cambio of cambios) {
+    const campo =
+      cambio && typeof cambio === "object"
+        ? String((cambio as { campo?: unknown }).campo ?? "")
+        : ""
+    const nombre = campo.startsWith("peso_")
+      ? "pesos"
+      : (NOMBRES_AJUSTE[campo] ?? campo)
+    if (!nombres.includes(nombre)) nombres.push(nombre)
+  }
+  return nombres.length
+    ? `${CONFIGURACION}: ${nombres.join(", ")}`
+    : CONFIGURACION
+}
+
+function entrenamiento(a: RegistroActividad): string {
+  const mape = a.detalle.mape
+  const porcentaje = typeof mape === "number" ? (mape * 100).toFixed(1) : "?"
+  const resultado = a.detalle.promovido
+    ? "promovido"
+    : "no se promovió (no mejoró la línea base)"
+  return `Reentrenó el modelo de precios: versión ${String(a.detalle.version ?? "?")}, MAPE ${porcentaje} %, ${resultado}`
 }
 
 const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
@@ -64,6 +100,8 @@ const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
   "servicio.actualizado": (a) => `Editó el servicio ${a.objeto_nombre}`,
   "servicio.desactivado": (a) => `Desactivó el servicio ${a.objeto_nombre}`,
   "servicio.activado": (a) => `Activó el servicio ${a.objeto_nombre}`,
+  "configuracion.actualizada": ajustes,
+  "modelo.entrenado": entrenamiento,
 }
 
 // Un alta que quedó a medias trae en el detalle qué faltó.

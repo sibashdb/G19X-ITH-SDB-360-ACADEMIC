@@ -110,6 +110,45 @@ CASOS: list[tuple[str, str, dict[str, object], str]] = [
     ("servicio.actualizado", "SOP-CRM-LIC", {}, "Editó el servicio SOP-CRM-LIC"),
     ("servicio.desactivado", "SOP-CRM-LIC", {}, "Desactivó el servicio SOP-CRM-LIC"),
     ("servicio.activado", "SOP-CRM-LIC", {}, "Activó el servicio SOP-CRM-LIC"),
+    (
+        "configuracion.actualizada",
+        "configuración de la puntuación",
+        {
+            "cambios": [
+                {"campo": "peso_sla", "anterior": 30, "nuevo": 40},
+                {"campo": "peso_satisfaccion", "anterior": 15, "nuevo": 5},
+                {"campo": "umbral_riesgo", "anterior": 40, "nuevo": 35},
+                {"campo": "inflacion_anual", "anterior": "4.50", "nuevo": "5.20"},
+            ]
+        },
+        "Cambió la configuración de la puntuación: pesos, umbral de riesgo, inflación anual",
+    ),
+    (
+        "configuracion.actualizada",
+        "configuración de la puntuación",
+        {},
+        "Cambió la configuración de la puntuación",
+    ),
+    (
+        "modelo.entrenado",
+        "modelo de precios v4",
+        {"version": 4, "mape": 0.112, "promovido": True},
+        "Reentrenó el modelo de precios: versión 4, MAPE 11.2 %, promovido",
+    ),
+    (
+        "modelo.entrenado",
+        "modelo de precios v5",
+        {"version": 5, "mape": 0.0934, "promovido": False},
+        "Reentrenó el modelo de precios: versión 5, MAPE 9.3 %, no se promovió "
+        "(no mejoró la línea base)",
+    ),
+    # Un empate exacto (11.25) sube, como toFixed en la web; el redondeo de Python lo bajaría.
+    (
+        "modelo.entrenado",
+        "modelo de precios v6",
+        {"version": 6, "mape": 0.1125, "promovido": True},
+        "Reentrenó el modelo de precios: versión 6, MAPE 11.3 %, promovido",
+    ),
 ]
 
 
