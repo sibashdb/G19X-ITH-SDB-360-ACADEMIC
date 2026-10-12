@@ -127,12 +127,12 @@ def riesgo(
     if actual < umbral:
         severidad: Severidad = "alta"
         titulo = f"Puntuación baja: {nombre}"
-        explicacion = f"Su puntuación es {actual:.0f} de 100, por debajo del umbral de {umbral}."
+        explicacion = f"Su puntuación es {actual:.1f} de 100, por debajo del umbral de {umbral}."
     elif anterior is not None and anterior - actual > CAIDA_RIESGO:
         severidad = "media"
         titulo = f"Puntuación en caída: {nombre}"
         explicacion = (
-            f"Bajó {anterior - actual:.0f} puntos en 3 meses (de {anterior:.0f} a {actual:.0f})."
+            f"Bajó {anterior - actual:.1f} puntos en 3 meses (de {anterior:.1f} a {actual:.1f})."
         )
     else:
         return None

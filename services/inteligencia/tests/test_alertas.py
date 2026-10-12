@@ -76,13 +76,24 @@ def test_riesgo_por_puntuacion_baja_o_en_caida() -> None:
     baja = riesgo("p-1", "Nube Azteca", 35.0, 38.0, 40, HOY)
     assert baja is not None
     assert (baja.severidad, baja.titulo) == ("alta", "Puntuación baja: Nube Azteca")
-    assert baja.explicacion == "Su puntuación es 35 de 100, por debajo del umbral de 40."
+    assert baja.explicacion == "Su puntuación es 35.0 de 100, por debajo del umbral de 40."
     caida = riesgo("p-1", "Nube Azteca", 60.0, 75.0, 40, HOY)
     assert caida is not None
     assert (caida.severidad, caida.titulo) == ("media", "Puntuación en caída: Nube Azteca")
-    assert caida.explicacion == "Bajó 15 puntos en 3 meses (de 75 a 60)."
+    assert caida.explicacion == "Bajó 15.0 puntos en 3 meses (de 75.0 a 60.0)."
     assert riesgo("p-1", "Nube Azteca", 60.0, 65.0, 40, HOY) is None
     assert riesgo("p-1", "Nube Azteca", 60.0, None, 40, HOY) is None
+
+
+def test_los_textos_de_riesgo_llevan_un_decimal_para_no_contradecir_al_umbral() -> None:
+    # Con cero decimales, 39.6 se leería "40 ... por debajo del umbral de 40".
+    baja = riesgo("p-1", "Nube Azteca", 39.6, None, 40, HOY)
+    assert baja is not None
+    assert baja.explicacion == "Su puntuación es 39.6 de 100, por debajo del umbral de 40."
+    # Y una caída de 10.3 se leería "Bajó 10 puntos", sin mostrar que pasa de los 10.
+    caida = riesgo("p-1", "Nube Azteca", 60.0, 70.3, 40, HOY)
+    assert caida is not None
+    assert caida.explicacion == "Bajó 10.3 puntos en 3 meses (de 70.3 a 60.0)."
 
 
 def test_ordenar_por_severidad_y_fecha() -> None:
