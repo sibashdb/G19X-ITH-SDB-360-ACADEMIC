@@ -1,0 +1,176 @@
+{
+  "exchanges": [
+    {
+      "name": "eventos",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "eventos.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "inteligencia.eventos",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5
+      }
+    },
+    {
+      "name": "inteligencia.eventos.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "administracion.actividad",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5
+      }
+    },
+    {
+      "name": "administracion.actividad.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "inteligencia.eventos",
+      "destination_type": "queue",
+      "routing_key": "proveedor.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "inteligencia.eventos",
+      "destination_type": "queue",
+      "routing_key": "servicio.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "inteligencia.eventos",
+      "destination_type": "queue",
+      "routing_key": "contrato.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "inteligencia.eventos",
+      "destination_type": "queue",
+      "routing_key": "desempeno.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "inteligencia.eventos",
+      "destination_type": "queue",
+      "routing_key": "tipo_cambio.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos.dlx",
+      "vhost": "/",
+      "destination": "inteligencia.eventos.dlq",
+      "destination_type": "queue",
+      "routing_key": "inteligencia.eventos",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "administracion.actividad",
+      "destination_type": "queue",
+      "routing_key": "importacion.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "administracion.actividad",
+      "destination_type": "queue",
+      "routing_key": "servicio.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "administracion.actividad",
+      "destination_type": "queue",
+      "routing_key": "configuracion.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "administracion.actividad",
+      "destination_type": "queue",
+      "routing_key": "modelo.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos.dlx",
+      "vhost": "/",
+      "destination": "administracion.actividad.dlq",
+      "destination_type": "queue",
+      "routing_key": "administracion.actividad",
+      "arguments": {}
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "fallidos-inteligencia.eventos",
+      "pattern": "^inteligencia\\.eventos$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "dead-letter-exchange": "eventos.dlx",
+        "dead-letter-routing-key": "inteligencia.eventos"
+      }
+    },
+    {
+      "vhost": "/",
+      "name": "fallidos-administracion.actividad",
+      "pattern": "^administracion\\.actividad$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "dead-letter-exchange": "eventos.dlx",
+        "dead-letter-routing-key": "administracion.actividad"
+      }
+    }
+  ]
+}

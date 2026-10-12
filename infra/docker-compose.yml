@@ -39,6 +39,24 @@ services:
       timeout: 5s
       retries: 12
 
+  rabbitmq-topologia:
+    image: curlimages/curl:8.11.1
+    # Declara colas, enlaces y colas de fallidos antes de que alguien publique. La API de
+    # administración fusiona: no borra nada ni toca los usuarios. Aplicarla de nuevo no cambia nada.
+    environment:
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    volumes:
+      - ./rabbitmq/definitions.json:/definitions.json:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        curl -fsS --retry 20 --retry-delay 3 --retry-all-errors
+        -u "plataforma:$${RABBITMQ_PASSWORD}" -H "content-type: application/json"
+        -X POST --data-binary @/definitions.json http://rabbitmq:15672/api/definitions
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.5
     command: ["start-dev", "--import-realm"]
@@ -90,6 +108,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      rabbitmq-topologia:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD
@@ -125,6 +145,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      rabbitmq-topologia:
+        condition: service_completed_successfully
       keycloak:
         condition: service_healthy
     healthcheck:
