@@ -10,7 +10,7 @@
 ## Entorno y método
 
 - **Verificación previa:**
-  - `npm run lint`, `npm run build`, `npx vitest run` (41 archivos, 451 pruebas) y `npx prettier --check` limpios;
+  - `npm run lint`, `npm run build`, `npx vitest run` y `npx prettier --check` limpios. Las 451 pruebas (41 archivos) son de la corrida anterior a las correcciones de la revisión final; después de ellas, `npx vitest run` pasa con 472 pruebas en 43 archivos;
   - `uv run ruff check`, `ruff format --check`, `mypy` y `pytest services/inteligencia` (146 pruebas) limpios.
 - **Tamaño del bundle:** el chunk principal bajó de 1,173.94 kB a 416.29 kB con las rutas diferidas. Recharts va en su propio chunk (347.52 kB) y Vite ya no avisa de chunks de más de 500 kB.
 - **Stack y prueba de humo:** stack completo reconstruido con `docker compose -f infra/docker-compose.yml up -d --build --wait`. La prueba de humo `uv run python infra/smoke_test.py` respondió `OK: SPA, Keycloak, proveedores, administración, operación e inteligencia responden (60 proveedores).`
