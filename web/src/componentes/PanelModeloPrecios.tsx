@@ -40,15 +40,21 @@ function Estado({
   )
 }
 
-/** Lo que pasó con el entrenamiento que pidió esta persona (o el que está corriendo). */
+/**
+ * Lo que pasó con el entrenamiento que pidió esta persona (o el que está corriendo).
+ * `ocupado` incluye la petición y su nueva lectura: mientras dura, `datos` aún es el registro
+ * anterior y no puede decir ni la versión nueva ni el motivo de un fallo.
+ */
 function Resultado({
   datos,
   antes,
+  ocupado,
 }: {
   datos: RegistroModelos
   antes: number | null
+  ocupado: boolean
 }) {
-  if (datos.entrenando) {
+  if (ocupado) {
     return (
       <>
         <LoaderCircle
@@ -143,7 +149,7 @@ function Contenido({ datos }: { datos: RegistroModelos }) {
           Reentrenar modelo de precios
         </Button>
         <p role="status" className="flex items-center gap-2 text-sm">
-          <Resultado datos={datos} antes={antes} />
+          <Resultado datos={datos} antes={antes} ocupado={ocupado} />
         </p>
       </div>
       {entrenar.isError && (

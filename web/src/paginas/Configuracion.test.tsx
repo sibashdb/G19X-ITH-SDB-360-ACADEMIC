@@ -6,6 +6,7 @@ import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularApi,
 } from "@/pruebas/utilidades"
@@ -55,6 +56,7 @@ const MODELOS = {
 }
 
 type Respuesta = () => Response
+type RespuestaDiferible = () => Response | Promise<Response>
 
 /**
  * La configuración y los modelos. `guardar` responde el PUT (la URL es la misma que la del GET:
@@ -69,7 +71,7 @@ function api({
 }: {
   guardar?: Respuesta
   modelos?: object
-  entrenar?: Respuesta
+  entrenar?: RespuestaDiferible
   despues?: object
 } = {}) {
   let lecturas = 0
@@ -284,6 +286,44 @@ describe("Configuracion", () => {
         "No se pudo entrenar: No hay datos suficientes para entrenar. Solo hay 12 líneas de contrato."
       )
     ).toBeInTheDocument()
+  })
+
+  it("mientras se pide el entrenamiento no muestra el fallo del anterior", async () => {
+    const ERROR_ANTERIOR =
+      "No hay datos suficientes para entrenar. Solo hay 12 líneas de contrato."
+    const post = respuestaDiferida()
+    api({
+      modelos: { ...MODELOS, ultimo_error: ERROR_ANTERIOR },
+      entrenar: () => post.promesa,
+      despues: { ...MODELOS, activo: 3, en_uso: 3, elementos: [V3, V2] },
+    })
+    renderizar()
+    await screen.findByText("Versión 2")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reentrenar modelo de precios" })
+    )
+
+    expect(
+      await screen.findByText(
+        "Entrenando el modelo de precios; puede tardar un minuto."
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/No se pudo entrenar/)).not.toBeInTheDocument()
+
+    post.resolver(respuestaJson({ entrenando: true }, 202))
+
+    expect(
+      await screen.findByText(
+        "Versión 3: MAPE 9.0 % (línea base 10.0 %). Se promovió: ahora calcula el precio de referencia."
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/No se pudo entrenar/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        "Entrenando el modelo de precios; puede tardar un minuto."
+      )
+    ).not.toBeInTheDocument()
   })
 
   it("si ya hay un entrenamiento en curso lo explica", async () => {
