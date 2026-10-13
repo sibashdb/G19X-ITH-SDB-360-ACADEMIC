@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Configuracion } from "@/paginas/Configuracion"
@@ -356,6 +356,8 @@ describe("Configuracion", () => {
 
   it("si ya hay un entrenamiento en curso lo explica", async () => {
     api({
+      // El 409 existe porque otro entrenamiento corre: la nueva lectura del registro lo confirma.
+      despues: { ...MODELOS, entrenando: true },
       entrenar: () =>
         respuestaJson(
           {
@@ -378,6 +380,49 @@ describe("Configuracion", () => {
       await screen.findByText(
         "Ya hay un entrenamiento del modelo de precios en curso; espere a que termine."
       )
+    ).toBeInTheDocument()
+  })
+
+  it("el aviso de entrenamiento en curso desaparece cuando ese entrenamiento termina", async () => {
+    const AVISO =
+      "Ya hay un entrenamiento del modelo de precios en curso; espere a que termine."
+    // Otra persona ya estaba entrenando: al pedirlo, el servicio responde 409 y el registro lo confirma.
+    let estado: object = MODELOS
+    simularApi((url) => {
+      if (url === "/api/inteligencia/configuracion")
+        return respuestaJson(CONFIGURACION)
+      if (url === "/api/inteligencia/modelos") return respuestaJson(estado)
+      if (url === "/api/inteligencia/modelos/entrenar") {
+        estado = { ...MODELOS, entrenando: true }
+        return respuestaJson(
+          {
+            title: "Conflicto",
+            detail: AVISO,
+            codigo: "entrenamiento_en_curso",
+          },
+          409
+        )
+      }
+      return new Response("", { status: 404 })
+    })
+    const { cliente } = renderizar()
+    await screen.findByText("Versión 2")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reentrenar modelo de precios" })
+    )
+    expect(await screen.findByText(AVISO)).toBeInTheDocument()
+
+    // El sondeo cada 2 s se simula pidiendo la lectura en cuanto el entrenamiento termina.
+    estado = { ...MODELOS, activo: 3, en_uso: 3, elementos: [V3, V2] }
+    await act(() =>
+      cliente.refetchQueries({ queryKey: ["inteligencia", "/modelos"] })
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByText(AVISO)).not.toBeInTheDocument()
+    )
+    expect(
+      await screen.findByText(/^Versión 3: MAPE 9\.0 %/)
     ).toBeInTheDocument()
   })
 

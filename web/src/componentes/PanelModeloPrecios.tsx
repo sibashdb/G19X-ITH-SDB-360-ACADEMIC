@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query"
 import { CircleAlert, Database, LoaderCircle, RefreshCw } from "lucide-react"
 import { useState } from "react"
-import { enviarJson, pedir } from "@/api"
+import { enviarJson, ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { ContenidoConsulta, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
@@ -104,6 +104,12 @@ function Contenido({ datos }: { datos: RegistroModelos }) {
     onSettled: () => modelos.refetch(),
   })
   const ocupado = entrenar.isPending || datos.entrenando
+  // "Ya hay un entrenamiento en curso" deja de valer cuando ese entrenamiento termina; cualquier
+  // otro fallo de la petición se queda hasta el siguiente clic.
+  const yaEnCurso =
+    entrenar.error instanceof ErrorApi &&
+    entrenar.error.codigo === "entrenamiento_en_curso"
+  const hayError = entrenar.isError && !(yaEnCurso && !datos.entrenando)
   const enUso = datos.elementos.find((m) => m.version === datos.en_uso)
 
   function reentrenar() {
@@ -156,11 +162,11 @@ function Contenido({ datos }: { datos: RegistroModelos }) {
             datos={datos}
             antes={antes}
             ocupado={ocupado}
-            fallo={entrenar.isError}
+            fallo={hayError}
           />
         </p>
       </div>
-      {entrenar.isError && (
+      {hayError && (
         <Alert variant="destructive">
           <CircleAlert aria-hidden />
           <AlertDescription>{entrenar.error.message}</AlertDescription>
