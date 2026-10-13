@@ -17,12 +17,12 @@ export const GLOSARIO = {
   ahorroPotencial: {
     termino: "Ahorro potencial",
     definicion:
-      "Lo que ahorraría al año si pagara el precio típico del mercado (P50).",
+      "Lo que ahorraría en lo que resta del contrato si pagara el precio típico del mercado (P50).",
   },
   puntuacion: {
     termino: "Puntuación",
     definicion:
-      "Calificación de 0 a 100 del desempeño del proveedor en los últimos 12 meses, comparada con su categoría.",
+      "Calificación de 0 a 100 del desempeño del proveedor en los últimos 12 meses, comparada con los proveedores de su categoría principal (o con todos, si su categoría tiene pocos).",
   },
   sla: {
     termino: "SLA",
@@ -43,6 +43,21 @@ export const GLOSARIO = {
     termino: "Baja confianza",
     definicion:
       "Hay pocos contratos comparables (menos de 8): el precio de referencia es una estimación.",
+  },
+  mape: {
+    termino: "MAPE",
+    definicion:
+      "Error promedio del modelo al estimar el precio típico, como porcentaje del precio real: 10 % significa que se equivoca, en promedio, por una décima parte.",
+  },
+  percentil: {
+    termino: "Percentil",
+    definicion:
+      "Posición de 0 a 100 frente a los proveedores con los que se compara: 80 significa que rinde mejor que el 80 % de ellos.",
+  },
+  lineaBase: {
+    termino: "Línea base",
+    definicion:
+      "Precio de referencia calculado directamente con los contratos de los últimos 24 meses, sin el modelo de precios.",
   },
 } as const satisfies Record<string, { termino: string; definicion: string }>
 

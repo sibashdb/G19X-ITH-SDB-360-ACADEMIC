@@ -124,7 +124,7 @@ export async function descargar(
 
 /** Opciones de fetch para enviar JSON. */
 export function enviarJson(
-  metodo: "POST" | "PATCH",
+  metodo: "POST" | "PATCH" | "PUT",
   datos?: unknown
 ): RequestInit {
   return {
