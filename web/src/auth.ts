@@ -77,3 +77,8 @@ export function useToken(): string | undefined {
 export function useRoles(): Rol[] {
   return rolesDeToken(useToken())
 }
+
+/** Identificador estable de la persona (el `sub` del token), para guardar sus preferencias. */
+export function useUsuarioId(): string {
+  return useAuth().user?.profile.sub ?? ""
+}

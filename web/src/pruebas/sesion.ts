@@ -1,5 +1,8 @@
 import { vi } from "vitest"
 
+/** El `sub` (identificador estable) de "Ana López" en el token simulado. */
+export const USUARIO_DE_PRUEBA = "ana-1"
+
 /** Estado de la sesión simulada; cada prueba puede cambiar los roles. */
 export const sesionDePrueba = {
   roles: ["admin"] as string[],
@@ -27,6 +30,7 @@ export function oidcSimulado() {
       user: {
         access_token: tokenConRoles(sesionDePrueba.roles),
         profile: {
+          sub: USUARIO_DE_PRUEBA,
           given_name: "Ana",
           family_name: "López",
           preferred_username: "ana.lopez",

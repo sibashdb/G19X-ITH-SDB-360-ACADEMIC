@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Layout } from "@/componentes/Layout"
-import { CLAVE_GUIA } from "@/guia"
-import { tokenConRoles } from "@/pruebas/sesion"
+import { claveGuia } from "@/guia"
+import { USUARIO_DE_PRUEBA, tokenConRoles } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   respuestaJson,
@@ -51,6 +51,7 @@ function sesionCon(roles: string[]) {
     user: {
       access_token: tokenConRoles(roles),
       profile: {
+        sub: USUARIO_DE_PRUEBA,
         given_name: "Ana",
         family_name: "López",
         preferred_username: "ana.lopez",
@@ -397,13 +398,14 @@ describe("Layout con sesión iniciada", () => {
   it("visitar Proveedores lo marca como visto en la guía", () => {
     renderizar("/proveedores")
     expect(
-      JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").visitas.proveedores
+      JSON.parse(localStorage.getItem(claveGuia(USUARIO_DE_PRUEBA)) ?? "{}")
+        .visitas.proveedores
     ).toBe(true)
   })
 
   it("si la guía está oculta, el menú de usuario permite mostrarla y lleva al tablero", async () => {
     localStorage.setItem(
-      CLAVE_GUIA,
+      claveGuia(USUARIO_DE_PRUEBA),
       JSON.stringify({
         oculta: true,
         visitas: { proveedores: false, precios: false },
@@ -417,9 +419,10 @@ describe("Layout con sesión iniciada", () => {
       await screen.findByRole("menuitem", { name: "Mostrar guía de uso" })
     )
 
-    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(
-      false
-    )
+    expect(
+      JSON.parse(localStorage.getItem(claveGuia(USUARIO_DE_PRUEBA)) ?? "{}")
+        .oculta
+    ).toBe(false)
     expect(document.title).toBe("Tablero · PluriOne")
   })
 

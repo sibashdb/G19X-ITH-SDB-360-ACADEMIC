@@ -133,20 +133,13 @@ cualquier terminal:
 docker compose -f infra/docker-compose.yml up -d --wait keycloak
 ```
 
-Después, el comando según su terminal. **Git Bash**: necesita `MSYS_NO_PATHCONV=1`; sin él
-convierte `/opt/…` y `/tmp/…` en rutas de Windows y el comando falla.
+Después, este comando. Sirve igual en Git Bash y en PowerShell porque no lleva comillas dobles, y
+la contraseña viaja en la variable `KC_CLI_PASSWORD` dentro del contenedor: no aparece en la línea
+de comandos ni en la lista de procesos. En **Git Bash**, ejecute antes `export MSYS_NO_PATHCONV=1`;
+sin eso, Git Bash convierte `/opt/…` y `/tmp/…` en rutas de Windows y el comando falla.
 
 ```bash
-export MSYS_NO_PATHCONV=1
-docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
-```
-
-**PowerShell**: pierde las comillas dobles internas al llamar a un programa externo y el comando
-anterior falla, así que se usa sin ellas (la contraseña `KEYCLOAK_ADMIN_PASSWORD` de
-`infra/.env` no debe tener espacios ni caracteres especiales del shell):
-
-```powershell
-docker compose -f infra/docker-compose.yml exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin --password $KC_BOOTSTRAP_ADMIN_PASSWORD && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
+docker compose -f infra/docker-compose.yml exec keycloak bash -c 'KC_CLI_PASSWORD=$KC_BOOTSTRAP_ADMIN_PASSWORD /opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
 ```
 
 **Sin línea de comandos**: abra <http://localhost:8080/auth/admin/>, entre como `admin` (contraseña

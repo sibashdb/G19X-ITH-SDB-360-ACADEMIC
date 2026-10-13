@@ -2,8 +2,8 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { GuiaUso } from "@/componentes/GuiaUso"
-import { CLAVE_GUIA } from "@/guia"
-import { sesionDePrueba } from "@/pruebas/sesion"
+import { claveGuia } from "@/guia"
+import { USUARIO_DE_PRUEBA, sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   renderizarPagina,
@@ -68,7 +68,7 @@ describe("GuiaUso", () => {
   it("las visitas registradas marcan los pasos 2 y 3", async () => {
     conProveedores(60)
     localStorage.setItem(
-      CLAVE_GUIA,
+      claveGuia(USUARIO_DE_PRUEBA),
       JSON.stringify({
         oculta: false,
         visitas: { proveedores: true, precios: true },
@@ -109,9 +109,10 @@ describe("GuiaUso", () => {
     expect(
       screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
     ).not.toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem(CLAVE_GUIA) ?? "{}").oculta).toBe(
-      true
-    )
+    expect(
+      JSON.parse(localStorage.getItem(claveGuia(USUARIO_DE_PRUEBA)) ?? "{}")
+        .oculta
+    ).toBe(true)
   })
 
   it("al ocultarse, el foco pasa al contenido en vez de perderse", async () => {
@@ -159,7 +160,7 @@ describe("GuiaUso", () => {
 
   it("con la guía oculta no consulta al servidor", async () => {
     localStorage.setItem(
-      CLAVE_GUIA,
+      claveGuia(USUARIO_DE_PRUEBA),
       JSON.stringify({
         oculta: true,
         visitas: { proveedores: false, precios: false },
@@ -182,6 +183,17 @@ describe("GuiaUso", () => {
     expect(await screen.findByText("1 de 3 listos")).toBeInTheDocument()
     expect(paso(2)).toHaveTextContent("Pendiente")
     expect(paso(3)).toHaveTextContent("Pendiente")
+  })
+
+  it("los términos de los pasos abren su definición", async () => {
+    conProveedores(60)
+    renderizarPagina(<GuiaUso />)
+    expect(
+      await screen.findByRole("button", { name: "desempeño" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "precio de referencia" })
+    ).toBeInTheDocument()
   })
 
   it("no tiene violaciones de accesibilidad", async () => {

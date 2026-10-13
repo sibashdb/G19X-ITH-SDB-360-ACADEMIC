@@ -1,7 +1,7 @@
 import { ChevronsUpDown, CircleHelp, LogOut } from "lucide-react"
 import { useAuth } from "react-oidc-context"
 import { useNavigate } from "react-router"
-import { NOMBRES_ROL, useRoles } from "@/auth"
+import { NOMBRES_ROL, useRoles, useUsuarioId } from "@/auth"
 import { iniciales } from "@/componentes/Iniciales"
 import {
   DropdownMenu,
@@ -23,7 +23,8 @@ import { mostrarGuia, useGuia } from "@/guia"
 export function MenuUsuario() {
   const auth = useAuth()
   const roles = useRoles()
-  const guia = useGuia()
+  const usuario = useUsuarioId()
+  const guia = useGuia(usuario)
   const navegar = useNavigate()
   const { isMobile } = useSidebar()
   const perfil = auth.user?.profile
@@ -74,7 +75,7 @@ export function MenuUsuario() {
             {guia.oculta && (
               <DropdownMenuItem
                 onSelect={() => {
-                  mostrarGuia()
+                  mostrarGuia(usuario)
                   void navegar("/")
                 }}
               >

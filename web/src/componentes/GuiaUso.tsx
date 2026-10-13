@@ -3,7 +3,8 @@ import { Check } from "lucide-react"
 import { useId, type ReactNode } from "react"
 import { Link } from "react-router"
 import { pedir } from "@/api"
-import { useRoles, useToken } from "@/auth"
+import { useRoles, useToken, useUsuarioId } from "@/auth"
+import { Termino } from "@/componentes/Termino"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ocultarGuia, useGuia } from "@/guia"
@@ -12,7 +13,7 @@ import type { PaginaProveedores } from "@/tipos"
 
 type Paso = {
   titulo: string
-  descripcion: string
+  descripcion: ReactNode
   estado: "hecho" | "pendiente" | "proximamente"
   accion?: ReactNode
 }
@@ -35,7 +36,8 @@ function enlace(texto: string, ruta: string) {
 export function GuiaUso() {
   const token = useToken()
   const roles = useRoles()
-  const guia = useGuia()
+  const usuario = useUsuarioId()
+  const guia = useGuia(usuario)
   const idTitulo = useId()
   const datos = useQuery({
     queryKey: ["proveedores", "existencia"],
@@ -54,8 +56,12 @@ export function GuiaUso() {
   const pasos: Paso[] = [
     {
       titulo: "Importar contratos y proveedores",
-      descripcion:
-        "Cargue los datos del ERP: catálogo, proveedores, contratos y desempeño.",
+      descripcion: (
+        <>
+          Cargue los datos del ERP: catálogo, proveedores, contratos y{" "}
+          <Termino clave="desempeno">desempeño</Termino>.
+        </>
+      ),
       estado: hayDatos ? "hecho" : "pendiente",
       accion: hayDatos ? undefined : roles.includes("admin") ? (
         enlace("Ir a Importación", "/importacion")
@@ -75,8 +81,13 @@ export function GuiaUso() {
     },
     {
       titulo: "Ver el precio justo",
-      descripcion:
-        "Compare lo que paga con el precio de referencia del mercado.",
+      descripcion: (
+        <>
+          Compare lo que paga con el{" "}
+          <Termino clave="precioReferencia">precio de referencia</Termino> del
+          mercado.
+        </>
+      ),
       estado: guia.visitas.precios ? "hecho" : "pendiente",
       accion: guia.visitas.precios
         ? undefined
@@ -107,7 +118,7 @@ export function GuiaUso() {
           variant="ghost"
           size="sm"
           onClick={() => {
-            ocultarGuia()
+            ocultarGuia(usuario)
             // El botón desaparece con la guía: el foco pasa al contenido en vez de perderse.
             document.getElementById("contenido")?.focus()
           }}

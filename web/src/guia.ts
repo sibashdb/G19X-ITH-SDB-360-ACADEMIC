@@ -1,7 +1,12 @@
 import { useSyncExternalStore } from "react"
 
-/** Clave de localStorage con las visitas y la preferencia de la guía de uso. */
-export const CLAVE_GUIA = "plataforma-guia"
+/** Prefijo de las claves de localStorage de la guía de uso. */
+export const PREFIJO_GUIA = "plataforma-guia"
+
+/** Clave de la guía de una persona (el `sub` de su token): en un equipo compartido, cada quien la suya. */
+export function claveGuia(usuario: string): string {
+  return `${PREFIJO_GUIA}:${usuario}`
+}
 
 export type EstadoGuia = {
   oculta: boolean
@@ -29,23 +34,26 @@ function interpretar(crudo: string | null): EstadoGuia {
 }
 
 // useSyncExternalStore exige devolver el mismo objeto mientras el estado no cambie.
-let ultimoCrudo: string | null | undefined
-let ultimo: EstadoGuia = INICIAL
+const ultimos = new Map<string, { crudo: string | null; estado: EstadoGuia }>()
 // Respaldo cuando el almacenamiento falla: la preferencia dura mientras la página siga abierta.
-let memoria: string | null = null
+const memoria = new Map<string, string>()
 
-function instantanea(): EstadoGuia {
-  let crudo: string | null
+function leer(clave: string): string | null {
   try {
-    crudo = localStorage.getItem(CLAVE_GUIA)
+    return localStorage.getItem(clave)
   } catch {
-    crudo = memoria
+    return memoria.get(clave) ?? null
   }
-  if (crudo !== ultimoCrudo) {
-    ultimoCrudo = crudo
-    ultimo = interpretar(crudo)
-  }
-  return ultimo
+}
+
+function instantanea(usuario: string): EstadoGuia {
+  const clave = claveGuia(usuario)
+  const crudo = leer(clave)
+  const ultimo = ultimos.get(clave)
+  if (ultimo && ultimo.crudo === crudo) return ultimo.estado
+  const estado = interpretar(crudo)
+  ultimos.set(clave, { crudo, estado })
+  return estado
 }
 
 const oyentes = new Set<() => void>()
@@ -59,32 +67,36 @@ function suscribir(oyente: () => void) {
   }
 }
 
-function guardar(cambiar: (estado: EstadoGuia) => EstadoGuia) {
-  const valor = JSON.stringify(cambiar(instantanea()))
+function guardar(usuario: string, cambiar: (estado: EstadoGuia) => EstadoGuia) {
+  const clave = claveGuia(usuario)
+  const valor = JSON.stringify(cambiar(instantanea(usuario)))
   try {
-    localStorage.setItem(CLAVE_GUIA, valor)
+    localStorage.setItem(clave, valor)
   } catch {
-    memoria = valor
+    memoria.set(clave, valor)
   }
   oyentes.forEach((oyente) => oyente())
 }
 
-export function marcarVisita(seccion: "proveedores" | "precios"): void {
-  if (instantanea().visitas[seccion]) return
-  guardar((estado) => ({
+export function marcarVisita(
+  usuario: string,
+  seccion: "proveedores" | "precios"
+): void {
+  if (instantanea(usuario).visitas[seccion]) return
+  guardar(usuario, (estado) => ({
     ...estado,
     visitas: { ...estado.visitas, [seccion]: true },
   }))
 }
 
-export function ocultarGuia(): void {
-  guardar((estado) => ({ ...estado, oculta: true }))
+export function ocultarGuia(usuario: string): void {
+  guardar(usuario, (estado) => ({ ...estado, oculta: true }))
 }
 
-export function mostrarGuia(): void {
-  guardar((estado) => ({ ...estado, oculta: false }))
+export function mostrarGuia(usuario: string): void {
+  guardar(usuario, (estado) => ({ ...estado, oculta: false }))
 }
 
-export function useGuia(): EstadoGuia {
-  return useSyncExternalStore(suscribir, instantanea)
+export function useGuia(usuario: string): EstadoGuia {
+  return useSyncExternalStore(suscribir, () => instantanea(usuario))
 }

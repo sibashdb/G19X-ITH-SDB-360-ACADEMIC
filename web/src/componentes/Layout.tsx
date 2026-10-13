@@ -39,10 +39,13 @@ export function Layout() {
   }, [pathname])
 
   // La guía del Tablero marca como vistos Proveedores y Precios cuando se visitan.
+  const usuario = auth.user?.profile.sub ?? ""
   useEffect(() => {
-    if (estaActiva("/proveedores", pathname)) marcarVisita("proveedores")
-    if (estaActiva("/precios", pathname)) marcarVisita("precios")
-  }, [pathname])
+    if (!usuario) return
+    if (estaActiva("/proveedores", pathname))
+      marcarVisita(usuario, "proveedores")
+    if (estaActiva("/precios", pathname)) marcarVisita(usuario, "precios")
+  }, [pathname, usuario])
 
   async function volverAIniciarSesion() {
     await auth
