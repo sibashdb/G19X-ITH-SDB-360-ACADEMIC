@@ -457,12 +457,21 @@ export function ProveedorDetalle() {
             }
           >
             <div className="space-y-3">
-              {mercado.isError && (
-                <NoDisponible
-                  texto="No se pudo comparar con el mercado."
-                  alReintentar={() => void mercado.refetch()}
-                />
-              )}
+              {mercado.isError &&
+                (mercado.error instanceof ErrorApi &&
+                mercado.error.estado === 404 ? (
+                  // Igual que "Sin puntuación todavía": que la inteligencia no conozca aún al proveedor no es un fallo.
+                  <p className="text-sm text-muted-foreground">
+                    La inteligencia aún no tiene a este proveedor; la
+                    comparación con el mercado aparecerá cuando lleguen sus
+                    datos.
+                  </p>
+                ) : (
+                  <NoDisponible
+                    texto="No se pudo comparar con el mercado."
+                    alReintentar={() => void mercado.refetch()}
+                  />
+                ))}
               <ContenidoConsulta consulta={contratos}>
                 {(datos) => (
                   <TablaContratos contratos={datos} mercado={mercado.data} />

@@ -407,6 +407,30 @@ describe("ProveedorDetalle", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("un proveedor que la inteligencia aún no conoce no muestra error en la comparación con el mercado", async () => {
+    api({
+      [`${INTELIGENCIA}/mercado`]: () => new Response("", { status: 404 }),
+    })
+    renderizar("/proveedores/p1?pestana=contratos")
+
+    expect(
+      await screen.findByText(
+        "La inteligencia aún no tiene a este proveedor; la comparación con el mercado aparecerá cuando lleguen sus datos."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/No se pudo comparar con el mercado/)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Reintentar" })
+    ).not.toBeInTheDocument()
+    // Los contratos se ven igual, sin la columna de comparación.
+    expect(await screen.findByText("CT-0001")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("columnheader", { name: "Precio vs. mercado" })
+    ).not.toBeInTheDocument()
+  })
+
   it("codifica el id al construir la ruta de la API", async () => {
     simularApi({
       "/api/proveedores/proveedores/a%20b%3Fx": () => respuestaJson(PROVEEDOR),
