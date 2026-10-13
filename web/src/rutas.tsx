@@ -1,47 +1,129 @@
-import { createBrowserRouter } from "react-router"
+import { createBrowserRouter, type RouteObject } from "react-router"
 import { Layout } from "@/componentes/Layout"
-import { Actividad } from "@/paginas/Actividad"
-import { Alertas } from "@/paginas/Alertas"
-import { ArticuloAyuda } from "@/paginas/ArticuloAyuda"
-import { Ayuda } from "@/paginas/Ayuda"
-import { Catalogo } from "@/paginas/Catalogo"
-import { Configuracion } from "@/paginas/Configuracion"
-import { Correos } from "@/paginas/Correos"
-import { EstadoSistema } from "@/paginas/EstadoSistema"
-import { Importacion } from "@/paginas/Importacion"
-import { NoEncontrado } from "@/paginas/NoEncontrado"
-import { Panel } from "@/paginas/Panel"
-import { Precios } from "@/paginas/Precios"
-import { ProveedorDetalle } from "@/paginas/ProveedorDetalle"
-import { Proveedores } from "@/paginas/Proveedores"
-import { Ranking } from "@/paginas/Ranking"
-import { Tablero } from "@/paginas/Tablero"
-import { Usuarios } from "@/paginas/Usuarios"
-import { UsuarioDetalle } from "@/paginas/UsuarioDetalle"
+
+// Cada página es un archivo aparte que se descarga la primera vez que se visita: el arranque no
+// carga Recharts ni las pantallas de administración que la persona quizá nunca abra.
+export const paginas: RouteObject[] = [
+  {
+    index: true,
+    lazy: async () => ({
+      Component: (await import("@/paginas/Tablero")).Tablero,
+    }),
+  },
+  {
+    path: "proveedores",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Proveedores")).Proveedores,
+    }),
+  },
+  {
+    path: "proveedores/:id",
+    lazy: async () => ({
+      Component: (await import("@/paginas/ProveedorDetalle")).ProveedorDetalle,
+    }),
+  },
+  {
+    path: "ranking",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Ranking")).Ranking,
+    }),
+  },
+  {
+    path: "precios",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Precios")).Precios,
+    }),
+  },
+  {
+    path: "alertas",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Alertas")).Alertas,
+    }),
+  },
+  {
+    path: "importacion",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Importacion")).Importacion,
+    }),
+  },
+  {
+    path: "configuracion",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Configuracion")).Configuracion,
+    }),
+  },
+  {
+    path: "sistema",
+    lazy: async () => ({ Component: (await import("@/paginas/Panel")).Panel }),
+  },
+  {
+    path: "sistema/estado",
+    lazy: async () => ({
+      Component: (await import("@/paginas/EstadoSistema")).EstadoSistema,
+    }),
+  },
+  {
+    path: "sistema/usuarios",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Usuarios")).Usuarios,
+    }),
+  },
+  {
+    path: "sistema/usuarios/:id",
+    lazy: async () => ({
+      Component: (await import("@/paginas/UsuarioDetalle")).UsuarioDetalle,
+    }),
+  },
+  {
+    path: "sistema/correos",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Correos")).Correos,
+    }),
+  },
+  {
+    path: "sistema/actividad",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Actividad")).Actividad,
+    }),
+  },
+  {
+    path: "sistema/catalogo",
+    lazy: async () => ({
+      Component: (await import("@/paginas/Catalogo")).Catalogo,
+    }),
+  },
+  {
+    path: "ayuda",
+    lazy: async () => ({ Component: (await import("@/paginas/Ayuda")).Ayuda }),
+  },
+  {
+    path: "ayuda/:articulo",
+    lazy: async () => ({
+      Component: (await import("@/paginas/ArticuloAyuda")).ArticuloAyuda,
+    }),
+  },
+  {
+    path: "*",
+    lazy: async () => ({
+      Component: (await import("@/paginas/NoEncontrado")).NoEncontrado,
+    }),
+  },
+]
+
+/** Lo que se ve mientras llega la primera página (unos milisegundos en la red local). */
+function CargaInicial() {
+  return (
+    <p role="status" className="p-6 text-muted-foreground">
+      Cargando…
+    </p>
+  )
+}
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: Layout,
-    children: [
-      { index: true, Component: Tablero },
-      { path: "proveedores", Component: Proveedores },
-      { path: "proveedores/:id", Component: ProveedorDetalle },
-      { path: "ranking", Component: Ranking },
-      { path: "precios", Component: Precios },
-      { path: "alertas", Component: Alertas },
-      { path: "importacion", Component: Importacion },
-      { path: "configuracion", Component: Configuracion },
-      { path: "sistema", Component: Panel },
-      { path: "sistema/estado", Component: EstadoSistema },
-      { path: "sistema/usuarios", Component: Usuarios },
-      { path: "sistema/usuarios/:id", Component: UsuarioDetalle },
-      { path: "sistema/correos", Component: Correos },
-      { path: "sistema/actividad", Component: Actividad },
-      { path: "sistema/catalogo", Component: Catalogo },
-      { path: "ayuda", Component: Ayuda },
-      { path: "ayuda/:articulo", Component: ArticuloAyuda },
-      { path: "*", Component: NoEncontrado },
-    ],
+    HydrateFallback: CargaInicial,
+    children: paginas,
   },
 ])

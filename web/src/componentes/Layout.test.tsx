@@ -286,6 +286,12 @@ describe("Layout con sesión iniciada", () => {
     expect(screen.getByRole("main")).toHaveClass("min-w-0")
   })
 
+  it("el contenido principal muestra el foco en alto contraste", () => {
+    renderizar()
+    expect(document.getElementById("contenido")).toHaveClass("outline-hidden")
+    expect(document.getElementById("contenido")).not.toHaveClass("outline-none")
+  })
+
   it("cambia el tema desde la barra superior", async () => {
     renderizar()
     await userEvent.click(screen.getByRole("button", { name: "Tema: Sistema" }))

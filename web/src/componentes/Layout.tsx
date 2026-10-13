@@ -86,7 +86,7 @@ export function Layout() {
           <div
             id="contenido"
             tabIndex={-1}
-            className="mx-auto w-full max-w-7xl flex-1 p-4 outline-none md:p-6 lg:p-8"
+            className="mx-auto w-full max-w-7xl flex-1 p-4 outline-hidden md:p-6 lg:p-8"
           >
             <Outlet />
           </div>
