@@ -291,7 +291,10 @@ export function formatoDecimal(valor: number, decimales = 2): string {
 /** Cifras grandes en MXN para las tarjetas: "48200000.00" → "$48.2 M MXN". */
 export function montoCorto(valor: string): string {
   const numero = Number(valor)
-  if (Math.abs(numero) >= 1e6)
+  // La unidad se elige con el valor ya redondeado a un decimal: 999,999.99 es "$1.0 M", no
+  // "$1,000.0 mil". Es solo presentación; el monto exacto no se opera en el navegador.
+  const milesRedondeados = Math.round(Math.abs(numero) / 100) / 10
+  if (Math.abs(numero) >= 1e6 || milesRedondeados >= 1000)
     return `$${UN_DECIMAL.format(numero / 1e6)} M MXN`
   if (Math.abs(numero) >= 1e3)
     return `$${UN_DECIMAL.format(numero / 1e3)} mil MXN`

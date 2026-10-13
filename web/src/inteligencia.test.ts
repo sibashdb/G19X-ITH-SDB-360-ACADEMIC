@@ -35,6 +35,12 @@ describe("formatos de la inteligencia", () => {
     expect(montoCorto("950.5")).toBe("$950.50 MXN")
   })
 
+  it("elige la unidad después de redondear: casi un millón es 1.0 M, no 1,000.0 mil", () => {
+    expect(montoCorto("999999.99")).toBe("$1.0 M MXN")
+    expect(montoCorto("999950.00")).toBe("$1.0 M MXN")
+    expect(montoCorto("999949.99")).toBe("$999.9 mil MXN")
+  })
+
   it("da un decimal a las puntuaciones y a los porcentajes", () => {
     expect(formatoPuntuacion(72.44)).toBe("72.4")
     expect(formatoPuntuacion(6)).toBe("6.0")
