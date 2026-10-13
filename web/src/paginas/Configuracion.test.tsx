@@ -199,6 +199,29 @@ describe("Configuracion", () => {
     })
   })
 
+  it("al guardar vuelve a consultar lo que depende de la configuración", async () => {
+    const simulado = api()
+    renderizar()
+    const sla = await screen.findByLabelText("Cumplimiento de SLA")
+    await screen.findByText("Versión 2")
+
+    await userEvent.clear(sla)
+    await userEvent.type(sla, "35")
+    const satisfaccion = screen.getByLabelText("Satisfacción")
+    await userEvent.clear(satisfaccion)
+    await userEvent.type(satisfaccion, "10")
+    const antes = lecturasDe(simulado, "/api/inteligencia/modelos")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar cambios" })
+    )
+
+    await screen.findByText(/^Configuración guardada\./)
+    // Se invalidan todas las consultas de la inteligencia, no solo la configuración.
+    await waitFor(() =>
+      expect(lecturasDe(simulado, "/api/inteligencia/modelos")).toBe(antes + 1)
+    )
+  })
+
   it("muestra junto al campo el error del servicio", async () => {
     api({
       guardar: () =>
