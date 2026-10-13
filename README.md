@@ -190,14 +190,16 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
   `npm run lint` rechaza colores literales y `src/tokens.node.test.ts` verifica el contraste WCAG).
 - Tema claro, oscuro o del sistema desde la barra superior; la preferencia se guarda en el navegador.
 - Fuentes Fira Sans y Fira Code servidas por la propia aplicación (sin CDN).
-- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md`.
-- Guía "Cómo usar PluriOne" en el Tablero (se oculta y vuelve desde el menú de usuario). El menú
+- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md` (Plan A) y `docs/qa/revision-inteligencia-interfaz.md` (inteligencia en la interfaz).
+- Guía "Cómo usar PluriOne" en el Tablero; se oculta y vuelve desde el menú de usuario, y se recuerda por persona (no por navegador). El menú
   muestra icono y nombre; el propósito de cada opción aparece en la ayuda emergente del menú
   contraído y lo lee el lector de pantalla.
 - Los términos técnicos (P25/P50/P75, sobreprecio, puntuación, SLA…) tienen una ayuda que se
   abre con clic, toque o teclado; las definiciones viven en `web/src/glosario.ts`.
 - Área **Sistema** (solo administración): Panel, Usuarios, Actividad (con exportación a CSV), Catálogo, Estado del sistema, Correos, Importación y Configuración.
 - Área **Soporte**: Centro de ayuda con guías, preguntas frecuentes y glosario (`web/src/ayuda.ts`); se abre también con el botón "?" de la barra superior.
+- **Inteligencia**: el Tablero, Proveedores (lista y ficha), Precios, Ranking, Alertas, la campana de la barra superior y Configuración muestran los datos del servicio `inteligencia` (`web/src/inteligencia.ts`); el Panel resume sus datos y su modelo en "Datos y modelo".
+- Cada página se descarga la primera vez que se visita (rutas diferidas en `web/src/rutas.tsx`).
 
 ## Estructura
 
