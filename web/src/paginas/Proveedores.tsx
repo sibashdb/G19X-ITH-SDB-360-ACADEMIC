@@ -1,15 +1,23 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Search, X } from "lucide-react"
-import { useEffect, useRef, type FormEvent } from "react"
+import { keepPreviousData } from "@tanstack/react-query"
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Search,
+  TriangleAlert,
+  X,
+} from "lucide-react"
+import { useEffect, useRef, type FormEvent, type ReactNode } from "react"
 import { Link } from "react-router"
-import { pedir } from "@/api"
-import { useRoles, useToken } from "@/auth"
+import { useRoles } from "@/auth"
+import { BarraPuntuacion } from "@/componentes/BarraPuntuacion"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { EtiquetaEstado } from "@/componentes/EtiquetaEstado"
 import { Filtro } from "@/componentes/Filtro"
 import { Iniciales } from "@/componentes/Iniciales"
 import { Paginacion } from "@/componentes/Paginacion"
+import { Termino } from "@/componentes/Termino"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,27 +30,91 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { enteroPositivo, unoDe, useParametros } from "@/parametros"
 import {
-  CATEGORIAS,
-  NOMBRES_CATEGORIA,
-  NOMBRES_TAMANO,
-  type PaginaProveedores,
-} from "@/tipos"
+  useInteligencia,
+  useUmbralRiesgo,
+  type PaginaProveedoresConPuntuacion,
+} from "@/inteligencia"
+import { enteroPositivo, unoDe, useParametros } from "@/parametros"
+import { CATEGORIAS, NOMBRES_CATEGORIA, formatoMoneda } from "@/tipos"
 
 const POR_PAGINA = 25
-const PAGINA_MAXIMA = 40_000 // la API acepta desplazamientos de hasta 1,000,000
+const PAGINA_MAXIMA = 1000 // la que acepta la API
 const ESTADOS = ["activos", "inactivos"] as const
+const ORDENES = [
+  "nombre",
+  "puntuacion",
+  "gasto_anual",
+  "contratos_vigentes",
+  "alertas",
+] as const
+const DIRECCIONES = ["asc", "desc"] as const
+type Orden = (typeof ORDENES)[number]
+type Direccion = (typeof DIRECCIONES)[number]
+
+/** El nombre va de la A a la Z; las cifras, primero de mayor a menor. */
+const DIRECCION_INICIAL: Record<Orden, Direccion> = {
+  nombre: "asc",
+  puntuacion: "desc",
+  gasto_anual: "desc",
+  contratos_vigentes: "desc",
+  alertas: "desc",
+}
+
+function EncabezadoOrdenable({
+  columna,
+  orden,
+  direccion,
+  alOrdenar,
+  children,
+  className,
+}: {
+  columna: Orden
+  orden: Orden
+  direccion: Direccion
+  alOrdenar: (columna: Orden) => void
+  children: ReactNode
+  className?: string
+}) {
+  const activa = orden === columna
+  const Icono = !activa
+    ? ArrowUpDown
+    : direccion === "asc"
+      ? ArrowUp
+      : ArrowDown
+  return (
+    <TableHead
+      aria-sort={
+        activa ? (direccion === "asc" ? "ascending" : "descending") : undefined
+      }
+      className={className}
+    >
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-mx-2"
+        onClick={() => alOrdenar(columna)}
+      >
+        <span className="sr-only">Ordenar por</span> {children}
+        <Icono aria-hidden />
+      </Button>
+    </TableHead>
+  )
+}
 
 export function Proveedores() {
-  const token = useToken()
   const roles = useRoles()
+  const umbral = useUmbralRiesgo()
   const [parametros, actualizar] = useParametros()
   const q = (parametros.get("q") ?? "").trim().slice(0, 100)
   const categoria = unoDe(parametros.get("categoria"), CATEGORIAS)
   const estado = unoDe(parametros.get("estado"), ESTADOS)
+  const enRiesgo = parametros.get("en_riesgo") === "true"
+  const orden: Orden = unoDe(parametros.get("orden"), ORDENES) ?? "nombre"
+  const direccion: Direccion =
+    unoDe(parametros.get("direccion"), DIRECCIONES) ?? DIRECCION_INICIAL[orden]
   const pagina = enteroPositivo(parametros.get("pagina"), 1, PAGINA_MAXIMA)
-  const hayFiltros = Boolean(q || categoria || estado)
+  const hayFiltros = Boolean(q || categoria || estado || enRiesgo)
 
   // El campo no es controlado ni se remonta (así conserva el foco tras Enter): cuando `q` cambia
   // por Atrás/Adelante o por "Limpiar filtros", se copia al campo si el texto escrito difiere.
@@ -52,24 +124,20 @@ export function Proveedores() {
     if (campo && campo.value.trim() !== q) campo.value = q
   }, [q])
 
-  const consulta = useQuery({
-    queryKey: ["proveedores", { q, categoria, estado, pagina }],
-    queryFn: () => {
-      const busqueda = new URLSearchParams({
-        limite: String(POR_PAGINA),
-        desplazamiento: String((pagina - 1) * POR_PAGINA),
-      })
-      if (q) busqueda.set("q", q)
-      if (categoria) busqueda.set("categoria", categoria)
-      if (estado) busqueda.set("activo", String(estado === "activos"))
-      return pedir<PaginaProveedores>(
-        `/proveedores/proveedores?${busqueda}`,
-        token
-      )
-    },
-    enabled: Boolean(token),
-    placeholderData: keepPreviousData,
+  const busqueda = new URLSearchParams({
+    orden,
+    direccion,
+    pagina: String(pagina),
+    tamano: String(POR_PAGINA),
   })
+  if (q) busqueda.set("busqueda", q)
+  if (categoria) busqueda.set("categoria", categoria)
+  if (estado) busqueda.set("estado", estado)
+  if (enRiesgo) busqueda.set("en_riesgo", "true")
+  const consulta = useInteligencia<PaginaProveedoresConPuntuacion>(
+    `/proveedores?${busqueda}`,
+    { placeholderData: keepPreviousData }
+  )
 
   function buscar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
@@ -78,16 +146,45 @@ export function Proveedores() {
     ).trim()
     actualizar({ q: texto || null, pagina: null })
   }
-  // "Limpiar filtros" se desmonta al usarse: el foco pasa al campo de búsqueda, que sigue en pantalla.
+  // Los botones que se usan desaparecen: el foco pasa al buscador, que sigue en pantalla.
   function limpiar() {
-    actualizar({ q: null, categoria: null, estado: null, pagina: null })
+    actualizar({
+      q: null,
+      categoria: null,
+      estado: null,
+      en_riesgo: null,
+      pagina: null,
+    })
     campoBusqueda.current?.focus()
   }
-  const botonLimpiar = (
-    <Button type="button" variant="ghost" onClick={limpiar}>
-      <X aria-hidden />
-      Limpiar filtros
-    </Button>
+  function irALaPrimera() {
+    actualizar({ pagina: null })
+    campoBusqueda.current?.focus()
+  }
+  // Los valores por omisión no se escriben en la URL.
+  function ordenar(columna: Orden) {
+    const nueva =
+      columna === orden
+        ? direccion === "asc"
+          ? "desc"
+          : "asc"
+        : DIRECCION_INICIAL[columna]
+    actualizar({
+      orden: columna === "nombre" ? null : columna,
+      direccion: nueva === DIRECCION_INICIAL[columna] ? null : nueva,
+      pagina: null,
+    })
+  }
+  const encabezado = (columna: Orden, texto: string, className?: string) => (
+    <EncabezadoOrdenable
+      columna={columna}
+      orden={orden}
+      direccion={direccion}
+      alOrdenar={ordenar}
+      className={className}
+    >
+      {texto}
+    </EncabezadoOrdenable>
   )
 
   function contenido() {
@@ -113,10 +210,7 @@ export function Proveedores() {
                 : "en total"
             }.`}
             accion={
-              <Button
-                variant="outline"
-                onClick={() => actualizar({ pagina: null })}
-              >
+              <Button variant="outline" onClick={irALaPrimera}>
                 Ir a la primera página
               </Button>
             }
@@ -127,8 +221,7 @@ export function Proveedores() {
         return (
           <EstadoVacio
             titulo="Sin resultados"
-            descripcion="Ningún proveedor coincide con la búsqueda o los filtros."
-            accion={botonLimpiar}
+            descripcion="Ningún proveedor coincide con la búsqueda o los filtros. Pruebe con otros o use «Limpiar filtros»."
           />
         )
       }
@@ -138,7 +231,7 @@ export function Proveedores() {
           titulo="Aún no hay proveedores"
           descripcion={
             esAdmin
-              ? "Importe el catálogo de proveedores del ERP para comenzar."
+              ? "Importe el catálogo de proveedores del ERP para comenzar. Si ya lo importó, espere a que la inteligencia termine de recibir los datos."
               : "Pida a un administrador que importe el catálogo del ERP."
           }
           accion={
@@ -157,9 +250,16 @@ export function Proveedores() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Proveedor</TableHead>
+              {encabezado("nombre", "Proveedor")}
               <TableHead>Categorías</TableHead>
-              <TableHead>Tamaño</TableHead>
+              {encabezado("puntuacion", "Puntuación")}
+              {encabezado("gasto_anual", "Gasto anual", "text-right")}
+              {encabezado(
+                "contratos_vigentes",
+                "Contratos vigentes",
+                "text-right"
+              )}
+              {encabezado("alertas", "Alertas", "text-right")}
               <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>
@@ -169,7 +269,7 @@ export function Proveedores() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Iniciales nombre={p.nombre} />
-                    <div>
+                    <div className="space-y-0.5">
                       <Link
                         to={`/proveedores/${encodeURIComponent(p.id)}`}
                         className="font-medium text-accent hover:underline"
@@ -179,6 +279,12 @@ export function Proveedores() {
                       <div className="font-mono text-xs text-muted-foreground">
                         {p.rfc}
                       </div>
+                      {p.en_riesgo && (
+                        <Badge variant="destructive">
+                          <TriangleAlert aria-hidden />
+                          En riesgo
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </TableCell>
@@ -191,7 +297,32 @@ export function Proveedores() {
                     ))}
                   </div>
                 </TableCell>
-                <TableCell>{NOMBRES_TAMANO[p.tamano] ?? p.tamano}</TableCell>
+                <TableCell>
+                  <BarraPuntuacion
+                    puntuacion={p.puntuacion}
+                    confianza={p.confianza}
+                    umbral={umbral}
+                  />
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatoMoneda(p.gasto_anual, "MXN")}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {p.contratos_vigentes.toLocaleString("es-MX")}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {p.alertas > 0 ? (
+                    <Link
+                      to={`/alertas?proveedor=${encodeURIComponent(p.id)}`}
+                      aria-label={`${p.alertas} ${p.alertas === 1 ? "alerta" : "alertas"} de ${p.nombre}`}
+                      className="font-medium text-accent hover:underline"
+                    >
+                      {p.alertas.toLocaleString("es-MX")}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">0</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <EtiquetaEstado activo={p.activo} />
                 </TableCell>
@@ -214,7 +345,12 @@ export function Proveedores() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Proveedores"
-        descripcion="Quién le vende servicios de TI, en qué categorías y si sigue activo."
+        descripcion={
+          <>
+            Quién le vende servicios de TI, cuánto le paga al año y cómo rinde
+            según su <Termino clave="puntuacion">puntuación</Termino>.
+          </>
+        }
       />
       <Card>
         <CardContent className="space-y-4">
@@ -242,7 +378,12 @@ export function Proveedores() {
               />
             </div>
             <Button type="submit">Buscar</Button>
-            {hayFiltros && botonLimpiar}
+            {hayFiltros && (
+              <Button type="button" variant="ghost" onClick={limpiar}>
+                <X aria-hidden />
+                Limpiar filtros
+              </Button>
+            )}
           </form>
           <div className="flex flex-wrap items-center gap-2">
             <div
@@ -268,7 +409,7 @@ export function Proveedores() {
             </div>
             <div
               role="group"
-              aria-label="Filtrar por estado"
+              aria-label="Filtrar por estado y riesgo"
               className="flex flex-wrap gap-2 md:ml-auto"
             >
               <Filtro
@@ -290,6 +431,18 @@ export function Proveedores() {
                 }
               >
                 Inactivos
+              </Filtro>
+              <Filtro
+                activo={enRiesgo}
+                onClick={() =>
+                  actualizar({
+                    en_riesgo: enRiesgo ? null : "true",
+                    pagina: null,
+                  })
+                }
+              >
+                <TriangleAlert aria-hidden />
+                En riesgo
               </Filtro>
             </div>
           </div>

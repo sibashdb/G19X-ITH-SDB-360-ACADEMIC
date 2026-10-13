@@ -26,6 +26,13 @@ const PAGINA = {
       tamano: "mediana",
       categorias: ["nube"],
       activo: true,
+      puntuacion: 72.4,
+      confianza: "normal",
+      tendencia: 3.2,
+      gasto_anual: "1500000.00",
+      contratos_vigentes: 4,
+      alertas: 3,
+      en_riesgo: false,
     },
     {
       id: "p2",
@@ -34,6 +41,13 @@ const PAGINA = {
       tamano: "pequena",
       categorias: ["consultoria", "soporte"],
       activo: false,
+      puntuacion: 31,
+      confianza: "baja",
+      tendencia: null,
+      gasto_anual: "0.00",
+      contratos_vigentes: 0,
+      alertas: 1,
+      en_riesgo: true,
     },
   ],
 }
@@ -41,10 +55,18 @@ const VACIA = { total: 0, elementos: [] }
 
 function apiDeProveedores(pagina: object = PAGINA) {
   return simularApi((url) =>
-    url.startsWith("/api/proveedores/proveedores?")
+    url.startsWith("/api/inteligencia/proveedores?")
       ? respuestaJson(pagina)
       : new Response("", { status: 404 })
   )
+}
+
+/** La última consulta de la lista (la configuración también llama a fetch). */
+function consultaDeLista(simulado: ReturnType<typeof simularApi>): URL {
+  const indice = simulado.mock.calls.findLastIndex(([url]) =>
+    String(url).startsWith("/api/inteligencia/proveedores?")
+  )
+  return urlDeLlamada(simulado, indice)
 }
 
 const renderizar = (ruta = "/proveedores") =>
@@ -69,7 +91,7 @@ describe("Proveedores", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Cargando…")
   })
 
-  it("lista los proveedores con RFC, categorías y estado", async () => {
+  it("lista los proveedores con su puntuación, gasto, contratos y alertas", async () => {
     apiDeProveedores()
     renderizar()
 
@@ -79,37 +101,91 @@ describe("Proveedores", () => {
     ).toHaveAttribute("href", "/proveedores/p1")
     expect(within(tabla).getByText("AAA010101AAA")).toBeInTheDocument()
     expect(within(tabla).getByText("Consultoría")).toBeInTheDocument()
-    expect(within(tabla).getByText("Activo")).toBeInTheDocument()
+    expect(within(tabla).getByText("72.4")).toBeInTheDocument()
+    expect(within(tabla).getByText("Historial corto")).toBeInTheDocument()
+    expect(within(tabla).getByText("$1,500,000.00")).toBeInTheDocument()
+    expect(
+      within(tabla).getByRole("link", { name: "3 alertas de Nube Andina" })
+    ).toHaveAttribute("href", "/alertas?proveedor=p1")
+    expect(
+      within(tabla).getByRole("link", { name: "1 alerta de Consultores Bajío" })
+    ).toBeInTheDocument()
+    expect(within(tabla).getByText("En riesgo")).toBeInTheDocument()
     expect(within(tabla).getByText("Inactivo")).toBeInTheDocument()
     expect(
       screen.getByText("Mostrando 1–2 de 2 proveedores")
     ).toBeInTheDocument()
   })
 
-  it("filtra por categoría y estado, y cada filtro vuelve a la primera página", async () => {
+  it("filtra por categoría, estado y riesgo, y cada filtro vuelve a la primera página", async () => {
     const simulado = apiDeProveedores()
     renderizar("/proveedores?pagina=3")
     await screen.findByRole("table")
-    expect(urlDeLlamada(simulado).searchParams.get("desplazamiento")).toBe("50")
+    expect(consultaDeLista(simulado).searchParams.get("pagina")).toBe("3")
 
     await userEvent.click(screen.getByRole("button", { name: "Nube" }))
     await waitFor(() =>
-      expect(urlDeLlamada(simulado).searchParams.get("categoria")).toBe("nube")
+      expect(consultaDeLista(simulado).searchParams.get("categoria")).toBe(
+        "nube"
+      )
     )
-    expect(urlDeLlamada(simulado).searchParams.get("desplazamiento")).toBe("0")
+    expect(consultaDeLista(simulado).searchParams.get("pagina")).toBe("1")
     expect(ubicacionActual()).toBe("/proveedores?categoria=nube")
-    expect(screen.getByRole("button", { name: "Nube" })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    )
 
     await userEvent.click(screen.getByRole("button", { name: "Inactivos" }))
     await waitFor(() =>
-      expect(urlDeLlamada(simulado).searchParams.get("activo")).toBe("false")
+      expect(consultaDeLista(simulado).searchParams.get("estado")).toBe(
+        "inactivos"
+      )
+    )
+
+    const riesgo = screen.getByRole("button", { name: "En riesgo" })
+    await userEvent.click(riesgo)
+    await waitFor(() =>
+      expect(consultaDeLista(simulado).searchParams.get("en_riesgo")).toBe(
+        "true"
+      )
+    )
+    expect(riesgo).toHaveAttribute("aria-pressed", "true")
+    expect(ubicacionActual()).toBe(
+      "/proveedores?categoria=nube&estado=inactivos&en_riesgo=true"
+    )
+  })
+
+  it("ordena por columna: las cifras primero de mayor a menor y luego al revés", async () => {
+    const simulado = apiDeProveedores()
+    renderizar()
+    await screen.findByRole("table")
+    expect(consultaDeLista(simulado).searchParams.get("orden")).toBe("nombre")
+    expect(consultaDeLista(simulado).searchParams.get("direccion")).toBe("asc")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ordenar por Puntuación" })
+    )
+    expect(ubicacionActual()).toBe("/proveedores?orden=puntuacion")
+    await waitFor(() =>
+      expect(consultaDeLista(simulado).searchParams.get("direccion")).toBe(
+        "desc"
+      )
+    )
+    expect(
+      screen.getByRole("columnheader", { name: /Puntuación/ })
+    ).toHaveAttribute("aria-sort", "descending")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ordenar por Puntuación" })
     )
     expect(ubicacionActual()).toBe(
-      "/proveedores?categoria=nube&estado=inactivos"
+      "/proveedores?orden=puntuacion&direccion=asc"
     )
+    expect(
+      screen.getByRole("columnheader", { name: /Puntuación/ })
+    ).toHaveAttribute("aria-sort", "ascending")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ordenar por Proveedor" })
+    )
+    expect(ubicacionActual()).toBe("/proveedores")
   })
 
   it("busca por nombre o RFC", async () => {
@@ -124,7 +200,9 @@ describe("Proveedores", () => {
     await userEvent.click(screen.getByRole("button", { name: "Buscar" }))
 
     await waitFor(() =>
-      expect(urlDeLlamada(simulado).searchParams.get("q")).toBe("andina")
+      expect(consultaDeLista(simulado).searchParams.get("busqueda")).toBe(
+        "andina"
+      )
     )
     expect(ubicacionActual()).toBe("/proveedores?q=andina")
   })
@@ -142,7 +220,7 @@ describe("Proveedores", () => {
     expect(campo).toHaveValue("andina")
 
     await userEvent.click(
-      screen.getAllByRole("button", { name: "Limpiar filtros" })[0]
+      screen.getByRole("button", { name: "Limpiar filtros" })
     )
 
     await waitFor(() => expect(ubicacionActual()).toBe("/proveedores"))
@@ -164,34 +242,32 @@ describe("Proveedores", () => {
     await userEvent.click(screen.getByRole("button", { name: "Siguiente" }))
 
     await waitFor(() =>
-      expect(urlDeLlamada(simulado).searchParams.get("desplazamiento")).toBe(
-        "25"
-      )
+      expect(consultaDeLista(simulado).searchParams.get("pagina")).toBe("2")
     )
     expect(ubicacionActual()).toBe("/proveedores?pagina=2")
-    expect(
-      await screen.findByText("Mostrando 26–50 de 60 proveedores")
-    ).toBeInTheDocument()
   })
 
   it("ignora parámetros inválidos de la URL", async () => {
     const simulado = apiDeProveedores()
-    renderizar("/proveedores?pagina=abc&categoria=hackeo&estado=quiza")
+    renderizar(
+      "/proveedores?pagina=abc&categoria=hackeo&estado=quiza&en_riesgo=tal&orden=hackeo&direccion=x"
+    )
     await screen.findByRole("table")
 
-    const url = urlDeLlamada(simulado)
-    expect(url.searchParams.get("desplazamiento")).toBe("0")
+    const url = consultaDeLista(simulado)
+    expect(url.searchParams.get("pagina")).toBe("1")
+    expect(url.searchParams.get("orden")).toBe("nombre")
+    expect(url.searchParams.get("direccion")).toBe("asc")
     expect(url.searchParams.has("categoria")).toBe(false)
-    expect(url.searchParams.has("activo")).toBe(false)
+    expect(url.searchParams.has("estado")).toBe(false)
+    expect(url.searchParams.has("en_riesgo")).toBe(false)
   })
 
   it("limita la página al máximo que acepta la API", async () => {
     const simulado = apiDeProveedores()
     renderizar("/proveedores?pagina=999999999")
     await waitFor(() =>
-      expect(urlDeLlamada(simulado).searchParams.get("desplazamiento")).toBe(
-        "999975"
-      )
+      expect(consultaDeLista(simulado).searchParams.get("pagina")).toBe("1000")
     )
   })
 
@@ -222,13 +298,14 @@ describe("Proveedores", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("sin resultados con filtros ofrece limpiarlos", async () => {
+  it("sin resultados con filtros hay un solo Limpiar filtros, que deja el foco en el buscador", async () => {
     apiDeProveedores(VACIA)
     renderizar("/proveedores?q=zzz&categoria=nube")
 
     expect(await screen.findByText("Sin resultados")).toBeInTheDocument()
     const botones = screen.getAllByRole("button", { name: "Limpiar filtros" })
-    await userEvent.click(botones[botones.length - 1])
+    expect(botones).toHaveLength(1)
+    await userEvent.click(botones[0])
     expect(ubicacionActual()).toBe("/proveedores")
     expect(screen.getByLabelText("Buscar por nombre o RFC")).toHaveFocus()
   })
@@ -247,7 +324,7 @@ describe("Proveedores", () => {
       "/proveedores",
     ],
   ])(
-    "una página fuera de rango %s ofrece volver a la primera, no dice que no hay resultados",
+    "una página fuera de rango %s ofrece volver a la primera y deja el foco en el buscador",
     async (_caso, ruta, descripcion, destino) => {
       apiDeProveedores({ total: 30, elementos: [] })
       renderizar(ruta)
@@ -262,15 +339,18 @@ describe("Proveedores", () => {
         screen.getByRole("button", { name: "Ir a la primera página" })
       )
       expect(ubicacionActual()).toBe(destino)
+      expect(screen.getByLabelText("Buscar por nombre o RFC")).toHaveFocus()
     }
   )
 
-  it("muestra el error en español y permite reintentar", async () => {
+  it("si la inteligencia no responde, lo dice y permite reintentar", async () => {
     let fallar = true
-    simularApi(() =>
-      fallar
-        ? new Response("Bad Gateway", { status: 502 })
-        : respuestaJson(PAGINA)
+    simularApi((url) =>
+      url.startsWith("/api/inteligencia/proveedores?")
+        ? fallar
+          ? new Response("Bad Gateway", { status: 502 })
+          : respuestaJson(PAGINA)
+        : new Response("", { status: 404 })
     )
     renderizar()
 
