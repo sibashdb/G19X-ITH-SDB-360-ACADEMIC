@@ -48,7 +48,15 @@ export function TablaContratos({
       <TableBody>
         {contratos.flatMap((c) =>
           c.lineas.map((linea, i) => {
-            const comparada = porLinea.get(`${c.id}:${linea.codigo_servicio}`)
+            const delMercado = porLinea.get(`${c.id}:${linea.codigo_servicio}`)
+            // La inteligencia guarda una sola línea por (contrato, servicio) y la API permite repetirlo:
+            // solo se compara la línea cuyo precio es el del mercado, para no atribuir a una el de otra.
+            // Es una comparación para decidir qué mostrar, no una operación con montos.
+            const comparada =
+              delMercado &&
+              Number(delMercado.precio) === Number(linea.precio_unitario)
+                ? delMercado
+                : undefined
             return (
               // El índice evita claves repetidas: la API permite el mismo servicio en varias líneas.
               <TableRow key={`${c.id}-${i}`}>
@@ -79,7 +87,7 @@ export function TablaContratos({
                       <span className="text-muted-foreground">
                         <span aria-hidden>—</span>
                         <span className="sr-only">
-                          Sin comparación: el contrato no está vigente
+                          Sin comparación con el mercado
                         </span>
                       </span>
                     )}
