@@ -10,6 +10,12 @@ import { ListaActividad } from "@/componentes/ListaActividad"
 import { RequiereRol } from "@/componentes/RequiereRol"
 import { Seccion } from "@/componentes/Seccion"
 import { TarjetaKpi, type Tono } from "@/componentes/TarjetaKpi"
+import { formatoFechaHora } from "@/fechas"
+import {
+  fraccionComoPorcentaje,
+  useInteligencia,
+  type DatosInteligencia,
+} from "@/inteligencia"
 import { useEstadoSistema, useRegistros } from "@/sistema"
 import type { ResumenAdmin } from "@/tipos"
 
@@ -24,6 +30,61 @@ function enlace(texto: string, ruta: string) {
     <Link to={ruta} className="text-sm font-medium text-accent hover:underline">
       {texto}
     </Link>
+  )
+}
+
+const ENTIDADES: [string, string][] = [
+  ["proveedores", "Proveedores"],
+  ["servicios", "Servicios"],
+  ["contratos", "Contratos"],
+  ["lineas_contrato", "Líneas de contrato"],
+  ["desempeno", "Registros de desempeño"],
+  ["tipo_cambio", "Tipos de cambio"],
+]
+
+function textoModelo(d: DatosInteligencia): string {
+  const entrenando = d.entrenando ? " Hay un entrenamiento en curso." : ""
+  if (d.modelo && d.en_uso === d.modelo.version)
+    return `Modelo de precios: versión ${d.en_uso}, MAPE ${fraccionComoPorcentaje(d.modelo.mape)}.${entrenando}`
+  if (d.modelo)
+    return `Modelo de precios: la versión ${d.modelo.version} no se pudo cargar y se usa la línea base; reentrénelo en Configuración.${entrenando}`
+  return `Modelo de precios: línea base (ningún modelo la ha mejorado todavía).${entrenando}`
+}
+
+/** Lo que llegó a la inteligencia y el modelo con que trabaja (spec D2: no va en el Tablero). */
+function DatosYModelo() {
+  const datos = useInteligencia<DatosInteligencia>("/datos")
+  return (
+    <Seccion
+      titulo="Datos y modelo"
+      descripcion="Lo que recibió la inteligencia desde el ERP y el modelo de precios con que trabaja."
+      acciones={enlace("Ir a Configuración", "/configuracion")}
+    >
+      <ContenidoConsulta consulta={datos}>
+        {(d) => (
+          <div className="space-y-3 text-sm">
+            <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+              {ENTIDADES.map(([clave, nombre]) => (
+                <div key={clave} className="contents">
+                  <dt className="text-muted-foreground">{nombre}</dt>
+                  <dd className="text-right tabular-nums">
+                    {(d.registros[clave] ?? 0).toLocaleString("es-MX")}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p>
+              Último dato recibido:{" "}
+              {d.ultimo_evento
+                ? formatoFechaHora(d.ultimo_evento)
+                : "ninguno todavía"}
+              .
+            </p>
+            <p>{textoModelo(d)}</p>
+          </div>
+        )}
+      </ContenidoConsulta>
+    </Seccion>
   )
 }
 
@@ -169,6 +230,7 @@ function ContenidoPanel() {
               }
             </ContenidoConsulta>
           </Seccion>
+          <DatosYModelo />
         </div>
       </div>
     </section>

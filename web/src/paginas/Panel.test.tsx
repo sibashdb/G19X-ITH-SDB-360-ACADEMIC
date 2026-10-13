@@ -51,6 +51,32 @@ const ACTIVIDAD = {
     },
   ],
 }
+const DATOS = {
+  registros: {
+    proveedores: 60,
+    servicios: 24,
+    contratos: 1600,
+    lineas_contrato: 2400,
+    desempeno: 1440,
+    tipo_cambio: 36,
+  },
+  ultimo_evento: "2026-10-12T15:00:00Z",
+  modelo: {
+    version: 2,
+    entrenado_en: "2026-10-10T18:00:00Z",
+    origen: "manual",
+    actor_nombre: "admin1",
+    observaciones: 1520,
+    datos_hasta: "2026-09-30",
+    mape: "0.083000",
+    mape_linea_base: "0.093000",
+    cobertura: "0.520000",
+    pinball: "0.010000",
+    promovido: true,
+  },
+  en_uso: 2,
+  entrenando: false,
+}
 
 function api(resumen: object) {
   return simularApi((url) => {
@@ -58,6 +84,7 @@ function api(resumen: object) {
       return respuestaJson(resumen)
     if (url.startsWith("/api/administracion/estado"))
       return respuestaJson(ESTADO)
+    if (url.startsWith("/api/inteligencia/datos")) return respuestaJson(DATOS)
     return respuestaJson(ACTIVIDAD)
   })
 }
@@ -130,6 +157,19 @@ describe("Panel", () => {
     expect(
       within(tarjeta("Usuarios activos")).getByText("Sin datos")
     ).toBeInTheDocument()
+  })
+
+  it("la tarjeta Datos y modelo resume la copia local y el modelo en uso", async () => {
+    api({ usuarios_activos: 1, intentos_fallidos_24h: 0, correos_7d: 0 })
+    renderizarPagina(<Panel />, { ruta: "/sistema" })
+
+    const datos = tarjeta("Datos y modelo")
+    expect(await within(datos).findByText("1,600")).toBeInTheDocument()
+    expect(within(datos).getByText("Líneas de contrato")).toBeInTheDocument()
+    expect(datos).toHaveTextContent("Modelo de precios: versión 2, MAPE 8.3 %.")
+    expect(
+      within(datos).getByRole("link", { name: "Ir a Configuración" })
+    ).toHaveAttribute("href", "/configuracion")
   })
 
   it("solo administración lo ve", () => {

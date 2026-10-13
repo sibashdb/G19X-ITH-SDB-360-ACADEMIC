@@ -103,18 +103,28 @@ export const ARTICULOS: Articulo[] = [
     slug: "consultar-proveedores",
     tema: "proveedores-precios",
     titulo: "Consultar proveedores y su desempeño",
-    resumen: "Buscar un proveedor y revisar sus contratos y su desempeño.",
+    resumen:
+      "Buscar un proveedor, ordenar por puntuación o gasto y revisar sus contratos y su desempeño.",
     secciones: [
       {
         pasos: [
           "Abra Proveedores en el menú.",
-          "Busque por nombre o RFC, o filtre por categoría y estado.",
-          "Abra un proveedor para ver su contacto, sus contratos con cada línea y su desempeño mensual.",
+          "Busque por nombre o RFC, o filtre por categoría, estado o «En riesgo».",
+          "Ordene por puntuación, gasto anual, contratos vigentes o alertas con el encabezado de cada columna; un segundo clic invierte el orden.",
+          "Abra un proveedor para ver su puntuación con su tendencia, sus alertas, sus contratos y su desempeño mensual.",
         ],
       },
       {
+        titulo: "La puntuación",
         parrafos: [
-          "El desempeño reúne el cumplimiento del SLA, el tiempo de resolución, los incidentes críticos, las entregas a tiempo y la satisfacción. Los términos técnicos tienen una ayuda: haga clic sobre ellos.",
+          "Es una calificación de 0 a 100 de los últimos 12 meses, en la que pesa más lo reciente. Combina el cumplimiento del SLA, el tiempo de resolución, los incidentes críticos, las entregas a tiempo y la satisfacción. Cada proveedor se compara con los de su categoría principal, o con todos si su categoría tiene menos de 20 proveedores con desempeño.",
+          "Cuanto menos historial tiene un proveedor, más se acerca su puntuación al promedio de su grupo; con menos de 6 meses lleva la marca «Historial corto». Un proveedor está en riesgo si su puntuación queda por debajo del umbral (40, salvo que administración lo cambie) o si bajó más de 10 puntos en 3 meses.",
+        ],
+      },
+      {
+        titulo: "Contratos frente al mercado",
+        parrafos: [
+          "En la pestaña Contratos, cada línea vigente dice si su precio está por debajo del P25, en el rango típico o sobre el P75. Haga clic en esa marca para ver el P25, el P50, el P75 y el ahorro potencial.",
         ],
       },
     ],
@@ -125,13 +135,22 @@ export const ARTICULOS: Articulo[] = [
     tema: "proveedores-precios",
     titulo: "Entender el precio justo",
     resumen:
-      "Qué significan el precio de referencia, los percentiles y el sobreprecio.",
+      "Qué significan el precio de referencia, los percentiles, el sobreprecio y el ahorro potencial.",
     secciones: [
       {
         parrafos: [
           "El precio de referencia es lo que se paga normalmente en el mercado por un servicio, en una cantidad y un plazo dados. Se expresa con tres valores: P25 (precio bajo), P50 (típico) y P75 (alto).",
-          "Hay sobreprecio cuando usted paga más que el P75. El ahorro potencial es lo que ahorraría al año si pagara el P50.",
-          "Si hay pocos contratos comparables, el precio se marca con baja confianza: tómelo como una estimación.",
+          "Se calcula con el modelo de precios cuando hay uno que mejora la línea base; si no, con la línea base: los contratos del servicio de los últimos 24 meses, llevados a pesos de hoy con la inflación configurada. Precios dice cuál se usó y con cuántos contratos.",
+          "Hay sobreprecio cuando usted paga más que el P75. El ahorro potencial es lo que ahorraría en lo que resta del contrato si pagara el P50.",
+          "Si hay pocos contratos comparables (menos de 8), el precio se marca con baja confianza: tómelo como una estimación.",
+        ],
+      },
+      {
+        titulo: "Cómo consultarlo",
+        pasos: [
+          "Abra Precios y elija un servicio; puede buscarlo por nombre o código.",
+          "Ajuste la cantidad y el plazo y pulse «Calcular».",
+          "Revise el historial de precios y los contratos con sobreprecio del servicio, o cambie a «Todos los sobreprecios» para verlos de mayor a menor ahorro.",
         ],
       },
     ],
@@ -252,6 +271,37 @@ export const ARTICULOS: Articulo[] = [
       },
     ],
     enlaces: [{ texto: "Ir al Catálogo", ruta: "/sistema/catalogo" }],
+  },
+  {
+    slug: "configurar-puntuacion-y-modelo",
+    tema: "administracion",
+    titulo: "Configurar la puntuación y el modelo de precios",
+    resumen:
+      "Pesos de la puntuación, umbral de riesgo, inflación y reentrenamiento del modelo.",
+    secciones: [
+      {
+        titulo: "Puntuación",
+        pasos: [
+          "Abra Configuración en el área Sistema.",
+          "Reparta 100 puntos entre los cinco aspectos del desempeño; el total se muestra mientras escribe.",
+          "Fije el umbral de riesgo: un proveedor con menos puntos queda en riesgo y genera una alerta.",
+          "Ajuste la inflación anual que usa la línea base y pulse «Guardar cambios».",
+        ],
+      },
+      {
+        parrafos: [
+          "Las puntuaciones, el ranking y las alertas se recalculan al guardar. Cada cambio queda en la Actividad con quién lo hizo y qué valores cambió.",
+        ],
+      },
+      {
+        titulo: "Modelo de precios",
+        parrafos: [
+          "El modelo se entrena solo cuando llegan 50 precios nuevos, y usted puede reentrenarlo con «Reentrenar modelo de precios». Solo se usa si su error (MAPE) es menor que el de la línea base; si no, el precio de referencia sigue con la línea base.",
+          "Si el modelo promovido no se pudo cargar, por ejemplo después de una actualización, la página lo avisa y se usa la línea base hasta que lo reentrene.",
+        ],
+      },
+    ],
+    enlaces: [{ texto: "Ir a Configuración", ruta: "/configuracion" }],
   },
   {
     slug: "estado-del-sistema",

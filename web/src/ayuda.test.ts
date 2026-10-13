@@ -60,4 +60,11 @@ describe("contenido de la ayuda", () => {
     expect(articuloPorSlug("no-existe")).toBeUndefined()
     expect(articuloPorSlug(undefined)).toBeUndefined()
   })
+
+  it("solo administración encuentra cómo configurar la puntuación y el modelo", () => {
+    expect(
+      buscarArticulos("reentrenar modelo", true).map((a) => a.slug)
+    ).toContain("configurar-puntuacion-y-modelo")
+    expect(buscarArticulos("reentrenar modelo", false)).toEqual([])
+  })
 })
