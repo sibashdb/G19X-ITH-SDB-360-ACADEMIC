@@ -122,7 +122,7 @@ function MenuAlertas() {
           className="relative"
           aria-label={
             total > 0
-              ? `Alertas: ${total.toLocaleString("es-MX")} activas`
+              ? `Alertas: ${total.toLocaleString("es-MX")} ${total === 1 ? "activa" : "activas"}`
               : "Alertas"
           }
         >

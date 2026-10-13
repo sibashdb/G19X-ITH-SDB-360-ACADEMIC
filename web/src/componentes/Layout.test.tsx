@@ -377,6 +377,15 @@ describe("Layout con sesión iniciada", () => {
     ).toHaveAttribute("href", "/proveedores/p2")
   })
 
+  it("la campana dice «1 activa» en singular", async () => {
+    respuestaAlertas = () =>
+      respuestaJson({ total: 1, elementos: [ALERTA_CAMPANA] })
+    renderizar()
+    expect(
+      await screen.findByRole("button", { name: "Alertas: 1 activa" })
+    ).toHaveTextContent("1")
+  })
+
   it("la campana limita el número a 99+", async () => {
     respuestaAlertas = () =>
       respuestaJson({ total: 250, elementos: [ALERTA_CAMPANA] })
