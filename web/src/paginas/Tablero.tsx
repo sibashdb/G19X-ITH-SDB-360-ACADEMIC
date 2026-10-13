@@ -379,13 +379,13 @@ function Vencimientos({
       <TableBody>
         {filas.map((v) => (
           <TableRow key={v.contrato_id}>
-            <TableCell>
+            <TableCell className="whitespace-normal">
               <div className="font-mono">{v.folio}</div>
-              <div className="text-xs text-muted-foreground">
+              <div className="min-w-40 text-xs text-muted-foreground">
                 {v.servicios.join(", ")}
               </div>
             </TableCell>
-            <TableCell>
+            <TableCell className="whitespace-normal">
               <Link
                 to={`/proveedores/${encodeURIComponent(v.proveedor_id)}?pestana=contratos`}
                 className="text-accent hover:underline"

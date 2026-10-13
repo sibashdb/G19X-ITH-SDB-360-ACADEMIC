@@ -202,6 +202,22 @@ describe("Tablero", () => {
     ).toBeInTheDocument()
   })
 
+  it("en los próximos vencimientos, el contrato y el proveedor se parten en líneas para no ensanchar la tarjeta", async () => {
+    api()
+    renderizarPagina(<Tablero />)
+    await screen.findByText("$48.2 M MXN")
+
+    const vencimientos = seccion("Próximos vencimientos")
+    expect(within(vencimientos).getByText("CT-0001").closest("td")).toHaveClass(
+      "whitespace-normal"
+    )
+    expect(
+      within(vencimientos)
+        .getByRole("link", { name: "Nube Andina" })
+        .closest("td")
+    ).toHaveClass("whitespace-normal")
+  })
+
   it("sin datos, cada sección explica qué falta", async () => {
     api(() => respuestaJson(VACIO))
     renderizarPagina(<Tablero />)
