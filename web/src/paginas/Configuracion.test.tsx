@@ -98,6 +98,11 @@ function cuerpoGuardado(simulado: ReturnType<typeof simularApi>) {
     : undefined
 }
 
+/** Cuántas veces se pidió una URL (los GET y el PUT comparten la de la configuración). */
+function lecturasDe(simulado: ReturnType<typeof simularApi>, url: string) {
+  return simulado.mock.calls.filter(([pedida]) => pedida === url).length
+}
+
 const renderizar = () => renderizarPagina(<Configuracion />)
 
 afterEach(() => {
@@ -264,6 +269,28 @@ describe("Configuracion", () => {
         "Versión 3: MAPE 9.0 % (línea base 10.0 %). Se promovió: ahora calcula el precio de referencia."
       )
     ).toBeInTheDocument()
+  })
+
+  it("al terminar un reentrenamiento vuelve a consultar lo demás que depende del modelo, una sola vez", async () => {
+    const simulado = api({
+      despues: { ...MODELOS, activo: 3, en_uso: 3, elementos: [V3, V2] },
+    })
+    renderizar()
+    await screen.findByText("Versión 2")
+    await screen.findByLabelText("Cumplimiento de SLA")
+    expect(lecturasDe(simulado, "/api/inteligencia/configuracion")).toBe(1)
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reentrenar modelo de precios" })
+    )
+    await screen.findByText(/^Versión 3: MAPE 9\.0 %/)
+
+    await waitFor(() =>
+      expect(lecturasDe(simulado, "/api/inteligencia/configuracion")).toBe(2)
+    )
+    // Invalidar vuelve a leer también /modelos: eso no debe disparar otra invalidación.
+    await new Promise((resolver) => setTimeout(resolver, 100))
+    expect(lecturasDe(simulado, "/api/inteligencia/configuracion")).toBe(2)
   })
 
   it("un entrenamiento que falla muestra el motivo", async () => {

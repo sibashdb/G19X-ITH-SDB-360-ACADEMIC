@@ -1,6 +1,6 @@
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { CircleAlert, Database, LoaderCircle, RefreshCw } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { enviarJson, ErrorApi, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { ContenidoConsulta, EstadoVacio } from "@/componentes/Estados"
@@ -110,6 +110,21 @@ function Contenido({ datos }: { datos: RegistroModelos }) {
     entrenar.error instanceof ErrorApi &&
     entrenar.error.codigo === "entrenamiento_en_curso"
   const hayError = entrenar.isError && !(yaEnCurso && !datos.entrenando)
+
+  // Si el entrenamiento que pidió esta persona dejó una versión nueva, las demás pantallas (Precios,
+  // Panel) aún pueden tener en caché la línea base: se vuelven a consultar, una vez por versión.
+  const cliente = useQueryClient()
+  const versionNueva =
+    !ocupado && antes !== null
+      ? datos.elementos.find((m) => m.version > antes)?.version
+      : undefined
+  const invalidada = useRef<number>(null)
+  useEffect(() => {
+    if (versionNueva === undefined || invalidada.current === versionNueva)
+      return
+    invalidada.current = versionNueva
+    void cliente.invalidateQueries({ queryKey: ["inteligencia"] })
+  }, [versionNueva, cliente])
   const enUso = datos.elementos.find((m) => m.version === datos.en_uso)
 
   function reentrenar() {
