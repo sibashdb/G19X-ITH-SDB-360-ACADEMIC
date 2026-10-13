@@ -209,6 +209,18 @@ describe("Precios", () => {
     expect(boton).not.toHaveClass("outline-none")
   })
 
+  // jsdom no calcula el diseño: se revisa la clase. Sin una plantilla de columnas por debajo de lg,
+  // la única columna implícita crece hasta el ancho mínimo del contenido y la página se desplaza.
+  it("la lista y el detalle comparten una rejilla de una columna por debajo de lg", async () => {
+    api()
+    renderizar("/precios?servicio=NUBE-01")
+
+    await screen.findByRole("heading", { level: 2, name: "Cómputo en la nube" })
+
+    const rejilla = lista().closest("[data-slot=card]")!.parentElement
+    expect(rejilla).toHaveClass("grid", "grid-cols-1")
+  })
+
   it("busca por nombre o código sin importar acentos ni mayúsculas", async () => {
     api()
     renderizar()

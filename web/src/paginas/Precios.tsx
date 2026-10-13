@@ -332,7 +332,7 @@ export function Precios() {
             const seleccionado =
               catalogo.find((s) => s.codigo === codigo) ?? null
             return (
-              <div className="grid items-start gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
                 <Seccion titulo="Servicios">
                   <ListaServicios
                     servicios={catalogo}
