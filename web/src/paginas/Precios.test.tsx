@@ -1,4 +1,4 @@
-import { cleanup, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Precios } from "@/paginas/Precios"
@@ -18,33 +18,120 @@ vi.mock("react-oidc-context", async () =>
 
 const SERVICIOS = [
   {
-    id: "s1",
     codigo: "CONS-01",
     nombre: "Consultoría SAP",
     categoria: "consultoria",
     unidad: "hora",
     moneda: "MXN",
+    observaciones: 37,
   },
   {
-    id: "s2",
     codigo: "NUBE-01",
     nombre: "Cómputo en la nube",
     categoria: "nube",
     unidad: "mes",
     moneda: "USD",
+    observaciones: 12,
   },
   {
-    id: "s3",
     codigo: "NUBE-02",
     nombre: "Almacenamiento de objetos",
     categoria: "nube",
-    unidad: "TB",
+    unidad: "gb_mes",
     moneda: "USD",
+    observaciones: 0,
   },
 ]
 
-const conCatalogo = (servicios: object[] = SERVICIOS) =>
-  simularApi({ "/api/proveedores/servicios": () => respuestaJson(servicios) })
+const REFERENCIA = {
+  codigo: "CONS-01",
+  moneda: "MXN",
+  unidad: "hora",
+  cantidad: "40",
+  plazo: 12,
+  fecha: "2026-10-12",
+  p25: "1000.0000",
+  p50: "1200.0000",
+  p75: "1400.0000",
+  metodo: "modelo",
+  version: 3,
+  confianza: "normal",
+  observaciones: 37,
+}
+
+const HISTORIAL = {
+  codigo: "CONS-01",
+  moneda: "MXN",
+  cantidad: "40",
+  puntos: [
+    {
+      fecha: "2025-12-01",
+      precio: "1100.0000",
+      cantidad: "40",
+      folio: "CT-0002",
+      proveedor: "Consultores Bajío",
+    },
+    {
+      fecha: "2026-03-01",
+      precio: "1500.0000",
+      cantidad: "40",
+      folio: "CT-0001",
+      proveedor: "Nube Andina",
+    },
+  ],
+  bandas: [
+    { mes: "2026-09-01", p25: "1000.0000", p50: "1200.0000", p75: "1400.0000" },
+    { mes: "2026-10-01", p25: "1010.0000", p50: "1210.0000", p75: "1410.0000" },
+  ],
+}
+
+const SOBREPRECIO = {
+  contrato_id: "c1",
+  folio: "CT-0001",
+  proveedor_id: "p1",
+  proveedor: "Nube Andina",
+  codigo_servicio: "CONS-01",
+  servicio: "Consultoría SAP",
+  moneda: "MXN",
+  precio: "1500.0000",
+  p25: "1000.0000",
+  p50: "1200.0000",
+  p75: "1400.0000",
+  fecha_fin: "2026-12-31",
+  ahorro_potencial: "3600.00",
+  ahorro_potencial_mxn: "3600.00",
+}
+
+function api({
+  catalogo = () => respuestaJson(SERVICIOS),
+  referencia = () => respuestaJson(REFERENCIA),
+  todos = [SOBREPRECIO],
+}: {
+  catalogo?: () => Response
+  referencia?: () => Response
+  todos?: object[]
+} = {}) {
+  return simularApi((url) => {
+    const base = "/api/inteligencia/precios"
+    if (url === `${base}/servicios`) return catalogo()
+    if (url.startsWith(`${base}/servicios/CONS-01/referencia?`))
+      return referencia()
+    if (url === `${base}/servicios/CONS-01/historial`)
+      return respuestaJson(HISTORIAL)
+    if (url === `${base}/sobreprecios?codigo=CONS-01`)
+      return respuestaJson([SOBREPRECIO])
+    if (url === `${base}/sobreprecios`) return respuestaJson(todos)
+    return new Response("", { status: 404 })
+  })
+}
+
+/** Parámetros de cada consulta de referencia, en orden. */
+function referenciasPedidas(simulado: ReturnType<typeof simularApi>) {
+  return simulado.mock.calls
+    .map(([url]) => String(url))
+    .filter((url) => url.includes("/referencia?"))
+    .map((url) => new URL(url, "http://localhost").searchParams)
+}
 
 const renderizar = (ruta = "/precios") =>
   renderizarPagina(<Precios />, { ruta })
@@ -73,7 +160,7 @@ describe("Precios", () => {
   })
 
   it("agrupa los servicios por categoría", async () => {
-    conCatalogo()
+    api()
     renderizar()
 
     expect(
@@ -88,7 +175,7 @@ describe("Precios", () => {
   // contorno por defecto, así que el anillo va hacia adentro; outline-hidden (y no outline-none)
   // conserva un contorno transparente que el modo de alto contraste sí muestra.
   it("los botones de la lista muestran un anillo de foco que el scroll no recorta", async () => {
-    conCatalogo()
+    api()
     renderizar()
 
     const boton = await screen.findByRole("button", { name: /Consultoría SAP/ })
@@ -102,7 +189,7 @@ describe("Precios", () => {
   })
 
   it("busca por nombre o código sin importar acentos ni mayúsculas", async () => {
-    conCatalogo()
+    api()
     renderizar()
     await screen.findByRole("button", { name: /Consultoría SAP/ })
     const buscador = screen.getByRole("searchbox", {
@@ -121,13 +208,13 @@ describe("Precios", () => {
 
     await userEvent.clear(buscador)
     await userEvent.type(buscador, "zzz")
-    expect(
-      screen.getByText("Ningún servicio coincide con «zzz».")
-    ).toBeInTheDocument()
+    expect(screen.getByText("Ningún servicio coincide con «zzz».")).toHaveClass(
+      "break-words"
+    )
   })
 
-  it("elegir un servicio lo refleja en la URL y muestra su detalle", async () => {
-    conCatalogo()
+  it("elegir un servicio lo refleja en la URL, muestra su detalle y le lleva el foco en una sola columna", async () => {
+    api()
     renderizar()
 
     await userEvent.click(
@@ -138,9 +225,12 @@ describe("Precios", () => {
     expect(
       screen.getByRole("button", { name: /Cómputo en la nube/ })
     ).toHaveAttribute("aria-pressed", "true")
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Cómputo en la nube" })
-    ).toBeInTheDocument()
+    const titulo = screen.getByRole("heading", {
+      level: 2,
+      name: "Cómputo en la nube",
+    })
+    // En las pruebas matchMedia nunca coincide: la página se comporta como en una pantalla angosta.
+    await waitFor(() => expect(titulo).toHaveFocus())
     expect(
       screen.getByText("NUBE-01 · Nube · por mes · USD")
     ).toBeInTheDocument()
@@ -149,14 +239,118 @@ describe("Precios", () => {
     ).toHaveAttribute("href", "/proveedores?categoria=nube")
   })
 
+  it("muestra el precio de referencia con la cantidad sugerida y lo recalcula con otra cantidad y plazo", async () => {
+    const simulado = api()
+    renderizar("/precios?servicio=CONS-01")
+
+    // "$1,400.00" también aparece en la tabla de sobreprecios: se busca dentro de los tres valores.
+    const valores = (await screen.findByText("Típico (P50)")).closest("dl")!
+    expect(valores).toHaveTextContent("$1,000.00")
+    expect(valores).toHaveTextContent("$1,200.00")
+    expect(valores).toHaveTextContent("$1,400.00")
+    expect(
+      screen.getByText(/Calculado con el modelo de precios versión 3/)
+    ).toBeInTheDocument()
+    expect(screen.getByText(/37 contratos comparables/)).toBeInTheDocument()
+    const [primera] = referenciasPedidas(simulado)
+    expect(primera.get("cantidad")).toBe("40")
+    expect(primera.get("plazo")).toBe("12")
+
+    const cantidad = screen.getByLabelText("Cantidad")
+    const plazo = screen.getByLabelText("Plazo (meses)")
+    await userEvent.clear(cantidad)
+    await userEvent.type(cantidad, "100")
+    await userEvent.clear(plazo)
+    await userEvent.type(plazo, "24")
+    await userEvent.click(screen.getByRole("button", { name: "Calcular" }))
+
+    expect(ubicacionActual()).toBe(
+      "/precios?servicio=CONS-01&cantidad=100&plazo=24"
+    )
+    await waitFor(() => {
+      const ultima = referenciasPedidas(simulado).at(-1)!
+      expect(ultima.get("cantidad")).toBe("100")
+      expect(ultima.get("plazo")).toBe("24")
+    })
+  })
+
+  it("una cantidad inválida en la URL usa la sugerida", async () => {
+    const simulado = api()
+    renderizar("/precios?servicio=CONS-01&cantidad=-5&plazo=999")
+
+    await screen.findByText("$1,200.00")
+    const [primera] = referenciasPedidas(simulado)
+    expect(primera.get("cantidad")).toBe("40")
+    expect(primera.get("plazo")).toBe("120")
+  })
+
+  it("una cantidad de cero en el formulario no se envía", async () => {
+    api()
+    renderizar("/precios?servicio=CONS-01")
+    await screen.findByText("$1,200.00")
+
+    const cantidad = screen.getByLabelText("Cantidad")
+    await userEvent.clear(cantidad)
+    await userEvent.type(cantidad, "0")
+    await userEvent.click(screen.getByRole("button", { name: "Calcular" }))
+
+    expect(ubicacionActual()).toBe("/precios?servicio=CONS-01")
+  })
+
+  it("sin contratos recientes explica por qué no hay precio de referencia", async () => {
+    api({
+      referencia: () =>
+        respuestaJson(
+          {
+            title: "No encontrado",
+            detail:
+              "No hay contratos de este servicio en los últimos 24 meses.",
+            codigo: "sin_observaciones",
+          },
+          404
+        ),
+    })
+    renderizar("/precios?servicio=CONS-01")
+
+    expect(
+      await screen.findByText("Sin contratos recientes")
+    ).toBeInTheDocument()
+  })
+
+  it("muestra el historial y los contratos con sobreprecio del servicio", async () => {
+    api()
+    renderizar("/precios?servicio=CONS-01")
+
+    expect(
+      await screen.findByRole("figure", { name: /Precios de 2 contratos/ })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Ver los precios de cada contrato")
+    ).toBeInTheDocument()
+    expect(screen.getByText("CT-0002")).toBeInTheDocument()
+
+    const sobreprecios = screen
+      .getByRole("heading", { name: "Contratos con sobreprecio" })
+      .closest<HTMLElement>("[data-slot=card]")!
+    expect(
+      await within(sobreprecios).findByRole("link", { name: "Nube Andina" })
+    ).toHaveAttribute("href", "/proveedores/p1?pestana=contratos")
+    expect(within(sobreprecios).getByText("$3,600.00")).toBeInTheDocument()
+  })
+
   it("un servicio desconocido en la URL pide elegir uno", async () => {
-    conCatalogo()
+    api()
     renderizar("/precios?servicio=NO-EXISTE")
     expect(await screen.findByText("Elija un servicio")).toBeInTheDocument()
   })
 
-  it("cambia a la vista de todos los sobreprecios", async () => {
-    conCatalogo()
+  it("la vista de todos los sobreprecios los pagina y enlaza a cada servicio", async () => {
+    const treinta = Array.from({ length: 30 }, (_, i) => ({
+      ...SOBREPRECIO,
+      contrato_id: `c${i}`,
+      folio: `CT-${String(i).padStart(4, "0")}`,
+    }))
+    api({ todos: treinta })
     renderizar()
     await screen.findByRole("button", { name: /Consultoría SAP/ })
 
@@ -166,15 +360,22 @@ describe("Precios", () => {
 
     expect(ubicacionActual()).toBe("/precios?vista=sobreprecios")
     expect(
-      screen.getByRole("heading", { level: 2, name: "Todos los sobreprecios" })
-    ).toBeInTheDocument()
-    expect(
       screen.getByRole("button", { name: "Todos los sobreprecios" })
     ).toHaveAttribute("aria-pressed", "true")
+    expect(
+      await screen.findByText("Mostrando 1–25 de 30 líneas con sobreprecio")
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole("link", { name: "Consultoría SAP" })[0]
+    ).toHaveAttribute("href", "/precios?servicio=CONS-01")
+
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }))
+    expect(ubicacionActual()).toBe("/precios?vista=sobreprecios&pagina=2")
+    expect(screen.getByText("CT-0029")).toBeInTheDocument()
   })
 
   it("con el catálogo vacío invita al administrador a importar", async () => {
-    conCatalogo([])
+    api({ catalogo: () => respuestaJson([]) })
     renderizar()
     expect(
       await screen.findByText("El catálogo está vacío")
@@ -186,9 +387,10 @@ describe("Precios", () => {
 
   it("muestra el error en español y permite reintentar", async () => {
     let fallar = true
-    simularApi(() =>
-      fallar ? new Response("", { status: 502 }) : respuestaJson(SERVICIOS)
-    )
+    api({
+      catalogo: () =>
+        fallar ? new Response("", { status: 502 }) : respuestaJson(SERVICIOS),
+    })
     renderizar()
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -202,9 +404,10 @@ describe("Precios", () => {
   })
 
   it("no tiene violaciones de accesibilidad", async () => {
-    conCatalogo()
-    const { container } = renderizar("/precios?servicio=NUBE-01")
-    await screen.findByRole("heading", { level: 2, name: "Cómputo en la nube" })
+    api()
+    const { container } = renderizar("/precios?servicio=CONS-01")
+    await screen.findByText("$1,200.00")
+    await screen.findByRole("figure", { name: /Precios de 2 contratos/ })
     await esperarSinViolaciones(container)
   })
 })
