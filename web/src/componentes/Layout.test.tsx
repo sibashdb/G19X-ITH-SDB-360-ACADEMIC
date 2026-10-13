@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router"
@@ -5,12 +6,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Layout } from "@/componentes/Layout"
 import { CLAVE_GUIA } from "@/guia"
 import { tokenConRoles } from "@/pruebas/sesion"
-import { esperarSinViolaciones } from "@/pruebas/utilidades"
+import {
+  esperarSinViolaciones,
+  respuestaJson,
+  simularApi,
+} from "@/pruebas/utilidades"
 import { CLAVE_TEMA, ProveedorTema } from "@/tema"
 
 const removeUser = vi.fn().mockResolvedValue(undefined)
 const signinRedirect = vi.fn().mockResolvedValue(undefined)
 const signoutRedirect = vi.fn().mockResolvedValue(undefined)
+const ALERTA_CAMPANA = {
+  id: "riesgo:p2",
+  tipo: "riesgo",
+  severidad: "alta",
+  titulo: "Puntuación baja: Datos del Norte",
+  explicacion: "Su puntuación es 31.0 de 100, por debajo del umbral de 40.",
+  entidad_tipo: "proveedor",
+  entidad_id: "p2",
+  entidad_nombre: "Datos del Norte",
+  proveedor_id: "p2",
+  proveedor_nombre: "Datos del Norte",
+  fecha: "2026-10-12",
+  ahorro_potencial: null,
+  moneda: null,
+}
+let respuestaAlertas: () => Response
 const estado = vi.hoisted(() => ({
   autenticacion: {} as object,
   parametrosDeLogin: false,
@@ -42,15 +63,20 @@ function sesionCon(roles: string[]) {
 }
 
 function renderizar(ruta = "/") {
+  const cliente = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   return render(
     <ProveedorTema>
-      <MemoryRouter initialEntries={[ruta]}>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="*" element={<h1>Contenido de prueba</h1>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={cliente}>
+        <MemoryRouter initialEntries={[ruta]}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="*" element={<h1>Contenido de prueba</h1>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     </ProveedorTema>
   )
 }
@@ -58,10 +84,17 @@ function renderizar(ruta = "/") {
 beforeEach(() => {
   estado.autenticacion = sesionCon(["comprador"])
   estado.parametrosDeLogin = false
+  respuestaAlertas = () => respuestaJson({ total: 0, elementos: [] })
+  simularApi((url) =>
+    url === "/api/inteligencia/alertas?limite=5"
+      ? respuestaAlertas()
+      : new Response("", { status: 404 })
+  )
 })
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
   vi.clearAllMocks()
   vi.restoreAllMocks()
   localStorage.clear()
@@ -317,6 +350,42 @@ describe("Layout con sesión iniciada", () => {
     expect(
       screen.getByRole("menuitem", { name: "Ver todas las alertas" })
     ).toHaveAttribute("href", "/alertas")
+  })
+
+  it("la campana muestra cuántas alertas hay y abre las principales", async () => {
+    respuestaAlertas = () =>
+      respuestaJson({ total: 7, elementos: [ALERTA_CAMPANA] })
+    renderizar()
+
+    const campana = await screen.findByRole("button", {
+      name: "Alertas: 7 activas",
+    })
+    expect(campana).toHaveTextContent("7")
+    await userEvent.click(campana)
+
+    expect(
+      await screen.findByRole("menuitem", {
+        name: /Puntuación baja: Datos del Norte/,
+      })
+    ).toHaveAttribute("href", "/proveedores/p2")
+  })
+
+  it("la campana limita el número a 99+", async () => {
+    respuestaAlertas = () =>
+      respuestaJson({ total: 250, elementos: [ALERTA_CAMPANA] })
+    renderizar()
+    expect(
+      await screen.findByRole("button", { name: "Alertas: 250 activas" })
+    ).toHaveTextContent("99+")
+  })
+
+  it("la campana avisa en su menú si no pudo cargar las alertas", async () => {
+    respuestaAlertas = () => new Response("", { status: 502 })
+    renderizar()
+    await userEvent.click(screen.getByRole("button", { name: "Alertas" }))
+    expect(
+      await screen.findByText("No se pudieron cargar las alertas.")
+    ).toBeInTheDocument()
   })
 
   it("visitar Proveedores lo marca como visto en la guía", () => {

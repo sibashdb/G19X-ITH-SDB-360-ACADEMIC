@@ -7,7 +7,7 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react"
-import { Fragment } from "react"
+import { Fragment, type ReactNode } from "react"
 import { Link, useLocation } from "react-router"
 import { migasDe } from "@/componentes/navegacion"
 import {
@@ -31,7 +31,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import {
+  rutaDeAlerta,
+  useInteligencia,
+  type PaginaAlertas,
+} from "@/inteligencia"
 import { NOMBRES_TEMA, useTema, type Tema } from "@/tema"
+import { NOMBRES_SEVERIDAD, NOMBRES_TIPO_ALERTA } from "@/tipos"
 
 const ICONOS_TEMA: Record<Tema, LucideIcon> = {
   claro: Sun,
@@ -70,22 +76,73 @@ function Migas() {
   )
 }
 
-/** Campana: el conteo y las 5 alertas más severas llegan en el Plan B. */
+/** Campana: cuántas alertas hay y las 5 principales; se renueva cada minuto. */
 function MenuAlertas() {
+  const alertas = useInteligencia<PaginaAlertas>("/alertas?limite=5", {
+    refetchInterval: 60_000,
+  })
+  const total = alertas.data?.total ?? 0
+  const estado = (texto: ReactNode) => (
+    <DropdownMenuLabel className="flex items-center gap-2 py-3 text-sm font-normal">
+      {texto}
+    </DropdownMenuLabel>
+  )
+  let contenido: ReactNode
+  if (alertas.isPending) contenido = estado("Cargando…")
+  else if (alertas.isError)
+    contenido = estado("No se pudieron cargar las alertas.")
+  else if (alertas.data.elementos.length === 0)
+    contenido = estado(
+      <>
+        <BellOff aria-hidden className="size-4" />
+        No hay alertas activas
+      </>
+    )
+  else
+    contenido = alertas.data.elementos.map((alerta) => (
+      <DropdownMenuItem key={alerta.id} asChild>
+        <Link
+          to={rutaDeAlerta(alerta)}
+          className="flex flex-col items-start gap-0.5"
+        >
+          <span className="text-xs text-muted-foreground">
+            Severidad {NOMBRES_SEVERIDAD[alerta.severidad].toLowerCase()} ·{" "}
+            {NOMBRES_TIPO_ALERTA[alerta.tipo]}
+          </span>
+          <span className="break-words whitespace-normal">{alerta.titulo}</span>
+        </Link>
+      </DropdownMenuItem>
+    ))
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-lg" aria-label="Alertas">
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          className="relative"
+          aria-label={
+            total > 0
+              ? `Alertas: ${total.toLocaleString("es-MX")} activas`
+              : "Alertas"
+          }
+        >
           <Bell aria-hidden />
+          {total > 0 && (
+            <span
+              aria-hidden
+              className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-none font-semibold text-destructive-foreground tabular-nums"
+            >
+              {total > 99 ? "99+" : total}
+            </span>
+          )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuLabel>Alertas</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>
+          Alertas{total > 0 && ` (${total.toLocaleString("es-MX")})`}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <p className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
-          <BellOff aria-hidden className="size-4" />
-          No hay alertas activas
-        </p>
+        {contenido}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/alertas">Ver todas las alertas</Link>

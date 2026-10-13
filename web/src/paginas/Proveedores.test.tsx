@@ -156,7 +156,10 @@ describe("Proveedores", () => {
     expect(
       await screen.findByText("Mostrando 1–25 de 60 proveedores")
     ).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Anterior" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Anterior" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    )
 
     await userEvent.click(screen.getByRole("button", { name: "Siguiente" }))
 
