@@ -1,4 +1,5 @@
 import { createBrowserRouter, type RouteObject } from "react-router"
+import { ErrorDePagina } from "@/componentes/ErrorDePagina"
 import { Layout } from "@/componentes/Layout"
 
 // Cada página es un archivo aparte que se descarga la primera vez que se visita: el arranque no
@@ -119,11 +120,13 @@ function CargaInicial() {
   )
 }
 
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    Component: Layout,
-    HydrateFallback: CargaInicial,
-    children: paginas,
-  },
-])
+// Las páginas van en una ruta sin ruta propia con su frontera de error: si una no se descarga, el
+// error aparece dentro del Layout (menú y barra superior) y no en la pantalla en inglés de la librería.
+export const marco: RouteObject = {
+  path: "/",
+  Component: Layout,
+  HydrateFallback: CargaInicial,
+  children: [{ ErrorBoundary: ErrorDePagina, children: paginas }],
+}
+
+export const router = createBrowserRouter([marco])

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { paginas } from "@/rutas"
+import { ErrorDePagina } from "@/componentes/ErrorDePagina"
+import { marco, paginas } from "@/rutas"
 
 describe("rutas", () => {
   it("cada página se descarga aparte y entrega su componente", async () => {
@@ -13,5 +14,11 @@ describe("rutas", () => {
       )()
       expect(cargada.Component).toEqual(expect.any(Function))
     }
+  })
+
+  it("las páginas van en una frontera de error dentro del marco, para que el menú no desaparezca", () => {
+    expect(marco.children).toHaveLength(1)
+    expect(marco.children?.[0].ErrorBoundary).toBe(ErrorDePagina)
+    expect(marco.children?.[0].children).toBe(paginas)
   })
 })
