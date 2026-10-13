@@ -471,6 +471,21 @@ describe("Precios", () => {
     expect(screen.getByText("CT-0029")).toBeInTheDocument()
   })
 
+  it("una página de sobreprecios fuera de rango ofrece volver a la primera y deja el foco en la vista", async () => {
+    api({ todos: [SOBREPRECIO] })
+    renderizar("/precios?vista=sobreprecios&pagina=9")
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ir a la primera página" })
+    )
+
+    expect(ubicacionActual()).toBe("/precios?vista=sobreprecios")
+    // El botón usado desaparece: el foco pasa a un control que sigue en pantalla.
+    expect(
+      screen.getByRole("button", { name: "Todos los sobreprecios" })
+    ).toHaveFocus()
+  })
+
   it("con el catálogo vacío invita al administrador a importar", async () => {
     api({ catalogo: () => respuestaJson([]) })
     renderizar()

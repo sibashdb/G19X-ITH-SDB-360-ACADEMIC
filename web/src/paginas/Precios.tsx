@@ -1,5 +1,5 @@
 import { Building2, Tags, TrendingUp } from "lucide-react"
-import { useEffect, useRef, useState, type Ref } from "react"
+import { useEffect, useRef, useState, type Ref, type RefObject } from "react"
 import { Link } from "react-router"
 import { useRoles } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
@@ -182,7 +182,11 @@ function DetalleServicio({
   )
 }
 
-function TodosLosSobreprecios() {
+function TodosLosSobreprecios({
+  refVista,
+}: {
+  refVista: RefObject<HTMLButtonElement | null>
+}) {
   const [parametros, actualizar] = useParametros()
   const pagina = enteroPositivo(parametros.get("pagina"), 1)
   const consulta = useInteligencia<Sobreprecio[]>("/precios/sobreprecios")
@@ -220,7 +224,11 @@ function TodosLosSobreprecios() {
                 accion={
                   <Button
                     variant="outline"
-                    onClick={() => actualizar({ pagina: null })}
+                    onClick={() => {
+                      actualizar({ pagina: null })
+                      // El botón usado desaparece: el foco pasa al selector de vista, que sigue en pantalla.
+                      refVista.current?.focus()
+                    }}
                   >
                     Ir a la primera página
                   </Button>
@@ -257,6 +265,7 @@ export function Precios() {
   // En una sola columna el detalle queda debajo de la lista: al elegir un servicio se lleva el
   // foco a su título para que la persona vea el resultado sin buscarlo.
   const refDetalle = useRef<HTMLHeadingElement>(null)
+  const refVistaSobreprecios = useRef<HTMLButtonElement>(null)
   const enfocarDetalle = useRef(false)
   useEffect(() => {
     if (!enfocarDetalle.current) return
@@ -292,6 +301,7 @@ export function Precios() {
               Por servicio
             </Button>
             <Button
+              ref={refVistaSobreprecios}
               variant={vista === "sobreprecios" ? "default" : "outline"}
               aria-pressed={vista === "sobreprecios"}
               onClick={() =>
@@ -304,7 +314,7 @@ export function Precios() {
         }
       />
       {vista === "sobreprecios" ? (
-        <TodosLosSobreprecios />
+        <TodosLosSobreprecios refVista={refVistaSobreprecios} />
       ) : (
         <ContenidoConsulta consulta={servicios}>
           {(catalogo) => {
