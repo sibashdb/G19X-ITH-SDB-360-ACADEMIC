@@ -116,11 +116,13 @@ function ResumenPuntuacion({
       {historial.length > 1 && (
         <>
           <div aria-hidden className="h-10 w-36">
+            {/* Decorativa y dentro de aria-hidden: sin accessibilityLayer, que la haría enfocable. */}
             <ChartContainer
               config={CONFIG_HISTORIAL}
               className="aspect-auto h-10 w-36"
             >
               <LineChart
+                accessibilityLayer={false}
                 data={historial}
                 margin={{ top: 4, right: 0, bottom: 4, left: 0 }}
               >
