@@ -132,6 +132,16 @@ describe("Ranking", () => {
     )
   })
 
+  it("explica contra quién se compara cada proveedor y cómo pesa el historial", async () => {
+    api()
+    renderizarPagina(<Ranking />, { ruta: "/ranking" })
+    expect(
+      screen.getByText(/menos de 20 proveedores con desempeño/)
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Cuanto menos historial/)).toBeInTheDocument()
+    await screen.findByRole("table")
+  })
+
   it("sin puntuaciones lo explica", async () => {
     api(() => respuestaJson([]))
     renderizarPagina(<Ranking />, { ruta: "/ranking" })

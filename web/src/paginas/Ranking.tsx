@@ -150,14 +150,19 @@ export function Ranking() {
           <TabsContent key={valor} value={valor} className="mt-4">
             <Seccion
               titulo={`Ranking · ${valor === TODAS ? "Todas las categorías" : nombre}`}
+              // El 20 es MIN_PROVEEDORES_CATEGORIA y el 6 es
+              // MESES_HISTORIAL_CORTO, en
+              // services/inteligencia/src/inteligencia/dominio/puntuacion.py.
               descripcion={
                 <>
                   Cada indicador muestra su{" "}
                   <Termino clave="percentil">percentil</Termino> (100 es el
                   mejor). Cada proveedor se compara con los de su categoría
-                  principal, o con todos si esa categoría tiene menos de 20. Con{" "}
-                  <Termino clave="historialCorto">historial corto</Termino>, la
-                  puntuación se acerca al promedio hasta tener 6 meses de datos.
+                  principal, o con todos si esa categoría tiene menos de 20
+                  proveedores con desempeño. Cuanto menos historial tiene un
+                  proveedor, más se acerca su puntuación al promedio de su
+                  grupo; con menos de 6 meses lleva la marca de{" "}
+                  <Termino clave="historialCorto">historial corto</Termino>.
                 </>
               }
             >
