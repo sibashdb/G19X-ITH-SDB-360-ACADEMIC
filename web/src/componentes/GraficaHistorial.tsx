@@ -85,12 +85,14 @@ export function GraficaHistorial({
               type="number"
               scale="time"
               domain={["dataMin", "dataMax"]}
+              ticks={bandas.length > 0 ? bandas.map((b) => b.t) : undefined}
               tickFormatter={(t: number) => formatoPeriodo(mesDe(t))}
               tickLine={false}
               axisLine={false}
               minTickGap={24}
             />
             <YAxis
+              domain={["auto", "auto"]}
               tickLine={false}
               axisLine={false}
               width={64}
