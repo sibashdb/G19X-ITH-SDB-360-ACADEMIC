@@ -71,11 +71,78 @@ const DESEMPENO = [
   },
 ]
 
+const INTELIGENCIA = "/api/inteligencia/proveedores/p1"
+const ALERTAS_URL = "/api/inteligencia/alertas?proveedor=p1&limite=3"
+
+const PUNTUACION = {
+  proveedor_id: "p1",
+  categoria: "nube",
+  puntuacion: 72.4,
+  sin_ajuste: 74,
+  meses: 12,
+  historial_corto: false,
+  tendencia: 3.2,
+  componentes: [
+    { kpi: "sla", valor: 99.12, mediana_categoria: 98.7, percentil: 80 },
+    { kpi: "resolucion", valor: 4.5, mediana_categoria: 5.1, percentil: 65 },
+    { kpi: "incidentes", valor: 1.2, mediana_categoria: 1.5, percentil: 60 },
+    { kpi: "entregas", valor: 95, mediana_categoria: 92, percentil: 70 },
+    { kpi: "satisfaccion", valor: 4.4, mediana_categoria: 4.1, percentil: 75 },
+  ],
+  historial: [
+    { mes: "2025-11-01", puntuacion: 65 },
+    { mes: "2026-10-01", puntuacion: 72.4 },
+  ],
+}
+
+const MERCADO = [
+  {
+    contrato_id: "c1",
+    folio: "CT-0001",
+    codigo_servicio: "NUBE-01",
+    servicio: "Nube pública",
+    moneda: "MXN",
+    precio: "1500.0000",
+    posicion: "sobre_p75",
+    p25: "1000.0000",
+    p50: "1200.0000",
+    p75: "1400.0000",
+    metodo: "modelo",
+    confianza: "normal",
+    ahorro_potencial: "3600.00",
+  },
+]
+
+const ALERTAS = {
+  total: 2,
+  elementos: [
+    {
+      id: "sobreprecio:c1:NUBE-01",
+      tipo: "sobreprecio",
+      severidad: "media",
+      titulo: "Sobreprecio en CT-0001: Nube pública",
+      explicacion:
+        "Paga 1,500.00 MXN por mes; el mercado paga hasta 1,400.00 (P75).",
+      entidad_tipo: "contrato",
+      entidad_id: "c1",
+      entidad_nombre: "CT-0001",
+      proveedor_id: "p1",
+      proveedor_nombre: "Proveedor Uno",
+      fecha: "2026-10-12",
+      ahorro_potencial: "3600.00",
+      moneda: "MXN",
+    },
+  ],
+}
+
 function api(cambios: Record<string, () => Response | Promise<Response>> = {}) {
   return simularApi({
     [RUTA]: () => respuestaJson(PROVEEDOR),
     [`${RUTA}/contratos`]: () => respuestaJson([CONTRATO]),
     [`${RUTA}/desempeno?meses=24`]: () => respuestaJson(DESEMPENO),
+    [`${INTELIGENCIA}/puntuacion`]: () => respuestaJson(PUNTUACION),
+    [`${INTELIGENCIA}/mercado`]: () => respuestaJson(MERCADO),
+    [ALERTAS_URL]: () => respuestaJson(ALERTAS),
     ...cambios,
   })
 }
@@ -248,6 +315,96 @@ describe("ProveedorDetalle", () => {
       "aria-selected",
       "true"
     )
+  })
+
+  it("el encabezado muestra la puntuación, su tendencia y las alertas activas", async () => {
+    api()
+    renderizar()
+
+    expect(await screen.findByText("72.4")).toBeInTheDocument()
+    expect(screen.getByText("de 100")).toBeInTheDocument()
+    expect(
+      screen.getByText("puntos en 3 meses", { exact: false }).parentElement
+    ).toHaveTextContent("+3.2 puntos en 3 meses")
+    expect(
+      screen.getByText("Últimos 2 meses: de 65.0 a 72.4")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Alertas activas (2)" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: "Sobreprecio en CT-0001: Nube pública" })
+    ).toHaveAttribute("href", "/proveedores/p1?pestana=contratos")
+    expect(
+      screen.getByRole("link", { name: "Ver sus 2 alertas" })
+    ).toHaveAttribute("href", "/alertas?proveedor=p1")
+  })
+
+  it("el resumen compara cada indicador con la mediana de su categoría", async () => {
+    api()
+    renderizar()
+
+    expect(
+      await screen.findByRole("heading", { name: "Frente a su categoría" })
+    ).toBeInTheDocument()
+    const sla = screen.getByText("Percentil 80.0").closest("li")!
+    expect(sla).toHaveTextContent("Cumplimiento de SLA")
+    expect(sla).toHaveTextContent("99.12 %")
+    expect(sla).toHaveTextContent("mediana 98.7 %")
+    expect(
+      screen.getByRole("button", { name: "percentil" })
+    ).toBeInTheDocument()
+  })
+
+  it("la pestaña Contratos compara cada línea vigente con el mercado", async () => {
+    api()
+    renderizar("/proveedores/p1?pestana=contratos")
+
+    expect(
+      await screen.findByRole("button", { name: "Sobre P75" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("columnheader", { name: "Precio vs. mercado" })
+    ).toBeInTheDocument()
+  })
+
+  it("la ficha se muestra aunque la inteligencia no responda", async () => {
+    const caida = () => new Response("", { status: 502 })
+    api({
+      [`${INTELIGENCIA}/puntuacion`]: caida,
+      [`${INTELIGENCIA}/mercado`]: caida,
+      [ALERTAS_URL]: caida,
+    })
+    renderizar("/proveedores/p1?pestana=contratos")
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Proveedor Uno" })
+    ).toBeInTheDocument()
+    expect(await screen.findByText("No se pudo consultar.")).toBeInTheDocument()
+    expect(
+      screen.getByText("No se pudieron consultar sus alertas.")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("No se pudo comparar con el mercado.")
+    ).toBeInTheDocument()
+    expect(await screen.findByText("CT-0001")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("columnheader", { name: "Precio vs. mercado" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("un proveedor que la inteligencia aún no conoce se ve sin puntuación", async () => {
+    api({
+      [`${INTELIGENCIA}/puntuacion`]: () => new Response("", { status: 404 }),
+    })
+    renderizar()
+
+    expect(
+      await screen.findByText("Sin puntuación todavía")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Frente a su categoría" })
+    ).not.toBeInTheDocument()
   })
 
   it("codifica el id al construir la ruta de la API", async () => {
