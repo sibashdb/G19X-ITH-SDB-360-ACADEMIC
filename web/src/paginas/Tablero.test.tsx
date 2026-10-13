@@ -218,6 +218,18 @@ describe("Tablero", () => {
     ).toHaveClass("whitespace-normal")
   })
 
+  it("el monto mensual de los próximos vencimientos dice que está en MXN", async () => {
+    api()
+    renderizarPagina(<Tablero />)
+    await screen.findByText("$48.2 M MXN")
+
+    expect(
+      within(seccion("Próximos vencimientos")).getByRole("columnheader", {
+        name: "Monto mensual (MXN)",
+      })
+    ).toBeInTheDocument()
+  })
+
   it("sin datos, cada sección explica qué falta", async () => {
     api(() => respuestaJson(VACIO))
     renderizarPagina(<Tablero />)

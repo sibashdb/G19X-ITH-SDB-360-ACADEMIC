@@ -188,6 +188,16 @@ describe("Proveedores", () => {
     expect(ubicacionActual()).toBe("/proveedores")
   })
 
+  it("el gasto anual dice que está en MXN", async () => {
+    apiDeProveedores()
+    renderizar()
+    await screen.findByRole("table")
+
+    expect(
+      screen.getByRole("button", { name: "Ordenar por Gasto anual (MXN)" })
+    ).toBeInTheDocument()
+  })
+
   it("busca por nombre o RFC", async () => {
     const simulado = apiDeProveedores()
     renderizar()

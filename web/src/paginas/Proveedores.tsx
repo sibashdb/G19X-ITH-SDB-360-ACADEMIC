@@ -253,7 +253,7 @@ export function Proveedores() {
               {encabezado("nombre", "Proveedor")}
               <TableHead>Categorías</TableHead>
               {encabezado("puntuacion", "Puntuación")}
-              {encabezado("gasto_anual", "Gasto anual", "text-right")}
+              {encabezado("gasto_anual", "Gasto anual (MXN)", "text-right")}
               {encabezado(
                 "contratos_vigentes",
                 "Contratos vigentes",

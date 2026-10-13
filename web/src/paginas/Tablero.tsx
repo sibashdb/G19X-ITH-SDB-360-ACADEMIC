@@ -373,7 +373,7 @@ function Vencimientos({
           <TableHead>Contrato</TableHead>
           <TableHead>Proveedor</TableHead>
           <TableHead>Vence</TableHead>
-          <TableHead className="text-right">Monto mensual</TableHead>
+          <TableHead className="text-right">Monto mensual (MXN)</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
