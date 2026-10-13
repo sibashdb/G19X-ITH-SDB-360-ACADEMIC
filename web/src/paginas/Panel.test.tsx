@@ -78,13 +78,13 @@ const DATOS = {
   entrenando: false,
 }
 
-function api(resumen: object) {
+function api(resumen: object, datos: object = DATOS) {
   return simularApi((url) => {
     if (url.startsWith("/api/administracion/resumen"))
       return respuestaJson(resumen)
     if (url.startsWith("/api/administracion/estado"))
       return respuestaJson(ESTADO)
-    if (url.startsWith("/api/inteligencia/datos")) return respuestaJson(DATOS)
+    if (url.startsWith("/api/inteligencia/datos")) return respuestaJson(datos)
     return respuestaJson(ACTIVIDAD)
   })
 }
@@ -170,6 +170,29 @@ describe("Panel", () => {
     expect(
       within(datos).getByRole("link", { name: "Ir a Configuración" })
     ).toHaveAttribute("href", "/configuracion")
+  })
+
+  it("la fecha del último dato no lleva dos puntos al final", async () => {
+    api({ usuarios_activos: 1, intentos_fallidos_24h: 0, correos_7d: 0 })
+    renderizarPagina(<Panel />, { ruta: "/sistema" })
+
+    const datos = tarjeta("Datos y modelo")
+    await within(datos).findByText("1,600")
+    expect(datos).toHaveTextContent("Último dato recibido: 12 oct 2026")
+    expect(datos).not.toHaveTextContent("..")
+  })
+
+  it("sin ningún dato recibido, la tarjeta lo dice con un solo punto", async () => {
+    api(
+      { usuarios_activos: 1, intentos_fallidos_24h: 0, correos_7d: 0 },
+      { ...DATOS, ultimo_evento: null }
+    )
+    renderizarPagina(<Panel />, { ruta: "/sistema" })
+
+    const datos = tarjeta("Datos y modelo")
+    await within(datos).findByText("1,600")
+    expect(datos).toHaveTextContent("Último dato recibido: ninguno todavía.")
+    expect(datos).not.toHaveTextContent("..")
   })
 
   it("solo administración lo ve", () => {

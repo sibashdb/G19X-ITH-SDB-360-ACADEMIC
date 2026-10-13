@@ -75,10 +75,10 @@ function DatosYModelo() {
             </dl>
             <p>
               Último dato recibido:{" "}
+              {/* formatoFechaHora ya termina en "a.m." o "p.m." */}
               {d.ultimo_evento
                 ? formatoFechaHora(d.ultimo_evento)
-                : "ninguno todavía"}
-              .
+                : "ninguno todavía."}
             </p>
             <p>{textoModelo(d)}</p>
           </div>
