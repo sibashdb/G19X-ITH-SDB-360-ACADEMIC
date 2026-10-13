@@ -49,10 +49,13 @@ function Resultado({
   datos,
   antes,
   ocupado,
+  fallo,
 }: {
   datos: RegistroModelos
   antes: number | null
   ocupado: boolean
+  /** La petición misma falló: su alerta es el único mensaje, no el motivo de un entrenamiento anterior. */
+  fallo: boolean
 }) {
   if (ocupado) {
     return (
@@ -65,7 +68,7 @@ function Resultado({
       </>
     )
   }
-  if (antes === null) return null
+  if (antes === null || fallo) return null
   const nuevo = datos.elementos.find((m) => m.version > antes)
   if (nuevo) {
     return (
@@ -149,7 +152,12 @@ function Contenido({ datos }: { datos: RegistroModelos }) {
           Reentrenar modelo de precios
         </Button>
         <p role="status" className="flex items-center gap-2 text-sm">
-          <Resultado datos={datos} antes={antes} ocupado={ocupado} />
+          <Resultado
+            datos={datos}
+            antes={antes}
+            ocupado={ocupado}
+            fallo={entrenar.isError}
+          />
         </p>
       </div>
       {entrenar.isError && (

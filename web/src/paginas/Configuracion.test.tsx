@@ -326,6 +326,34 @@ describe("Configuracion", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("si la petición misma falla, el fallo del entrenamiento anterior no se muestra como su resultado", async () => {
+    const ERROR_ANTERIOR =
+      "No hay datos suficientes para entrenar. Solo hay 12 líneas de contrato."
+    const anterior = { ...MODELOS, ultimo_error: ERROR_ANTERIOR }
+    api({
+      modelos: anterior,
+      entrenar: () => new Response("", { status: 500 }),
+      despues: anterior,
+    })
+    renderizar()
+    await screen.findByText("Versión 2")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reentrenar modelo de precios" })
+    )
+
+    // La alerta de la petición es el único mensaje.
+    expect(
+      await screen.findByText(
+        "El servicio no está disponible; intente más tarde."
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/No se pudo entrenar/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/No hay datos suficientes/)
+    ).not.toBeInTheDocument()
+  })
+
   it("si ya hay un entrenamiento en curso lo explica", async () => {
     api({
       entrenar: () =>
