@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Activity, Mail, ShieldAlert, UsersRound } from "lucide-react"
+import type { ReactNode } from "react"
 import { Link } from "react-router"
 import { pedir } from "@/api"
 import { useToken } from "@/auth"
@@ -10,6 +11,7 @@ import { ListaActividad } from "@/componentes/ListaActividad"
 import { RequiereRol } from "@/componentes/RequiereRol"
 import { Seccion } from "@/componentes/Seccion"
 import { TarjetaKpi, type Tono } from "@/componentes/TarjetaKpi"
+import { Termino } from "@/componentes/Termino"
 import { formatoFechaHora } from "@/fechas"
 import {
   fraccionComoPorcentaje,
@@ -42,13 +44,30 @@ const ENTIDADES: [string, string][] = [
   ["tipo_cambio", "Tipos de cambio"],
 ]
 
-function textoModelo(d: DatosInteligencia): string {
+function textoModelo(d: DatosInteligencia): ReactNode {
   const entrenando = d.entrenando ? " Hay un entrenamiento en curso." : ""
+  const linea = <Termino clave="lineaBase">línea base</Termino>
   if (d.modelo && d.en_uso === d.modelo.version)
-    return `Modelo de precios: versión ${d.en_uso}, MAPE ${fraccionComoPorcentaje(d.modelo.mape)}.${entrenando}`
+    return (
+      <>
+        Modelo de precios: versión {d.en_uso},{" "}
+        <Termino clave="mape">MAPE</Termino>{" "}
+        {fraccionComoPorcentaje(d.modelo.mape)}.{entrenando}
+      </>
+    )
   if (d.modelo)
-    return `Modelo de precios: la versión ${d.modelo.version} no se pudo cargar y se usa la línea base; reentrénelo en Configuración.${entrenando}`
-  return `Modelo de precios: línea base (ningún modelo la ha mejorado todavía).${entrenando}`
+    return (
+      <>
+        Modelo de precios: la versión {d.modelo.version} no se pudo cargar y se
+        usa la {linea}; reentrénelo en Configuración.{entrenando}
+      </>
+    )
+  return (
+    <>
+      Modelo de precios: {linea} (ningún modelo la ha mejorado todavía).
+      {entrenando}
+    </>
+  )
 }
 
 /** Lo que llegó a la inteligencia y el modelo con que trabaja (spec D2: no va en el Tablero). */

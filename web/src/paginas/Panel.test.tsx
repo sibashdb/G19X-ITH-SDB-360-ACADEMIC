@@ -167,9 +167,61 @@ describe("Panel", () => {
     expect(await within(datos).findByText("1,600")).toBeInTheDocument()
     expect(within(datos).getByText("Líneas de contrato")).toBeInTheDocument()
     expect(datos).toHaveTextContent("Modelo de precios: versión 2, MAPE 8.3 %.")
+    // El término técnico lleva su definición.
+    expect(
+      within(datos).getByRole("button", { name: "MAPE" })
+    ).toBeInTheDocument()
     expect(
       within(datos).getByRole("link", { name: "Ir a Configuración" })
     ).toHaveAttribute("href", "/configuracion")
+  })
+
+  it("si el modelo guardado no se pudo cargar, la tarjeta lo dice y explica la línea base", async () => {
+    api(
+      { usuarios_activos: 1, intentos_fallidos_24h: 0, correos_7d: 0 },
+      { ...DATOS, en_uso: null }
+    )
+    renderizarPagina(<Panel />, { ruta: "/sistema" })
+
+    const datos = tarjeta("Datos y modelo")
+    await within(datos).findByText("1,600")
+    expect(datos).toHaveTextContent(
+      "Modelo de precios: la versión 2 no se pudo cargar y se usa la línea base; reentrénelo en Configuración."
+    )
+    expect(
+      within(datos).getByRole("button", { name: "línea base" })
+    ).toBeInTheDocument()
+  })
+
+  it("sin ningún modelo, la tarjeta dice que se usa la línea base", async () => {
+    api(
+      { usuarios_activos: 1, intentos_fallidos_24h: 0, correos_7d: 0 },
+      { ...DATOS, modelo: null, en_uso: null }
+    )
+    renderizarPagina(<Panel />, { ruta: "/sistema" })
+
+    const datos = tarjeta("Datos y modelo")
+    await within(datos).findByText("1,600")
+    expect(datos).toHaveTextContent(
+      "Modelo de precios: línea base (ningún modelo la ha mejorado todavía)."
+    )
+    expect(
+      within(datos).getByRole("button", { name: "línea base" })
+    ).toBeInTheDocument()
+  })
+
+  it("con un entrenamiento en curso, la tarjeta lo avisa", async () => {
+    api(
+      { usuarios_activos: 1, intentos_fallidos_24h: 0, correos_7d: 0 },
+      { ...DATOS, entrenando: true }
+    )
+    renderizarPagina(<Panel />, { ruta: "/sistema" })
+
+    const datos = tarjeta("Datos y modelo")
+    await within(datos).findByText("1,600")
+    expect(datos).toHaveTextContent(
+      "Modelo de precios: versión 2, MAPE 8.3 %. Hay un entrenamiento en curso."
+    )
   })
 
   it("la fecha del último dato no lleva dos puntos al final", async () => {
