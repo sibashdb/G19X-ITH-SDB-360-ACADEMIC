@@ -1,5 +1,5 @@
 import { Tags } from "lucide-react"
-import { useId, type FormEvent } from "react"
+import { useEffect, useId, useRef, type FormEvent } from "react"
 import { ErrorApi } from "@/api"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Termino } from "@/componentes/Termino"
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  formatoDecimal,
+  porUnidad,
   useInteligencia,
   type Referencia,
   type ServicioPrecios,
@@ -43,6 +45,12 @@ export function ReferenciaPrecio({
   const plazo = enteroPositivo(parametros.get("plazo"), 12, PLAZO_MAXIMO)
   const idCantidad = useId()
   const idPlazo = useId()
+  const formulario = useRef<HTMLFormElement>(null)
+  // Atrás/Adelante cambian la URL pero React no toca un campo que la persona ya editó: reset()
+  // devuelve cada campo a su `defaultValue`, que sí sigue a la URL, sin remontar el formulario.
+  useEffect(() => {
+    formulario.current?.reset()
+  }, [cantidad, plazo])
   const referencia = useInteligencia<Referencia>(
     `/precios/servicios/${encodeURIComponent(servicio.codigo)}/referencia?${new URLSearchParams(
       { cantidad, plazo: String(plazo) }
@@ -112,6 +120,8 @@ export function ReferenciaPrecio({
           ))}
         </dl>
         <p className="text-sm text-muted-foreground">
+          {/* Lo que dice la respuesta, no el formulario: así el precio nunca se lee con otra cantidad. */}
+          {`Precio ${porUnidad(r.unidad)} para una cantidad de ${formatoDecimal(Number(r.cantidad), 4)} y un plazo de ${r.plazo} ${r.plazo === 1 ? "mes" : "meses"}. `}
           {r.metodo === "modelo" ? (
             `Calculado con el modelo de precios versión ${r.version}`
           ) : (
@@ -138,7 +148,11 @@ export function ReferenciaPrecio({
   return (
     <div className="space-y-4">
       {/* Sin `key`: remontar el formulario al calcular sacaría el foco del botón. */}
-      <form onSubmit={calcular} className="flex flex-wrap items-end gap-3">
+      <form
+        ref={formulario}
+        onSubmit={calcular}
+        className="flex flex-wrap items-end gap-3"
+      >
         <div className="space-y-1">
           <Label htmlFor={idCantidad}>Cantidad</Label>
           <Input

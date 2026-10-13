@@ -1,5 +1,6 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useNavigate } from "react-router"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Precios } from "@/paginas/Precios"
 import { sesionDePrueba } from "@/pruebas/sesion"
@@ -108,14 +109,14 @@ function api({
   todos = [SOBREPRECIO],
 }: {
   catalogo?: () => Response
-  referencia?: () => Response
+  referencia?: (url: string) => Response
   todos?: object[]
 } = {}) {
   return simularApi((url) => {
     const base = "/api/inteligencia/precios"
     if (url === `${base}/servicios`) return catalogo()
     if (url.startsWith(`${base}/servicios/CONS-01/referencia?`))
-      return referencia()
+      return referencia(url)
     if (url === `${base}/servicios/CONS-01/historial`)
       return respuestaJson(HISTORIAL)
     if (url === `${base}/sobreprecios?codigo=CONS-01`)
@@ -131,6 +132,26 @@ function referenciasPedidas(simulado: ReturnType<typeof simularApi>) {
     .map(([url]) => String(url))
     .filter((url) => url.includes("/referencia?"))
     .map((url) => new URL(url, "http://localhost").searchParams)
+}
+
+/** Responde la referencia con la cantidad y el plazo que se le piden, como hace la API. */
+const referenciaPedida = (url: string) => {
+  const pedidos = new URL(url, "http://localhost").searchParams
+  return respuestaJson({
+    ...REFERENCIA,
+    cantidad: pedidos.get("cantidad"),
+    plazo: Number(pedidos.get("plazo")),
+  })
+}
+
+/** El botón Atrás del navegador: retrocede una entrada del historial. */
+function Atras() {
+  const navegar = useNavigate()
+  return (
+    <button type="button" onClick={() => void navegar(-1)}>
+      Atrás
+    </button>
+  )
 }
 
 const renderizar = (ruta = "/precios") =>
@@ -274,6 +295,61 @@ describe("Precios", () => {
     })
   })
 
+  it("el resultado dice para qué cantidad y plazo se calculó", async () => {
+    api({ referencia: referenciaPedida })
+    renderizar("/precios?servicio=CONS-01")
+
+    expect(
+      await screen.findByText(
+        /Precio por hora para una cantidad de 40 y un plazo de 12 meses/
+      )
+    ).toBeInTheDocument()
+
+    await userEvent.clear(screen.getByLabelText("Cantidad"))
+    await userEvent.type(screen.getByLabelText("Cantidad"), "100")
+    await userEvent.clear(screen.getByLabelText("Plazo (meses)"))
+    await userEvent.type(screen.getByLabelText("Plazo (meses)"), "24")
+    await userEvent.click(screen.getByRole("button", { name: "Calcular" }))
+
+    expect(
+      await screen.findByText(
+        /Precio por hora para una cantidad de 100 y un plazo de 24 meses/
+      )
+    ).toBeInTheDocument()
+  })
+
+  it("al volver atrás, el formulario y el resultado regresan a la cantidad y el plazo anteriores", async () => {
+    api({ referencia: referenciaPedida })
+    renderizarPagina(
+      <>
+        <Precios />
+        <Atras />
+      </>,
+      { ruta: "/precios?servicio=CONS-01" }
+    )
+    await screen.findByText(/una cantidad de 40 y un plazo de 12 meses/)
+
+    await userEvent.clear(screen.getByLabelText("Cantidad"))
+    await userEvent.type(screen.getByLabelText("Cantidad"), "100")
+    await userEvent.clear(screen.getByLabelText("Plazo (meses)"))
+    await userEvent.type(screen.getByLabelText("Plazo (meses)"), "24")
+    await userEvent.click(screen.getByRole("button", { name: "Calcular" }))
+    await screen.findByText(/una cantidad de 100 y un plazo de 24 meses/)
+    // El foco se queda en el botón: el formulario no se vuelve a montar.
+    expect(screen.getByRole("button", { name: "Calcular" })).toHaveFocus()
+
+    await userEvent.click(screen.getByRole("button", { name: "Atrás" }))
+
+    expect(ubicacionActual()).toBe("/precios?servicio=CONS-01")
+    expect(
+      await screen.findByText(/una cantidad de 40 y un plazo de 12 meses/)
+    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cantidad")).toHaveValue(40)
+      expect(screen.getByLabelText("Plazo (meses)")).toHaveValue(12)
+    })
+  })
+
   it("una cantidad inválida en la URL usa la sugerida", async () => {
     const simulado = api()
     renderizar("/precios?servicio=CONS-01&cantidad=-5&plazo=999")
@@ -328,6 +404,15 @@ describe("Precios", () => {
       screen.getByText("Ver los precios de cada contrato")
     ).toBeInTheDocument()
     expect(screen.getByText("CT-0002")).toBeInTheDocument()
+    // Las bandas mensuales de la gráfica también van en una tabla con nombre.
+    const bandas = screen.getByRole("table", {
+      name: "Rango típico del mercado por mes",
+    })
+    expect(within(bandas).getByText("$1,210.00")).toBeInTheDocument()
+    expect(within(bandas).getAllByRole("row")).toHaveLength(3)
+    expect(
+      screen.getByRole("table", { name: "Precio de cada contrato" })
+    ).toBeInTheDocument()
 
     const sobreprecios = screen
       .getByRole("heading", { name: "Contratos con sobreprecio" })

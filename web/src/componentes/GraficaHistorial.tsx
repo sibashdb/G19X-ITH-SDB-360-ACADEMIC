@@ -18,6 +18,7 @@ import {
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -31,6 +32,9 @@ const CONFIGURACION = {
   p50: { label: "Precio típico (P50)", color: "var(--chart-2)" },
   precio: { label: "Precio de cada contrato", color: "var(--chart-3)" },
 } satisfies ChartConfig
+
+/** El título de cada tabla de datos va arriba, como su nombre accesible. */
+const LEYENDA = "mt-0 mb-2 caption-top text-left font-medium text-foreground"
 
 /** "2026-09-01" → milisegundos a medianoche local, para un eje de tiempo. */
 const tiempo = (iso: string) => new Date(`${iso}T00:00:00`).getTime()
@@ -115,11 +119,14 @@ export function GraficaHistorial({
           </ComposedChart>
         </ChartContainer>
       </figure>
-      <details className="text-sm">
+      <details className="space-y-4 text-sm">
         <summary className="cursor-pointer font-medium text-accent">
           Ver los precios de cada contrato
         </summary>
         <Table>
+          <TableCaption className={LEYENDA}>
+            Precio de cada contrato
+          </TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead>Inicio</TableHead>
@@ -140,6 +147,35 @@ export function GraficaHistorial({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatoMoneda(p.precio, historial.moneda)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <Table>
+          <TableCaption className={LEYENDA}>
+            Rango típico del mercado por mes
+          </TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mes</TableHead>
+              <TableHead className="text-right">P25</TableHead>
+              <TableHead className="text-right">P50</TableHead>
+              <TableHead className="text-right">P75</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {historial.bandas.map((b) => (
+              <TableRow key={b.mes}>
+                <TableCell>{formatoPeriodo(b.mes)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatoMoneda(b.p25, historial.moneda)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatoMoneda(b.p50, historial.moneda)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatoMoneda(b.p75, historial.moneda)}
                 </TableCell>
               </TableRow>
             ))}
