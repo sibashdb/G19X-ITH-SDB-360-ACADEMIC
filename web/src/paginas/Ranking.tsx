@@ -1,19 +1,123 @@
 import { Building2, Tags, Trophy } from "lucide-react"
-import { AvisoInteligencia } from "@/componentes/AvisoInteligencia"
+import { Link } from "react-router"
+import { BarraPuntuacion } from "@/componentes/BarraPuntuacion"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
-import { EstadoVacio } from "@/componentes/Estados"
+import { ContenidoConsulta, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { SiguientePaso } from "@/componentes/SiguientePaso"
+import { Tendencia } from "@/componentes/Tendencia"
 import { Termino } from "@/componentes/Termino"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  COMPONENTES,
+  formatoPuntuacion,
+  useInteligencia,
+  useUmbralRiesgo,
+  type FilaRanking,
+} from "@/inteligencia"
 import { unoDe, useParametros } from "@/parametros"
-import { CATEGORIAS, NOMBRES_CATEGORIA } from "@/tipos"
+import { CATEGORIAS, NOMBRES_CATEGORIA, type Categoria } from "@/tipos"
 
 const TODAS = "todas"
 const OPCIONES: [string, string][] = [
   [TODAS, "Todas"],
   ...CATEGORIAS.map((c): [string, string] => [c, NOMBRES_CATEGORIA[c]]),
 ]
+
+function TablaRanking({ categoria }: { categoria: Categoria | null }) {
+  const umbral = useUmbralRiesgo()
+  const ranking = useInteligencia<FilaRanking[]>(
+    categoria ? `/ranking?categoria=${categoria}` : "/ranking"
+  )
+  return (
+    <ContenidoConsulta consulta={ranking}>
+      {(filas) =>
+        filas.length === 0 ? (
+          <EstadoVacio
+            icono={Trophy}
+            titulo="Sin puntuaciones todavía"
+            descripcion={
+              <>
+                El ranking ordena a los proveedores activos por su{" "}
+                <Termino clave="desempeno">desempeño</Termino>; aparecerá cuando
+                se importe el desempeño mensual.
+              </>
+            }
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-right">
+                  <span aria-hidden>#</span>
+                  <span className="sr-only">Posición</span>
+                </TableHead>
+                <TableHead>Proveedor</TableHead>
+                <TableHead>Puntuación</TableHead>
+                {COMPONENTES.map((c) => (
+                  <TableHead key={c.clave} className="text-right">
+                    {c.corto}
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">Meses</TableHead>
+                <TableHead>Tendencia</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filas.map((f) => (
+                <TableRow key={f.proveedor_id}>
+                  <TableCell className="text-right tabular-nums">
+                    {f.posicion}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      to={`/proveedores/${encodeURIComponent(f.proveedor_id)}`}
+                      className="font-medium text-accent hover:underline"
+                    >
+                      {f.nombre}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">
+                      {NOMBRES_CATEGORIA[f.categoria] ?? f.categoria}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <BarraPuntuacion
+                      puntuacion={f.puntuacion}
+                      confianza={f.historial_corto ? "baja" : "normal"}
+                      umbral={umbral}
+                    />
+                  </TableCell>
+                  {COMPONENTES.map((c) => (
+                    <TableCell
+                      key={c.clave}
+                      className="text-right tabular-nums"
+                    >
+                      {formatoPuntuacion(f.componentes[c.clave])}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right tabular-nums">
+                    {f.meses}
+                  </TableCell>
+                  <TableCell>
+                    <Tendencia valor={f.tendencia} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )
+      }
+    </ContenidoConsulta>
+  )
+}
 
 export function Ranking() {
   const [parametros, actualizar] = useParametros()
@@ -29,7 +133,6 @@ export function Ranking() {
           </>
         }
       />
-      <AvisoInteligencia />
       <Tabs
         value={activa}
         onValueChange={(valor) =>
@@ -47,18 +150,19 @@ export function Ranking() {
           <TabsContent key={valor} value={valor} className="mt-4">
             <Seccion
               titulo={`Ranking · ${valor === TODAS ? "Todas las categorías" : nombre}`}
+              descripcion={
+                <>
+                  Cada indicador muestra su{" "}
+                  <Termino clave="percentil">percentil</Termino> (100 es el
+                  mejor). Cada proveedor se compara con los de su categoría
+                  principal, o con todos si esa categoría tiene menos de 20. Con{" "}
+                  <Termino clave="historialCorto">historial corto</Termino>, la
+                  puntuación se acerca al promedio hasta tener 6 meses de datos.
+                </>
+              }
             >
-              <EstadoVacio
-                icono={Trophy}
-                titulo="Sin puntuaciones todavía"
-                descripcion={
-                  <>
-                    El ranking ordenará a los proveedores por su{" "}
-                    <Termino clave="desempeno">desempeño</Termino>. Los que
-                    tengan menos de 6 meses de datos llevarán la etiqueta{" "}
-                    <Termino clave="historialCorto">Historial corto</Termino>.
-                  </>
-                }
+              <TablaRanking
+                categoria={valor === TODAS ? null : (valor as Categoria)}
               />
             </Seccion>
           </TabsContent>
