@@ -35,6 +35,7 @@ AplicarEvento = Callable[[str, dict[str, Any]], Awaitable[None]]
 Cuerpo = Callable[..., dict[str, Any]]
 Compra = Callable[..., Awaitable[dict[str, Any]]]
 Publicar = Callable[..., Awaitable[tuple[dict[str, Any], list[dict[str, Any]]]]]
+Ofertar = Callable[..., Awaitable[httpx.Response]]
 
 
 def _id(numero: int) -> str:
@@ -384,5 +385,57 @@ def publicar(
         respuesta = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
         assert respuesta.status_code == 200, respuesta.text
         return respuesta.json()["evento"], respuesta.json()["enlaces"]
+
+    return _publicar
+
+
+def encabezados_portal(enlace: dict[str, Any], clave: str | None = None) -> dict[str, str]:
+    token = enlace["enlace"].split("#t=")[1]
+    return {"Authorization": f"Invitacion {token}", "Idempotency-Key": clave or uuid.uuid4().hex}
+
+
+@pytest.fixture
+def portal() -> Callable[..., dict[str, str]]:
+    return encabezados_portal
+
+
+@pytest.fixture
+def ofertar(cliente: httpx.AsyncClient) -> Ofertar:
+    """Manda una oferta por el portal; `clave` fija la Idempotency-Key, `extra` va en el cuerpo."""
+
+    async def _ofertar(
+        enlace: dict[str, Any],
+        precios: dict[str, str],
+        palancas: dict[str, str] | None = None,
+        clave: str | None = None,
+        **extra: Any,
+    ) -> httpx.Response:
+        cuerpo = {"valores": {"precios": precios, "palancas": palancas or {}}} | extra
+        return await cliente.post(
+            "/portal/ofertas", json=cuerpo, headers=encabezados_portal(enlace, clave)
+        )
+
+    return _ofertar
+
+
+@pytest.fixture
+def con_plazo_de_pago(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], nueva_compra: Compra
+) -> Publicar:
+    """Publica una compra con la palanca de plazo de pago (peso 20, ideal 60, límite 30)."""
+
+    async def _publicar(**cambios: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        evento = await nueva_compra(**cambios)
+        palancas = [
+            {"clave": "precio", "peso": 80},
+            {"clave": "plazo_pago_dias", "peso": 20, "ideal": "60", "limite": "30"},
+        ]
+        editado = await cliente.patch(
+            f"/eventos/{evento['id']}", json={"version": 1, "palancas": palancas}, headers=comprador
+        )
+        assert editado.status_code == 200, editado.text
+        publicado = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
+        assert publicado.status_code == 200, publicado.text
+        return publicado.json()["evento"], publicado.json()["enlaces"]
 
     return _publicar

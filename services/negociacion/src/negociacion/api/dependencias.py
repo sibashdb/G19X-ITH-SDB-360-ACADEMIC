@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Annotated
 
 from comun.auth import ROLES_INTERNOS, Usuario, requiere_rol
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,3 +53,6 @@ Reloj = Annotated[Callable[[], datetime], Depends(_reloj)]
 Integ = Annotated[Integraciones, Depends(_integraciones)]
 Correo = Annotated[EnviarCorreo, Depends(_enviar_correo)]
 Config = Annotated[Configuracion, Depends(_config)]
+ClaveIdempotencia = Annotated[
+    str, Header(alias="Idempotency-Key", min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+]

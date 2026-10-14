@@ -18,11 +18,15 @@ from negociacion.dominio.configuracion import (
     avisos,
     errores,
 )
-from negociacion.dominio.terminos import CLAVES
+from negociacion.dominio.terminos import CLAVES, Rango, Terminos, Valores
+from negociacion.dominio.terminos import Linea as LineaTermino
+from negociacion.dominio.terminos import Palanca as PalancaTermino
 from negociacion.errores import invalido, no_existe
 from negociacion.modelos import (
+    FINALES,
     Evento,
     Linea,
+    Mensaje,
     Oferta,
     Palanca,
     Proveedor,
@@ -241,4 +245,119 @@ async def evento_salida(
             )
             for s in sesiones
         ],
+    )
+
+
+def _rango(ideal: Decimal | None, limite: Decimal | None) -> Rango:
+    if ideal is None or limite is None:
+        raise RuntimeError("Un evento publicado siempre tiene ideal y límite")
+    return Rango(ideal, limite)
+
+
+async def terminos_de(bd: AsyncSession, evento: Evento) -> Terminos:
+    """Los términos del motor a partir de la configuración guardada del evento publicado."""
+    lineas = await lineas_de(bd, evento.id)
+    palancas = await palancas_de(bd, evento.id)
+    return Terminos(
+        peso_precio=palancas["precio"].peso,
+        lineas=tuple(
+            LineaTermino(
+                str(linea.id),
+                linea.nombre,
+                linea.cantidad,
+                _rango(linea.ideal, linea.limite),
+                None if (banda := banda_de(linea.referencia)) is None else banda.p50,
+            )
+            for linea in lineas
+        ),
+        palancas=tuple(
+            PalancaTermino(p.clave, p.peso, _rango(p.ideal, p.limite))
+            for p in palancas.values()
+            if p.clave != "precio"
+        ),
+    )
+
+
+async def ultima_contraoferta(bd: AsyncSession, sesion_id: uuid.UUID) -> Valores | None:
+    """La última contraoferta de la sesión, del agente o del comprador."""
+    fila = await bd.scalar(
+        select(Oferta)
+        .where(Oferta.sesion_id == sesion_id, Oferta.autor.in_(("agente", "comprador")))
+        .order_by(Oferta.secuencia.desc())
+        .limit(1)
+    )
+    return None if fila is None else Valores.de_json(fila.valores)
+
+
+def valores_salida(valores: Valores) -> esquemas.ValoresSalida:
+    return esquemas.ValoresSalida(precios=dict(valores.precios), palancas=dict(valores.palancas))
+
+
+async def vista_portal(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.VistaPortal:
+    """Lo que ve el proveedor de su sesión: nada de ideales, límites, pesos ni referencia."""
+    sesion = await bd.get(SesionNegociacion, sesion_id, populate_existing=True)
+    if sesion is None:
+        raise no_existe("La sesión no existe.")
+    evento = await evento_o_404(bd, sesion.evento_id)
+    lineas = await lineas_de(bd, evento.id)
+    palancas = [p for p in (await palancas_de(bd, evento.id)).values() if p.clave != "precio"]
+    # Una fila por mensaje, con su oferta si la lleva (join externo: no todos tienen).
+    filas: list[tuple[Mensaje, Oferta | None]] = [
+        (mensaje, oferta)
+        for mensaje, oferta in await bd.execute(
+            select(Mensaje, Oferta)
+            .outerjoin(Oferta, Oferta.id == Mensaje.oferta_id)
+            .where(Mensaje.sesion_id == sesion.id)
+            .order_by(Mensaje.secuencia)
+        )
+    ]
+    en_curso = sesion.estado not in FINALES
+    conversacion = [m for m, _ in filas if m.autor != "sistema"]
+    # Una respuesta del agente sin propuesta, con la sesión en curso, es una aclaración pendiente.
+    pide = (
+        en_curso
+        and bool(conversacion)
+        and conversacion[-1].autor == "agente"
+        and conversacion[-1].oferta_id is None
+    )
+    ultima = await ultima_contraoferta(bd, sesion.id) if en_curso else None
+    return esquemas.VistaPortal(
+        folio=evento.folio,
+        titulo=evento.titulo,
+        moneda=evento.moneda,
+        fecha_limite=evento.fecha_limite,
+        rondas_max=evento.rondas_max,
+        rondas_restantes=max(evento.rondas_max - sesion.ronda, 0),
+        estado=sesion.estado,
+        atendido_por="persona" if sesion.modo == "comprador" else "agente",
+        pide_confirmacion=pide,
+        lineas=[
+            esquemas.LineaPortal(
+                id=linea.id,
+                codigo_servicio=linea.codigo_servicio,
+                nombre=linea.nombre,
+                unidad=linea.unidad,
+                cantidad=linea.cantidad,
+            )
+            for linea in lineas
+        ],
+        palancas=[
+            esquemas.PalancaPortal(
+                clave=p.clave,
+                nombre=nombre_y_unidad(p.clave, evento.moneda)[0],
+                unidad=nombre_y_unidad(p.clave, evento.moneda)[1],
+            )
+            for p in palancas
+        ],
+        mensajes=[
+            esquemas.MensajePortal(
+                autor=mensaje.autor,
+                texto=mensaje.texto,
+                ronda=mensaje.ronda,
+                fecha=mensaje.creado_en,
+                oferta=None if oferta is None else valores_salida(Valores.de_json(oferta.valores)),
+            )
+            for mensaje, oferta in filas
+        ],
+        ultima_propuesta=None if ultima is None else valores_salida(ultima),
     )

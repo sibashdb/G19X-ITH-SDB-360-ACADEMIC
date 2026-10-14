@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from negociacion.api import eventos
+from negociacion.api import eventos, portal
 from negociacion.api import sesiones as rutas_sesiones  # `sesiones` es la fábrica de sesiones de BD
 from negociacion.config import Configuracion
 from negociacion.correo import EnviarCorreo, enviador_smtp
@@ -87,4 +87,5 @@ def crear_app(
     app.include_router(crear_router_salud({"postgres": verificar_postgres}))
     app.include_router(eventos.router)
     app.include_router(rutas_sesiones.router)
+    app.include_router(portal.router)
     return app

@@ -239,3 +239,62 @@ class EnlaceSalida(BaseModel):
 class Publicacion(BaseModel):
     evento: EventoSalida
     enlaces: list[EnlaceSalida]
+
+
+class ValoresEntrada(BaseModel):
+    precios: dict[uuid.UUID, Decimal]  # id de línea → precio unitario
+    palancas: dict[str, Decimal] = Field(default_factory=dict)
+
+
+class ValoresSalida(BaseModel):
+    precios: dict[str, Decimal]
+    palancas: dict[str, Decimal]
+
+
+Nota = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
+
+
+class OfertaPortal(BaseModel):
+    valores: ValoresEntrada
+    nota: Nota = ""  # el comprador la ve tal cual; nadie la interpreta hasta N2
+    confirmar_valores: bool = False
+
+
+class LineaPortal(BaseModel):
+    id: uuid.UUID
+    codigo_servicio: str
+    nombre: str
+    unidad: str
+    cantidad: Decimal
+
+
+class PalancaPortal(BaseModel):
+    clave: str
+    nombre: str
+    unidad: str
+
+
+class MensajePortal(BaseModel):
+    autor: str
+    texto: str
+    ronda: int
+    fecha: datetime
+    oferta: ValoresSalida | None
+
+
+class VistaPortal(BaseModel):
+    """Lo que ve el proveedor: nunca ideales, límites, pesos, utilidades ni la referencia."""
+
+    folio: str
+    titulo: str
+    moneda: str
+    fecha_limite: datetime
+    rondas_max: int
+    rondas_restantes: int
+    estado: str
+    atendido_por: Literal["agente", "persona"]
+    pide_confirmacion: bool
+    lineas: list[LineaPortal]
+    palancas: list[PalancaPortal]
+    mensajes: list[MensajePortal]
+    ultima_propuesta: ValoresSalida | None

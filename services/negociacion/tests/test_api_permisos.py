@@ -41,3 +41,14 @@ async def test_las_rutas_del_comprador_exigen_su_rol(
         if metodo != "GET":  # aprobador y admin solo consultan
             de_aprobador = await cliente.request(metodo, ruta, headers=aprobador)
             assert de_aprobador.status_code == 403, (metodo, plantilla)
+
+
+async def test_el_portal_no_acepta_jwt(cliente: httpx.AsyncClient, claves: ClavesPrueba) -> None:
+    comprador = {"Authorization": f"Bearer {claves.token('comprador')}"}
+    for metodo, ruta in (
+        ("GET", "/portal/sesion"),
+        ("POST", "/portal/ofertas"),
+        ("POST", "/portal/escalar"),
+    ):
+        respuesta = await cliente.request(metodo, ruta, headers=comprador)
+        assert respuesta.status_code == 401, ruta
