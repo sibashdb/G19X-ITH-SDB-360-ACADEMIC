@@ -55,17 +55,24 @@ def techo_renovacion(vigente: Decimal, tope_pct: Decimal | None) -> Decimal:
     return vigente * (1 + (tope_pct or Decimal(0)) / 100)
 
 
+def techo_redondeado(vigente: Decimal, tope_pct: Decimal | None) -> Decimal:
+    """El techo de la renovación a centavos, hacia abajo: nunca lo supera."""
+    return redondear("precio", techo_renovacion(vigente, tope_pct), ROUND_FLOOR)
+
+
 def sugerir_precio(
     tipo: str, banda: Banda | None, vigente: Decimal | None, tope_pct: Decimal | None
 ) -> tuple[Decimal | None, Decimal | None]:
     """(ideal, límite) sugeridos para el precio de una línea; (None, None) sin datos."""
     if tipo == "renovacion" and vigente is not None:
         ideal = vigente * DESCUENTO_RENOVACION
-        techo = techo_renovacion(vigente, tope_pct)
+        limite = techo_renovacion(vigente, tope_pct)
         if banda is not None:
-            ideal, techo = min(banda.p25, ideal), min(banda.p50, techo)
-        # El límite se redondea hacia abajo para no pasar nunca del techo de la renovación.
-        return redondear("precio", ideal), redondear("precio", techo, ROUND_FLOOR)
+            ideal, limite = min(banda.p25, ideal), min(banda.p50, limite)
+        # El límite no pasa del techo a centavos (hacia abajo) y el ideal no pasa del límite:
+        # así la sugerencia nunca invierte la dirección del precio.
+        limite = min(redondear("precio", limite), techo_redondeado(vigente, tope_pct))
+        return min(redondear("precio", ideal), limite), limite
     if banda is None:
         return None, None
     return redondear("precio", banda.p25), redondear("precio", banda.p50)
@@ -108,13 +115,13 @@ def errores(revision: Revision, ahora: datetime) -> list[Problema]:
             and linea.precio_vigente is not None
             and linea.limite is not None
         ):
-            techo = techo_renovacion(linea.precio_vigente, revision.tope_pct)
+            techo = techo_redondeado(linea.precio_vigente, revision.tope_pct)
             if linea.limite > techo:
                 problemas.append(
                     Problema(
                         f"lineas.{i}.limite",
                         "En una renovación, el límite no puede superar "
-                        f"${redondear('precio', techo, ROUND_FLOOR):,.2f} "
+                        f"${techo:,.2f} "
                         "(el precio vigente más el tope de aumento).",
                     )
                 )

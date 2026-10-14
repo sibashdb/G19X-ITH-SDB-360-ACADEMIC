@@ -28,6 +28,14 @@ BANDA = Banda(D("28.1234"), D("31.5049"), D("36.0000"))
         ("renovacion", None, D("40.0000"), D("10.00"), (D("38.00"), D("44.00"))),
         # El techo se redondea hacia abajo para que la sugerencia nunca lo supere.
         ("renovacion", None, D("33.3333"), D("5.00"), (D("31.67"), D("34.99"))),
+        # Banda casi plana: el ideal y el límite no se cruzan al redondear (quedan iguales).
+        (
+            "renovacion",
+            Banda(D("31.5060"), D("31.5090"), D("36")),
+            D("40.0000"),
+            D("10.00"),
+            (D("31.51"), D("31.51")),
+        ),
     ],
 )
 def test_sugiere_ideal_y_limite(
@@ -38,6 +46,13 @@ def test_sugiere_ideal_y_limite(
     esperado: tuple[D | None, D | None],
 ) -> None:
     assert sugerir_precio(tipo, banda, vigente, tope) == esperado
+
+
+def test_la_sugerencia_de_renovacion_nunca_invierte_la_direccion() -> None:
+    banda = Banda(D("31.5060"), D("31.5090"), D("36"))
+    ideal, limite = sugerir_precio("renovacion", banda, D("40.0000"), D("10.00"))
+    assert ideal is not None and limite is not None
+    assert ideal <= limite
 
 
 def _revision(**cambios: object) -> Revision:
