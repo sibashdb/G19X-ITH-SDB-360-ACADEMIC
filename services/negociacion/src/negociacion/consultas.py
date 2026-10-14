@@ -24,6 +24,7 @@ from negociacion.dominio.terminos import Palanca as PalancaTermino
 from negociacion.errores import invalido, no_existe
 from negociacion.modelos import (
     FINALES,
+    Bitacora,
     Evento,
     Linea,
     Mensaje,
@@ -360,4 +361,94 @@ async def vista_portal(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.Vista
             for mensaje, oferta in filas
         ],
         ultima_propuesta=None if ultima is None else valores_salida(ultima),
+    )
+
+
+async def sesion_detalle(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.SesionDetalle:
+    """La sesión completa para el comprador: mensajes, ofertas con su utilidad y cada traza."""
+    sesion = await bd.get(SesionNegociacion, sesion_id, populate_existing=True)
+    if sesion is None:
+        raise no_existe("La sesión no existe.")
+    evento = await evento_o_404(bd, sesion.evento_id)
+    mensajes = (
+        await bd.scalars(
+            select(Mensaje).where(Mensaje.sesion_id == sesion.id).order_by(Mensaje.secuencia)
+        )
+    ).all()
+    ofertas = (
+        await bd.scalars(
+            select(Oferta).where(Oferta.sesion_id == sesion.id).order_by(Oferta.secuencia)
+        )
+    ).all()
+    trazas = {
+        str(fila.detalle.get("mensaje_id")): fila.detalle
+        for fila in await bd.scalars(
+            select(Bitacora).where(
+                Bitacora.sesion_id == sesion.id, Bitacora.accion == "motor.decision"
+            )
+        )
+    }
+    return esquemas.SesionDetalle(
+        id=sesion.id,
+        evento_id=evento.id,
+        folio=evento.folio,
+        titulo=evento.titulo,
+        moneda=evento.moneda,
+        proveedor_id=sesion.proveedor_id,
+        proveedor_nombre=sesion.proveedor_nombre,
+        destinatario=sesion.destinatario,
+        estado=sesion.estado,
+        modo=sesion.modo,
+        ronda=sesion.ronda,
+        rondas_max=evento.rondas_max,
+        fuera_de_limites=sesion.fuera_de_limites,
+        correo_estado=sesion.correo_estado,
+        correo_error=sesion.correo_error,
+        lineas=[
+            esquemas.LineaDetalle(
+                id=linea.id,
+                nombre=linea.nombre,
+                unidad=linea.unidad,
+                cantidad=linea.cantidad,
+                ideal=linea.ideal,
+                limite=linea.limite,
+            )
+            for linea in await lineas_de(bd, evento.id)
+        ],
+        palancas=[
+            esquemas.PalancaDetalle(
+                clave=p.clave,
+                nombre=nombre_y_unidad(p.clave, evento.moneda)[0],
+                unidad=nombre_y_unidad(p.clave, evento.moneda)[1],
+                peso=p.peso,
+                ideal=p.ideal,
+                limite=p.limite,
+            )
+            for p in (await palancas_de(bd, evento.id)).values()
+        ],
+        mensajes=[
+            esquemas.MensajeDetalle(
+                id=m.id,
+                autor=m.autor,
+                texto=m.texto,
+                ronda=m.ronda,
+                fecha=m.creado_en,
+                oferta_id=m.oferta_id,
+                decision=trazas.get(str(m.id)),
+            )
+            for m in mensajes
+        ],
+        ofertas=[
+            esquemas.OfertaDetalle(
+                id=o.id,
+                autor=o.autor,
+                ronda=o.ronda,
+                valores=valores_salida(Valores.de_json(o.valores)),
+                utilidad=float(o.utilidad),
+                valida=o.valida,
+                fuera_de_limites_confirmada=o.fuera_de_limites_confirmada,
+                fecha=o.creado_en,
+            )
+            for o in ofertas
+        ],
     )

@@ -4,7 +4,7 @@ import unicodedata
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     AfterValidator,
@@ -298,3 +298,83 @@ class VistaPortal(BaseModel):
     palancas: list[PalancaPortal]
     mensajes: list[MensajePortal]
     ultima_propuesta: ValoresSalida | None
+
+
+class Control(BaseModel):
+    accion: Literal["tomar", "devolver"]
+
+
+class Respuesta(BaseModel):
+    tipo: Literal["mensaje", "aceptar", "cerrar"]
+    texto: Nota = ""
+    contraoferta: ValoresEntrada | None = None
+    confirmar_fuera_de_limites: bool = False
+
+    @model_validator(mode="after")
+    def _segun_tipo(self) -> Self:
+        if self.tipo == "mensaje" and not self.texto:
+            raise ValueError("Escriba el mensaje para el proveedor.")
+        if self.tipo != "mensaje" and self.contraoferta is not None:
+            raise ValueError("Solo un mensaje puede llevar contraoferta.")
+        return self
+
+
+class LineaDetalle(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    unidad: str
+    cantidad: Decimal
+    ideal: Decimal | None
+    limite: Decimal | None
+
+
+class PalancaDetalle(BaseModel):
+    clave: str
+    nombre: str
+    unidad: str
+    peso: int
+    ideal: Decimal | None
+    limite: Decimal | None
+
+
+class OfertaDetalle(BaseModel):
+    id: uuid.UUID
+    autor: str
+    ronda: int
+    valores: ValoresSalida
+    utilidad: float
+    valida: bool
+    fuera_de_limites_confirmada: bool
+    fecha: datetime
+
+
+class MensajeDetalle(BaseModel):
+    id: uuid.UUID
+    autor: str
+    texto: str
+    ronda: int
+    fecha: datetime
+    oferta_id: uuid.UUID | None
+    decision: dict[str, Any] | None  # la traza del motor en las respuestas del agente
+
+
+class SesionDetalle(BaseModel):
+    id: uuid.UUID
+    evento_id: uuid.UUID
+    folio: str
+    titulo: str
+    moneda: str
+    proveedor_id: uuid.UUID
+    proveedor_nombre: str
+    destinatario: str
+    estado: str
+    modo: str
+    ronda: int
+    rondas_max: int
+    fuera_de_limites: bool
+    correo_estado: str
+    correo_error: str | None
+    lineas: list[LineaDetalle]
+    palancas: list[PalancaDetalle]
+    mensajes: list[MensajeDetalle]
+    ofertas: list[OfertaDetalle]

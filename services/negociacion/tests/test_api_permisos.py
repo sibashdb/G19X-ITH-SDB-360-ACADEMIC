@@ -16,6 +16,9 @@ ESPERADAS = {
     ("POST", "/eventos/{evento_id}/publicar"),
     ("POST", "/eventos/{evento_id}/cancelar"),
     ("POST", "/sesiones/{sesion_id}/invitacion"),
+    ("GET", "/sesiones/{sesion_id}"),
+    ("POST", "/sesiones/{sesion_id}/control"),
+    ("POST", "/sesiones/{sesion_id}/respuestas"),
 }
 
 

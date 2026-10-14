@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+from comun.errores import ErrorDominio
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -335,3 +336,147 @@ async def escalar(bd: AsyncSession, sesion_id: uuid.UUID, clave: str, momento: d
         sesion_id=sesion.id,
         fecha=momento,
     )
+
+
+async def tomar_control(
+    bd: AsyncSession, sesion_id: uuid.UUID, actor: Actor, momento: datetime
+) -> None:
+    sesion, evento = await bloquear(bd, sesion_id)
+    exigir_en_curso(sesion, evento, momento)
+    if sesion.modo == "comprador":
+        return
+    sesion.modo, sesion.actualizado_en = "comprador", momento
+    registrar(bd, "control.tomado", actor, evento_id=evento.id, sesion_id=sesion.id, fecha=momento)
+
+
+async def oferta_sin_respuesta(bd: AsyncSession, sesion_id: uuid.UUID) -> Oferta | None:
+    """La última oferta del proveedor, si nadie le respondió después."""
+    ultimo = await bd.scalar(
+        select(Mensaje)
+        .where(
+            Mensaje.sesion_id == sesion_id,
+            Mensaje.autor != "sistema",
+            # «Pidió hablar con una persona» no responde ni plantea una oferta: se salta.
+            or_(Mensaje.autor != "proveedor", Mensaje.oferta_id.is_not(None)),
+        )
+        .order_by(Mensaje.secuencia.desc())
+        .limit(1)
+    )
+    if ultimo is None or ultimo.autor != "proveedor" or ultimo.oferta_id is None:
+        return None
+    return await bd.get(Oferta, ultimo.oferta_id)
+
+
+async def devolver_control(
+    bd: AsyncSession, sesion_id: uuid.UUID, actor: Actor, momento: datetime
+) -> None:
+    """El agente retoma la sesión y responde la oferta que quedó pendiente."""
+    sesion, evento = await bloquear(bd, sesion_id)
+    exigir_en_curso(sesion, evento, momento)
+    if sesion.modo == "agente":
+        return
+    sesion.modo, sesion.actualizado_en = "agente", momento
+    if sesion.estado == "escalada":
+        sesion.estado = "activa"
+    registrar(
+        bd, "control.devuelto", actor, evento_id=evento.id, sesion_id=sesion.id, fecha=momento
+    )
+    pendiente = await oferta_sin_respuesta(bd, sesion.id)
+    if pendiente is not None:
+        terminos = await consultas.terminos_de(bd, evento)
+        # La persona ya vio la oferta: no se pide aclaración; la ronda ya se contó al recibirla.
+        await responder(
+            bd,
+            evento,
+            sesion,
+            terminos,
+            Valores.de_json(pendiente.valores),
+            pendiente.utilidad,
+            sesion.ronda,
+            True,
+            momento,
+        )
+        await cerrar_eventos_terminados(bd, momento, evento.id)
+
+
+async def ultima_oferta_proveedor(bd: AsyncSession, sesion_id: uuid.UUID) -> Oferta | None:
+    return await bd.scalar(
+        select(Oferta)
+        .where(Oferta.sesion_id == sesion_id, Oferta.autor == "proveedor")
+        .order_by(Oferta.secuencia.desc())
+        .limit(1)
+    )
+
+
+def _fuera_de_limites(detalle: str) -> ErrorDominio:
+    return ErrorDominio(422, "Solicitud inválida", detalle, {"codigo": "fuera_de_limites"})
+
+
+async def responder_a_mano(
+    bd: AsyncSession,
+    sesion_id: uuid.UUID,
+    datos: esquemas.Respuesta,
+    actor: Actor,
+    clave: str,
+    momento: datetime,
+) -> None:
+    """La respuesta de la persona que tomó el control (spec §7)."""
+    sesion, evento = await bloquear(bd, sesion_id)
+    if await ya_recibido(bd, sesion.id, clave):
+        return
+    exigir_en_curso(sesion, evento, momento)
+    if sesion.modo != "comprador":
+        raise conflicto("Tome el control de la sesión antes de responder.", "sin_control")
+    fuera, oferta_id, texto = False, None, datos.texto
+    if datos.tipo == "mensaje" and datos.contraoferta is not None:
+        terminos = await consultas.terminos_de(bd, evento)
+        valores = valores_de(terminos, datos.contraoferta, "contraoferta")
+        fuera = not es_valida(terminos, valores)
+        if fuera and not datos.confirmar_fuera_de_limites:
+            raise _fuera_de_limites(
+                "La contraoferta sale de los límites de la negociación; confirme para enviarla."
+            )
+        fila = guardar_oferta(
+            bd, sesion.id, "comprador", sesion.ronda, terminos, valores, momento, fuera
+        )
+        await bd.flush()
+        oferta_id = fila.id
+    elif datos.tipo == "aceptar":
+        ultima = await ultima_oferta_proveedor(bd, sesion.id)
+        if ultima is None:
+            raise conflicto("El proveedor todavía no envía una oferta.", "sin_oferta")
+        fuera = not ultima.valida
+        if fuera and not datos.confirmar_fuera_de_limites:
+            raise _fuera_de_limites(
+                "La oferta del proveedor sale de los límites de la negociación; confirme para "
+                "aceptarla."
+            )
+        sesion.estado = "acuerdo_tentativo"
+        texto = texto or textos.ACUERDO
+    elif datos.tipo == "cerrar":
+        sesion.estado = "sin_acuerdo"
+        texto = texto or textos.SIN_ACUERDO
+    if fuera:
+        sesion.fuera_de_limites = True  # el aprobador lo verá (incremento 4)
+    bd.add(
+        Mensaje(
+            sesion_id=sesion.id,
+            autor="comprador",
+            texto=texto,
+            ronda=sesion.ronda,
+            oferta_id=oferta_id,
+            clave_idempotencia=clave,
+            creado_en=momento,
+        )
+    )
+    sesion.actualizado_en = momento
+    registrar(
+        bd,
+        "respuesta.manual",
+        actor,
+        evento_id=evento.id,
+        sesion_id=sesion.id,
+        detalle={"tipo": datos.tipo, "fuera_de_limites": fuera},
+        fecha=momento,
+    )
+    await cerrar_eventos_terminados(bd, momento, evento.id)
