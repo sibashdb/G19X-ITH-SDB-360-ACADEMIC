@@ -8,7 +8,12 @@ from fastapi import FastAPI
 pytestmark = pytest.mark.integracion
 UUID = "00000000-0000-4000-8000-000000000000"
 # Las tareas que agregan rutas del comprador las suman aquí.
-ESPERADAS = {("POST", "/eventos"), ("GET", "/eventos/{evento_id}")}
+ESPERADAS = {
+    ("POST", "/eventos"),
+    ("GET", "/eventos"),
+    ("GET", "/eventos/{evento_id}"),
+    ("PATCH", "/eventos/{evento_id}"),
+}
 
 
 async def test_las_rutas_del_comprador_exigen_su_rol(

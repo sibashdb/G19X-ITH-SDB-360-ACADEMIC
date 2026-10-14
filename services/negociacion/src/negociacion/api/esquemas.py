@@ -129,3 +129,73 @@ class EventoSalida(BaseModel):
     errores: list[ProblemaSalida]  # lo que impide publicar (solo en borrador)
     avisos: list[ProblemaSalida]
     sesiones: list[SesionResumen]
+
+
+ClavePalanca = Literal[
+    "precio",
+    "plazo_meses",
+    "plazo_pago_dias",
+    "sla_disponibilidad",
+    "tope_aumento_pct",
+    "cuota_implementacion",
+]
+# Ideal y límite de un término; el rango y la precisión de cada uno se revisan al publicar.
+Monto = Annotated[Decimal, Field(ge=0, le=10_000_000, decimal_places=4)]
+
+
+class LineaCambio(BaseModel):
+    codigo_servicio: Codigo
+    cantidad: Cantidad
+    ideal: Monto | None = None
+    limite: Monto | None = None
+
+
+class PalancaEntrada(BaseModel):
+    clave: ClavePalanca
+    peso: int = Field(ge=0, le=100)
+    ideal: Monto | None = None  # el precio no lleva: va por línea
+    limite: Monto | None = None
+
+
+class EventoCambios(BaseModel):
+    version: int
+    titulo: Titulo | None = None
+    fecha_limite: AwareDatetime | None = None
+    rondas_max: int | None = Field(None, ge=2, le=12)
+    estilo: Estilo | None = None
+    plazo_meses: int | None = Field(None, ge=1, le=60)
+    lineas: list[LineaCambio] | None = Field(None, min_length=1, max_length=20)
+    proveedores: list[uuid.UUID] | None = Field(None, min_length=1, max_length=10)
+    palancas: list[PalancaEntrada] | None = None
+
+    @model_validator(mode="after")
+    def _listas(self) -> Self:
+        if self.palancas is not None:
+            claves = [p.clave for p in self.palancas]
+            if len(set(claves)) != len(claves):
+                raise ValueError("Una palanca aparece dos veces.")
+            if "precio" not in claves:
+                raise ValueError("El precio siempre es una palanca activa.")
+        if self.proveedores is not None and len(set(self.proveedores)) != len(self.proveedores):
+            raise ValueError("Un proveedor aparece dos veces.")
+        return self
+
+
+class EventoResumen(BaseModel):
+    id: uuid.UUID
+    folio: str
+    tipo: str
+    titulo: str
+    estado: str
+    fecha_limite: datetime
+    invitados: int
+    sesiones: int
+    acuerdos: int
+    escaladas: int
+    creado_por_nombre: str
+    creado_en: datetime
+
+
+class PaginaEventos(BaseModel):
+    total: int
+    elementos: list[EventoResumen]
