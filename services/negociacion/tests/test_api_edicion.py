@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta
 from decimal import Decimal as D
 from typing import Any
 
@@ -74,15 +75,43 @@ async def test_reemplazar_lineas_solo_consulta_las_nuevas(
 
 
 async def test_cambiar_el_plazo_vuelve_a_consultar_las_referencias(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], nueva_compra: Any, externos: Any
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    nueva_compra: Any,
+    externos: Any,
+    reloj: Any,
 ) -> None:
     evento = await nueva_compra()
     antes = len(externos.peticiones)
+    reloj.momento += timedelta(hours=1)
     respuesta = await _editar(cliente, comprador, evento, version=1, plazo_meses=24)
     assert respuesta.status_code == 200, respuesta.text
     assert respuesta.json()["plazo_meses"] == 24
     assert [p.url.params["plazo"] for p in externos.peticiones[antes:]] == ["24"]
     assert D(respuesta.json()["lineas"][0]["ideal"]) == D(28)  # lo que fijó el comprador se queda
+    # La foto es de cuando se consultaron las referencias, no de cuando se creó el borrador.
+    assert datetime.fromisoformat(respuesta.json()["referencia_fecha"]) == reloj.momento
+
+
+async def test_cambiar_lineas_y_plazo_a_la_vez_renueva_la_fecha_de_la_foto(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    nueva_compra: Any,
+    externos: Any,
+    reloj: Any,
+) -> None:
+    evento = await nueva_compra()
+    antes = len(externos.peticiones)
+    reloj.momento += timedelta(hours=1)
+    lineas = [
+        {"codigo_servicio": "SAAS-CRM-PRO", "cantidad": "100"},
+        {"codigo_servicio": "SAAS-CRM-BAS", "cantidad": "40"},
+    ]
+    respuesta = await _editar(cliente, comprador, evento, version=1, plazo_meses=24, lineas=lineas)
+    assert respuesta.status_code == 200, respuesta.text
+    # Con otro plazo se consultan las dos, también la que no cambió.
+    assert [p.url.params["plazo"] for p in externos.peticiones[antes:]] == ["24", "24"]
+    assert datetime.fromisoformat(respuesta.json()["referencia_fecha"]) == reloj.momento
 
 
 async def test_las_lineas_no_mezclan_monedas(
@@ -154,6 +183,14 @@ async def test_en_renovacion_solo_cambian_el_ideal_y_el_limite(
         rechazo = await _editar(cliente, comprador, evento, version=2, **cambios)
         assert rechazo.status_code == 422, cambios
         assert rechazo.json()["codigo"] == "no_editable"
+    igual = await _editar(cliente, comprador, evento, version=2, proveedores=[ids["nube_norte"]])
+    assert igual.status_code == 200, igual.text
+    assert igual.json()["version"] == 2  # el mismo proveedor no cambia nada: no sube la versión
+    sin_precios = [{"codigo_servicio": "SAAS-CRM-PRO", "cantidad": "120"}]
+    conserva = await _editar(cliente, comprador, evento, version=2, lineas=sin_precios)
+    assert conserva.status_code == 200, conserva.text
+    linea = conserva.json()["lineas"][0]
+    assert (D(linea["ideal"]), D(linea["limite"])) == (D(29), D(32))  # sin ideal ni límite, igual
 
 
 async def test_lista_con_filtros_paginas_y_conteos(

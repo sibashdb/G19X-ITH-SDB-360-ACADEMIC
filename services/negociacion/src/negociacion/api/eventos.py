@@ -212,7 +212,8 @@ def _ajustar_renovacion(lineas: list[Linea], cambios: list[esquemas.LineaCambio]
     if actuales != [(c.codigo_servicio, c.cantidad) for c in cambios]:
         raise invalido("lineas", NO_EDITABLE_RENOVACION, "no_editable")
     for linea, cambio in zip(lineas, cambios, strict=True):
-        linea.ideal, linea.limite = cambio.ideal, cambio.limite
+        if cambio.ideal is not None or cambio.limite is not None:  # sin ninguno, se conservan
+            linea.ideal, linea.limite = cambio.ideal, cambio.limite
 
 
 async def _reemplazar_lineas(
@@ -276,8 +277,8 @@ async def editar_evento(
     reloj: Reloj,
 ) -> esquemas.EventoSalida:
     momento = reloj()
-    # ponytail: la consulta a inteligencia corre con el evento bloqueado (≤ 5 s por línea); basta
-    # para borradores que edita una persona a la vez.
+    # ponytail: las consultas a inteligencia corren con la fila del evento bloqueada: hasta 20
+    # líneas por 5 s = 100 s en el peor caso; basta para borradores que edita una persona a la vez.
     async with bd.begin():
         evento = await consultas.evento_o_404(bd, evento_id, bloquear=True)
         if evento.estado != "borrador":
@@ -300,9 +301,12 @@ async def editar_evento(
                     "plazo_meses", "El plazo de una renovación sale del contrato.", "no_editable"
                 )
             evento.plazo_meses = datos.plazo_meses
+            # Con otro plazo se consultan de nuevo todas las líneas (con o sin lineas nuevas).
+            # Se reasigna el dict: JSONB no detecta los cambios hechos en su sitio.
+            evento.foto = {**evento.foto, "fecha": momento.isoformat()}
             cambios.append("plazo_meses")
         if datos.proveedores is not None:
-            if renovacion:
+            if renovacion and datos.proveedores != evento.invitados:
                 raise invalido(
                     "proveedores",
                     "En una renovación solo participa el proveedor del contrato.",
