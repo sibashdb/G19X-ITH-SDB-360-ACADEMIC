@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from decimal import Decimal as D
 
 import pytest
@@ -104,24 +105,54 @@ def test_la_curva_llega_al_limite_solo_en_la_ultima_ronda() -> None:
     assert curva("precio", rango, u_objetivo(6, 6, 0.6)) == D(35)
 
 
+def test_la_curva_redondea_hacia_el_ideal_aunque_la_rejilla_sea_gruesa() -> None:
+    meses = Rango(D(12), D(36))
+    assert curva("plazo_meses", meses, u_objetivo(5, 6, 0.6)) < D(36)
+    # Con un solo paso entre el ideal y el límite, el redondeo al más cercano ya tocaba el límite.
+    assert curva("plazo_meses", Rango(D(35), D(36)), u_objetivo(5, 6, 0.6)) == D(35)
+    assert curva("plazo_meses", Rango(D(36), D(35)), u_objetivo(5, 6, 0.6)) == D(36)
+    assert curva("plazo_meses", Rango(D(35), D(36)), u_objetivo(6, 6, 0.6)) == D(36)
+
+
+def test_no_contesta_con_el_limite_exacto_antes_de_la_ultima_ronda() -> None:
+    # El precio ya está en el ideal, así que la oferta acotada alcanza el objetivo (el atajo): aun
+    # así, el plazo de pago que cruzaba su límite se contesta con la curva, no con el límite (30).
+    terminos = Terminos(80, PRD.lineas, (Palanca("plazo_pago_dias", 20, Rango(D(60), D(30))),))
+    oferta = Valores({"l": D("30.00")}, {"plazo_pago_dias": D(25)})
+    propuesta, traza = contraoferta(terminos, oferta, Estado(4, 6, 0.6))
+    assert D(30) < propuesta.palancas["plazo_pago_dias"] < D(60)
+    assert traza["de_curva"] == ["plazo_pago_dias"]
+    assert (traza["tramo"], traza["paso"], traza["atajo"]) == ("propia", 1.0, True)
+
+
+def test_no_pide_mas_de_lo_que_el_proveedor_ofrecio_aunque_sea_mejor_que_el_ideal() -> None:
+    lineas = tuple(Linea(i, i.upper(), D(1), Rango(D(30), D(35))) for i in "abc")
+    terminos = Terminos(80, lineas, (Palanca("plazo_pago_dias", 20, Rango(D(60), D(30))),))
+    oferta = Valores(
+        {"a": D("25.00"), "b": D("33.00"), "c": D("40.00")}, {"plazo_pago_dias": D(90)}
+    )
+    propuesta, traza = contraoferta(terminos, oferta, Estado(1, 6, 0.6))
+    assert traza["tramo"] == "propia_a_ideal"  # recorre el tramo que antes jalaba hacia el ideal
+    assert propuesta.precios["a"] == D("25.00")  # mejor que el ideal: no pide pagar más
+    assert propuesta.palancas["plazo_pago_dias"] == D(90)  # ni menos días de pago
+    assert propuesta.precios["b"] < D("33.00")  # lo demás sí se acerca al ideal
+
+
 def test_el_redondeo_va_hacia_el_proveedor_cuando_el_mas_cercano_retrocederia() -> None:
-    # Un precio con solo dos valores posibles (0.01 y 0.02): redondear al más cercano devolvería la
-    # utilidad por encima de la contraoferta anterior, así que el motor redondea hacia el proveedor.
+    # Al más cercano saldría (30.02, 1 mes): pediría un centavo menos que la contraoferta anterior
+    # (30.03, 1 mes). El motor redondea hacia el proveedor (30.03, 2 meses) y no retrocede.
     terminos = Terminos(
-        99,
-        (Linea("l", "Licencia", D(1), Rango(D("0.01"), D("0.02"))),),
-        (Palanca("plazo_meses", 1, Rango(D(1), D(2))),),
+        50,
+        (Linea("l", "Licencia", D(1), Rango(D(30), D(35))),),
+        (Palanca("plazo_meses", 50, Rango(D(1), D(3))),),
     )
-    primera = decidir(terminos, Estado(1, 3, 0.3), Valores({"l": D("0.01")}, {"plazo_meses": D(3)}))
-    assert primera.contraoferta is not None
-    segunda = decidir(
-        terminos,
-        Estado(2, 3, 0.3, primera.contraoferta),
-        Valores({"l": D("0.03")}, {"plazo_meses": D(1)}),
-    )
-    assert segunda.traza["redondeo"] == "hacia_proveedor"
-    assert segunda.contraoferta is not None
-    assert utilidad(terminos, segunda.contraoferta) <= utilidad(terminos, primera.contraoferta)
+    anterior = Valores({"l": D("30.03")}, {"plazo_meses": D(1)})
+    oferta = Valores({"l": D("35.01")}, {"plazo_meses": D(3)})
+    decision = decidir(terminos, Estado(1, 6, 0.6, anterior), oferta)
+    assert decision.accion == "contraofertar"
+    assert decision.traza["redondeo"] == "hacia_proveedor"
+    assert decision.contraoferta is not None
+    assert utilidad(terminos, decision.contraoferta) <= utilidad(terminos, anterior)
 
 
 def test_la_traza_explica_la_decision() -> None:
@@ -140,6 +171,7 @@ def test_la_traza_explica_la_decision() -> None:
         "objetivo",
         "tramo",
         "paso",
+        "atajo",
         "de_curva",
         "redondeo",
         "utilidad_contraoferta",
@@ -163,8 +195,26 @@ def _rango(draw: st.DrawFn, clave: str) -> Rango:
     return Rango(ideal, limite)
 
 
+def _entre(clave: str, rango: Rango) -> st.SearchStrategy[D]:
+    """Valores en la rejilla del término, dentro de [ideal, límite] (los válidos)."""
+    paso = PRECISION[clave]
+    bajo, alto = sorted((rango.ideal, rango.limite))
+    return st.integers(int(bajo / paso), int(alto / paso)).map(lambda n: D(n) * paso)
+
+
+def _por_termino(terminos: Terminos, a: Valores, b: Valores) -> Iterator[tuple[Rango, D, D]]:
+    for linea in terminos.lineas:
+        yield linea.rango, a.precios[linea.id], b.precios[linea.id]
+    for p in terminos.palancas:
+        yield p.rango, a.palancas[p.clave], b.palancas[p.clave]
+
+
+# (términos, rondas, β, ofertas del proveedor, contraoferta previa del comprador)
+Escenario = tuple[Terminos, int, float, list[Valores], Valores | None]
+
+
 @st.composite
-def _escenario(draw: st.DrawFn) -> tuple[Terminos, int, float, list[Valores]]:
+def _escenario(draw: st.DrawFn) -> Escenario:
     lineas = tuple(
         Linea(f"l{i}", f"Línea {i}", D(draw(st.integers(1, 500))), draw(_rango("precio")))
         for i in range(draw(st.integers(1, 3)))
@@ -181,14 +231,22 @@ def _escenario(draw: st.DrawFn) -> tuple[Terminos, int, float, list[Valores]]:
         )
         for _ in range(rondas)
     ]
-    return terminos, rondas, beta, ofertas
+    # A veces el comprador ya contraofertó antes de la primera oferta (spec §6.4, paso 2).
+    del_comprador = (
+        Valores(
+            {linea.id: draw(_entre("precio", linea.rango)) for linea in lineas},
+            {p.clave: draw(_entre(p.clave, p.rango)) for p in palancas},
+        )
+        if draw(st.booleans())
+        else None
+    )
+    return terminos, rondas, beta, ofertas, del_comprador
 
 
 @settings(max_examples=200, deadline=None)
 @given(_escenario())
-def test_propiedades_del_motor(escenario: tuple[Terminos, int, float, list[Valores]]) -> None:
-    terminos, rondas, beta, ofertas = escenario
-    anterior: Valores | None = None
+def test_propiedades_del_motor(escenario: Escenario) -> None:
+    terminos, rondas, beta, ofertas, anterior = escenario
     for t, oferta in enumerate(ofertas, start=1):
         decision = decidir(terminos, Estado(t, rondas, beta, anterior), oferta, True)
         if decision.accion == "aceptar":
@@ -212,7 +270,10 @@ def test_propiedades_del_motor(escenario: tuple[Terminos, int, float, list[Valor
             assert propuesta.precios[linea.id] == redondear("precio", propuesta.precios[linea.id])
         for p in terminos.palancas:
             assert propuesta.palancas[p.clave] == redondear(p.clave, propuesta.palancas[p.clave])
-        if anterior is not None and decision.traza["tramo"] != "acotada":
-            # No retrocede, salvo cuando la oferta acotada ya supera el objetivo (spec §6.7).
-            assert utilidad(terminos, propuesta) <= utilidad(terminos, anterior) + 1e-9
+        for rango, nueva, ofrecida in _por_termino(terminos, propuesta, oferta):
+            # Ningún término favorece más al proveedor que lo que él mismo ofreció.
+            assert nueva <= ofrecida if rango.menos_es_mejor else nueva >= ofrecida
+        if anterior is not None and not decision.traza["atajo"]:
+            # No retrocede, salvo en el atajo: la oferta acotada ya alcanza el objetivo (spec §6.7).
+            assert utilidad(terminos, propuesta) <= utilidad(terminos, anterior) + 1e-12
         anterior = propuesta
