@@ -338,7 +338,7 @@ Las acciones manuales del comprador usan el mismo bloqueo sobre la sesión.
 |---|---|
 | `negociacion.publicada` | `folio`, `titulo`, `tipo`, `proveedores` (número), `actor` |
 | `negociacion.cancelada` | `folio`, `titulo`, `motivo`, `actor` |
-| `negociacion.invitacion_enviada` | `folio`, `proveedor` (nombre), `destinatario`, `estado` (`enviado` / `fallido`), `error`, `reenvio`, `actor` |
+| `negociacion.invitacion_enviada` | `folio`, `titulo`, `proveedor` (nombre), `destinatario`, `estado` (`enviado` / `fallido`), `error`, `reenvio`, `actor` |
 
 Los acuerdos y escalamientos no se publican en N1, porque nadie los consume todavía. `negociacion.adjudicada` llega en el incremento 4.
 
