@@ -2,9 +2,11 @@
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
+import httpx
 from comun.auth import ValidadorJWT, validador_desde_jwks
 from comun.consumidor import ConsumidorEventos
 from comun.errores import registrar_manejadores
@@ -16,8 +18,10 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from negociacion.api import eventos
 from negociacion.config import Configuracion
 from negociacion.eventos import atendedor
+from negociacion.integraciones import Integraciones
 from negociacion.modelos import Outbox
 
 
@@ -25,6 +29,8 @@ def crear_app(
     configuracion: Configuracion | None = None,
     validador: ValidadorJWT | None = None,
     fabrica: async_sessionmaker[AsyncSession] | None = None,
+    transporte: httpx.AsyncBaseTransport | None = None,
+    reloj: Callable[[], datetime] | None = None,
 ) -> FastAPI:
     config = configuracion or Configuracion()
     configurar_logs(config.nombre_servicio, config.log_level)
@@ -34,6 +40,7 @@ def crear_app(
     )
     relay = RelayOutbox(sesiones, Outbox, config.rabbitmq_url)
     consumidor = ConsumidorEventos(config.rabbitmq_url, COLA_NEGOCIACION, atendedor(sesiones))
+    http = httpx.AsyncClient(transport=transporte)
 
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
@@ -48,6 +55,7 @@ def crear_app(
         for tarea in tareas:
             with contextlib.suppress(asyncio.CancelledError):
                 await tarea
+        await http.aclose()
         if config.usar_rabbitmq:
             await consumidor.cerrar()
             await relay.cerrar()
@@ -60,6 +68,8 @@ def crear_app(
     )
     app.state.fabrica = sesiones
     app.state.config = config
+    app.state.reloj = reloj or (lambda: datetime.now(UTC))
+    app.state.integraciones = Integraciones(http, config.inteligencia_url, config.proveedores_url)
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )
@@ -71,4 +81,5 @@ def crear_app(
             await bd.execute(text("SELECT 1"))
 
     app.include_router(crear_router_salud({"postgres": verificar_postgres}))
+    app.include_router(eventos.router)
     return app

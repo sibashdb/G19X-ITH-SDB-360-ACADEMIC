@@ -1,0 +1,41 @@
+"""Base de datos, roles, reloj y dependencias externas para las rutas."""
+
+from collections.abc import Callable
+from datetime import datetime
+from typing import Annotated
+
+from comun.auth import ROLES_INTERNOS, Usuario, requiere_rol
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from negociacion.db import obtener_sesion
+from negociacion.integraciones import Integraciones
+
+_bearer = HTTPBearer(auto_error=False)
+
+
+def _token(credenciales: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> str:
+    """El token del comprador, para consultar a los otros servicios en su nombre (spec D5).
+
+    Las rutas que lo usan también exigen el rol, que es lo que valida el token.
+    """
+    return "" if credenciales is None else credenciales.credentials
+
+
+def _reloj(request: Request) -> Callable[[], datetime]:
+    reloj: Callable[[], datetime] = request.app.state.reloj
+    return reloj
+
+
+def _integraciones(request: Request) -> Integraciones:
+    integraciones: Integraciones = request.app.state.integraciones
+    return integraciones
+
+
+Bd = Annotated[AsyncSession, Depends(obtener_sesion)]
+Lector = Annotated[Usuario, Depends(requiere_rol(*ROLES_INTERNOS))]
+Comprador = Annotated[Usuario, Depends(requiere_rol("comprador"))]
+TokenUsuario = Annotated[str, Depends(_token)]
+Reloj = Annotated[Callable[[], datetime], Depends(_reloj)]
+Integ = Annotated[Integraciones, Depends(_integraciones)]

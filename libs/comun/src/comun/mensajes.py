@@ -25,6 +25,12 @@ MENSAJES = {
     "date_parsing": "Fecha inválida; use AAAA-MM-DD",
     "date_from_datetime_parsing": "Fecha inválida; use AAAA-MM-DD",
     "date_from_datetime_inexact": "Fecha inválida; use AAAA-MM-DD",
+    "timezone_aware": "Incluya la zona horaria, por ejemplo 2026-10-20T18:00:00-06:00",
+    "datetime_parsing": "Fecha y hora inválidas; use el formato 2026-10-20T18:00:00-06:00",
+    "datetime_from_date_parsing": (
+        "Fecha y hora inválidas; use el formato 2026-10-20T18:00:00-06:00"
+    ),
+    "datetime_type": "Fecha y hora inválidas; use el formato 2026-10-20T18:00:00-06:00",
     "finite_number": "Debe ser un número finito",
     "bool_parsing": "Debe ser true o false",
     "bool_type": "Debe ser true o false",

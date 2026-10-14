@@ -11,3 +11,6 @@ class Configuracion(ConfiguracionBase):
     )
     # Las pruebas lo apagan: no hay RabbitMQ en ellas.
     usar_rabbitmq: bool = True
+    # Servicios que se consultan al crear o editar un borrador, con el token del comprador.
+    inteligencia_url: str = "http://localhost:8000"
+    proveedores_url: str = "http://localhost:8000"
