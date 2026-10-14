@@ -129,7 +129,7 @@ async def _utilidades(bd: AsyncSession, sesiones: list[uuid.UUID]) -> dict[uuid.
         .distinct(Oferta.sesion_id)
         .order_by(Oferta.sesion_id, Oferta.secuencia.desc())
     )
-    return {sesion_id: float(u) for sesion_id, u in filas.tuples()}
+    return {sesion_id: float(u) for sesion_id, u in filas}
 
 
 def _palanca(clave: str, fila: Palanca | None, moneda: str, vigente: Any) -> esquemas.PalancaSalida:
@@ -152,15 +152,10 @@ async def evento_salida(
     evento = await evento_o_404(bd, evento_id)
     lineas = await lineas_de(bd, evento.id)
     palancas = await palancas_de(bd, evento.id)
-    nombres = dict(
-        (
-            await bd.execute(
-                select(Proveedor.id, Proveedor.nombre).where(Proveedor.id.in_(evento.invitados))
-            )
-        )
-        .tuples()
-        .all()
+    filas_nombres = await bd.execute(
+        select(Proveedor.id, Proveedor.nombre).where(Proveedor.id.in_(evento.invitados))
     )
+    nombres = {proveedor_id: nombre for proveedor_id, nombre in filas_nombres}
     sesiones = list(
         (
             await bd.scalars(

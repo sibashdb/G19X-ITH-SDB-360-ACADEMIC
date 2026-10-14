@@ -2,6 +2,7 @@
 
 import uuid
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter
 from sqlalchemy import text
@@ -9,13 +10,14 @@ from sqlalchemy import text
 from negociacion import consultas
 from negociacion.api import esquemas
 from negociacion.api.dependencias import Bd, Comprador, Integ, Lector, Reloj, TokenUsuario
-from negociacion.bitacora import de_usuario, registrar
+from negociacion.bitacora import MAX_NOMBRE, de_usuario, registrar
 from negociacion.dominio.configuracion import sugerir_precio
 from negociacion.errores import invalido
 from negociacion.integraciones import ContratoVigente
 from negociacion.modelos import Evento, Linea, Palanca
 
 router = APIRouter(tags=["eventos"])
+ZONA_NEGOCIO = ZoneInfo("America/Mexico_City")  # el "hoy" de los contratos es el del negocio
 # (código, nombre, unidad, cantidad, precio vigente) de cada línea nueva.
 LineaPorCrear = tuple[str, str, str, Decimal, Decimal | None]
 
@@ -57,7 +59,8 @@ async def crear_evento(
         if datos.proveedor_id is None or datos.contrato_id is None:  # lo exige EventoNuevo
             raise RuntimeError("Renovación sin proveedor o contrato")
         contrato = await integraciones.contrato(token, datos.proveedor_id, datos.contrato_id)
-        if not contrato.fecha_inicio <= momento.date() <= contrato.fecha_fin:
+        hoy = momento.astimezone(ZONA_NEGOCIO).date()  # como proveedores, que define «vigente»
+        if not contrato.fecha_inicio <= hoy <= contrato.fecha_fin:
             raise invalido("contrato_id", "El contrato no está vigente.", "contrato_no_vigente")
         async with bd.begin():
             await consultas.proveedores_invitables(bd, [datos.proveedor_id], ["proveedor_id"])
@@ -97,7 +100,7 @@ async def crear_evento(
                 "contrato": None if contrato is None else contrato.terminos(),
             },
             creado_por_id=usuario.id,
-            creado_por_nombre=usuario.nombre,
+            creado_por_nombre=usuario.nombre[:MAX_NOMBRE],
             creado_en=momento,
         )
         bd.add(evento)

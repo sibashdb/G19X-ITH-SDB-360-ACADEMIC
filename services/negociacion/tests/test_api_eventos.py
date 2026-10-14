@@ -1,9 +1,12 @@
+import logging
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal as D
 from typing import Any
 
 import httpx
 import pytest
+from comun.pruebas import ClavesPrueba
 from negociacion.modelos import Bitacora, Evento
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -108,7 +111,10 @@ async def test_una_renovacion_exige_un_contrato_vigente_del_proveedor(
     assert ajeno.json()["codigo"] == "contrato_inexistente"
 
 
-@pytest.mark.parametrize("falla", ["caida", "error", "basura"])
+@pytest.mark.parametrize(
+    "falla",
+    ["caida", "error", "basura", "404_otro_codigo", "404_sin_json", "percentil_no_numerico", "nan"],
+)
 async def test_si_inteligencia_falla_responde_503_sin_crear_nada(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
@@ -117,12 +123,22 @@ async def test_si_inteligencia_falla_responde_503_sin_crear_nada(
     fabrica: Fabrica,
     falla: str,
 ) -> None:
+    pro = externos.referencias["SAAS-CRM-PRO"]
     if falla == "caida":
         externos.caido = "intel"
     elif falla == "error":
         externos.estado_intel = 500
-    else:
+    elif falla == "basura":
         externos.estado_intel, externos.cuerpo_intel = 200, b"<html>no es JSON</html>"
+    elif falla == "404_otro_codigo":  # el servicio no existe en inteligencia: no es «sin datos»
+        externos.estado_intel = 404
+        externos.cuerpo_intel = b'{"codigo": "servicio_no_encontrado"}'
+    elif falla == "404_sin_json":  # p. ej. una URL equivocada
+        externos.estado_intel, externos.cuerpo_intel = 404, b"<html>no existe</html>"
+    elif falla == "percentil_no_numerico":  # nunca se guarda un percentil que no es un número
+        externos.referencias["SAAS-CRM-PRO"] = pro | {"p25": "abc"}
+    else:
+        externos.referencias["SAAS-CRM-PRO"] = pro | {"p50": "NaN"}
     respuesta = await cliente.post("/eventos", json=cuerpo_compra(), headers=comprador)
     assert respuesta.status_code == 503
     assert respuesta.json()["detail"] == (
@@ -130,6 +146,59 @@ async def test_si_inteligencia_falla_responde_503_sin_crear_nada(
     )
     async with fabrica() as bd:
         assert await bd.scalar(select(func.count()).select_from(Evento)) == 0
+
+
+async def test_la_falla_de_inteligencia_queda_en_el_log_sin_el_token(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    cuerpo_compra: Any,
+    externos: Any,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    externos.estado_intel = 500
+    with caplog.at_level(logging.WARNING, logger="negociacion.integraciones"):
+        respuesta = await cliente.post("/eventos", json=cuerpo_compra(), headers=comprador)
+    assert respuesta.status_code == 503
+    [registro] = [r for r in caplog.records if r.name == "negociacion.integraciones"]
+    mensaje = registro.getMessage()
+    assert "/precios/servicios/SAAS-CRM-PRO/referencia" in mensaje and "500" in mensaje
+    assert comprador["Authorization"].removeprefix("Bearer ") not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("momento", "estado"),
+    [
+        # Las 21:00 del 31 de octubre en México: el contrato (hasta el 31/10) sigue vigente.
+        (datetime(2026, 11, 1, 3, tzinfo=UTC), 201),
+        # Ya es 1 de noviembre en México (00:00): venció.
+        (datetime(2026, 11, 1, 6, tzinfo=UTC), 422),
+    ],
+)
+async def test_la_vigencia_del_contrato_se_mide_en_hora_de_mexico(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    catalogo: None,
+    ids: dict[str, str],
+    reloj: Any,
+    momento: datetime,
+    estado: int,
+) -> None:
+    reloj.momento = momento
+    respuesta = await cliente.post("/eventos", json=_renovacion(ids), headers=comprador)
+    assert respuesta.status_code == estado, respuesta.text
+    if estado == 422:
+        assert respuesta.json()["codigo"] == "contrato_no_vigente"
+
+
+async def test_un_nombre_de_usuario_muy_largo_se_recorta(
+    cliente: httpx.AsyncClient, claves: ClavesPrueba, cuerpo_compra: Any
+) -> None:
+    token = claves.token("comprador", sub="comprador-1", preferred_username="N" * 300)
+    respuesta = await cliente.post(
+        "/eventos", json=cuerpo_compra(), headers={"Authorization": f"Bearer {token}"}
+    )
+    assert respuesta.status_code == 201, respuesta.text
+    assert respuesta.json()["creado_por_nombre"] == "N" * 200
 
 
 async def test_valida_servicios_proveedores_y_moneda(

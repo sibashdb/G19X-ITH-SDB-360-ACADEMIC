@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Any
 
 import httpx
+from comun.errores import ErrorDominio
 
 from negociacion.errores import invalido, no_disponible
 
@@ -99,6 +100,21 @@ def _contrato(datos: dict[str, Any]) -> ContratoVigente:
     )
 
 
+def _sin_observaciones(respuesta: httpx.Response) -> bool:
+    """Solo el 404 con ese código significa «no hay referencia»; cualquier otro 404 es una falla."""
+    try:
+        cuerpo = respuesta.json()
+    except ValueError:
+        return False
+    return isinstance(cuerpo, dict) and cuerpo.get("codigo") == "sin_observaciones"
+
+
+def _falla(respuesta: httpx.Response) -> ErrorDominio:
+    """Registra la respuesta inesperada (sin cabeceras ni token) y devuelve el 503."""
+    log.warning("%s respondió %s", respuesta.url.path, respuesta.status_code)
+    return no_disponible()
+
+
 class Integraciones:
     def __init__(
         self, http: httpx.AsyncClient, inteligencia_url: str, proveedores_url: str
@@ -130,15 +146,20 @@ class Integraciones:
             token,
             {"cantidad": str(cantidad), "plazo": str(plazo)},
         )
-        if respuesta.status_code == 404:  # sin contratos recientes (o aún no llega a su copia)
-            return None
+        if respuesta.status_code == 404 and _sin_observaciones(respuesta):
+            return None  # sin contratos recientes: el servicio existe pero no hay referencia
         if respuesta.status_code != 200:
-            raise no_disponible()
+            raise _falla(respuesta)
         try:
             datos = respuesta.json()
-            return {campo: datos[campo] for campo in CAMPOS_REFERENCIA}
-        except (ValueError, KeyError, TypeError) as exc:
+            referencia = {campo: datos[campo] for campo in CAMPOS_REFERENCIA}
+            for campo in ("p25", "p50", "p75"):  # nunca se guarda un percentil que no es número
+                if not Decimal(str(referencia[campo])).is_finite():
+                    raise ValueError(f"{campo} no es finito")
+        except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+            log.warning("Respuesta mal formada de %s: %r", respuesta.url.path, exc)
             raise no_disponible() from exc
+        return referencia
 
     async def contrato(
         self, token: str, proveedor_id: uuid.UUID, contrato_id: uuid.UUID
@@ -149,11 +170,12 @@ class Integraciones:
         if respuesta.status_code == 404:
             raise invalido("proveedor_id", "El proveedor no existe.", "proveedor_inexistente")
         if respuesta.status_code != 200:
-            raise no_disponible()
+            raise _falla(respuesta)
         try:
             for datos in respuesta.json():
                 if str(datos["id"]) == str(contrato_id):
                     return _contrato(datos)
         except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+            log.warning("Respuesta mal formada de %s: %r", respuesta.url.path, exc)
             raise no_disponible() from exc
         raise invalido("contrato_id", "El contrato no es de ese proveedor.", "contrato_inexistente")
