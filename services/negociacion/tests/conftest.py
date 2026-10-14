@@ -3,6 +3,7 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ Fabrica = async_sessionmaker[AsyncSession]
 AplicarEvento = Callable[[str, dict[str, Any]], Awaitable[None]]
 Cuerpo = Callable[..., dict[str, Any]]
 Compra = Callable[..., Awaitable[dict[str, Any]]]
+Publicar = Callable[..., Awaitable[tuple[dict[str, Any], list[dict[str, Any]]]]]
 
 
 def _id(numero: int) -> str:
@@ -194,6 +196,19 @@ class Reloj:
         return self.momento
 
 
+@dataclass
+class Buzon:
+    """Recoge los correos en lugar de mandarlos; con `falla`, simula un SMTP caído."""
+
+    enviados: list[EmailMessage] = field(default_factory=list)
+    falla: bool = False
+
+    async def enviar(self, mensaje: EmailMessage) -> None:
+        if self.falla:
+            raise OSError("sin servidor de correo")
+        self.enviados.append(mensaje)
+
+
 @pytest.fixture(scope="session")
 def urls_bd() -> Iterator[tuple[str, str]]:
     """(URL del dueño, que migra; URL del usuario de la aplicación, con permisos reducidos)."""
@@ -252,12 +267,18 @@ def reloj() -> Reloj:
 
 
 @pytest.fixture
+def buzon() -> Buzon:
+    return Buzon()
+
+
+@pytest.fixture
 def app(
     urls_bd: tuple[str, str],
     fabrica: Fabrica,
     claves: ClavesPrueba,
     externos: Externos,
     reloj: Reloj,
+    buzon: Buzon,
 ) -> FastAPI:
     return crear_app(
         Configuracion(
@@ -270,6 +291,7 @@ def app(
         fabrica,
         transporte=httpx.MockTransport(externos.manejar),
         reloj=reloj,
+        enviar_correo=buzon.enviar,
     )
 
 
@@ -348,3 +370,18 @@ def nueva_compra(
         return dict(respuesta.json())
 
     return _crear
+
+
+@pytest.fixture
+def publicar(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], nueva_compra: Compra
+) -> Publicar:
+    """Crea una compra (con los cambios dados), la publica y devuelve (evento, enlaces)."""
+
+    async def _publicar(**cambios: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        evento = await nueva_compra(**cambios)
+        respuesta = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
+        assert respuesta.status_code == 200, respuesta.text
+        return respuesta.json()["evento"], respuesta.json()["enlaces"]
+
+    return _publicar

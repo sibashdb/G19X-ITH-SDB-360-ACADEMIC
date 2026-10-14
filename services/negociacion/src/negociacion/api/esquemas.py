@@ -199,3 +199,20 @@ class EventoResumen(BaseModel):
 class PaginaEventos(BaseModel):
     total: int
     elementos: list[EventoResumen]
+
+
+class Cancelacion(BaseModel):
+    motivo: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+
+class EnlaceSalida(BaseModel):
+    sesion_id: uuid.UUID
+    proveedor_nombre: str
+    destinatario: str
+    enlace: str  # solo se muestra en esta respuesta; la base guarda el hash del token
+    correo_estado: str
+
+
+class Publicacion(BaseModel):
+    evento: EventoSalida
+    enlaces: list[EnlaceSalida]

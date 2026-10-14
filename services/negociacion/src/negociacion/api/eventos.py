@@ -9,9 +9,18 @@ from fastapi import APIRouter, Query
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from negociacion import consultas
+from negociacion import consultas, publicacion
 from negociacion.api import esquemas
-from negociacion.api.dependencias import Bd, Comprador, Integ, Lector, Reloj, TokenUsuario
+from negociacion.api.dependencias import (
+    Bd,
+    Comprador,
+    Config,
+    Correo,
+    Integ,
+    Lector,
+    Reloj,
+    TokenUsuario,
+)
 from negociacion.bitacora import MAX_NOMBRE, de_usuario, registrar
 from negociacion.dominio.configuracion import sugerir_precio
 from negociacion.errores import conflicto, invalido
@@ -353,3 +362,50 @@ async def editar_evento(
                 fecha=momento,
             )
     return await consultas.evento_salida(bd, evento.id, momento)
+
+
+def _enlaces(envios: list[publicacion.Envio]) -> list[esquemas.EnlaceSalida]:
+    return [
+        esquemas.EnlaceSalida(
+            sesion_id=envio.sesion_id,
+            proveedor_nombre=envio.proveedor_nombre,
+            destinatario=envio.destinatario,
+            enlace=envio.enlace,
+            correo_estado=envio.estado,
+        )
+        for envio in envios
+    ]
+
+
+@router.post("/eventos/{evento_id}/publicar")
+async def publicar_evento(
+    evento_id: uuid.UUID,
+    usuario: Comprador,
+    bd: Bd,
+    reloj: Reloj,
+    enviar: Correo,
+    config: Config,
+) -> esquemas.Publicacion:
+    momento, actor = reloj(), de_usuario(usuario)
+    async with bd.begin():
+        evento, invitaciones = await publicacion.preparar_publicacion(bd, evento_id, actor, momento)
+    envios = await publicacion.enviar_invitaciones(enviar, config, evento, invitaciones)
+    async with bd.begin():
+        await publicacion.registrar_envios(bd, evento, envios, actor, momento, reenvio=False)
+    return esquemas.Publicacion(
+        evento=await consultas.evento_salida(bd, evento_id, momento), enlaces=_enlaces(envios)
+    )
+
+
+@router.post("/eventos/{evento_id}/cancelar")
+async def cancelar_evento(
+    evento_id: uuid.UUID,
+    datos: esquemas.Cancelacion,
+    usuario: Comprador,
+    bd: Bd,
+    reloj: Reloj,
+) -> esquemas.EventoSalida:
+    momento = reloj()
+    async with bd.begin():
+        await publicacion.cancelar(bd, evento_id, datos.motivo, de_usuario(usuario), momento)
+    return await consultas.evento_salida(bd, evento_id, momento)

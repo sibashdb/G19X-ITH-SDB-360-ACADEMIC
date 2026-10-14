@@ -14,3 +14,9 @@ class Configuracion(ConfiguracionBase):
     # Servicios que se consultan al crear o editar un borrador, con el token del comprador.
     inteligencia_url: str = "http://localhost:8000"
     proveedores_url: str = "http://localhost:8000"
+    # SMTP sin autenticación: Mailpit en desarrollo, solo en la red interna.
+    smtp_host: str = "localhost"
+    smtp_puerto: int = 1025
+    smtp_remitente: str = "compras@plataforma.example"
+    # Dirección pública de la plataforma, para el enlace del portal en las invitaciones.
+    url_publica: str = "http://localhost:8080"

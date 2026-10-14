@@ -19,7 +19,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from negociacion.api import eventos
+from negociacion.api import sesiones as rutas_sesiones  # `sesiones` es la fábrica de sesiones de BD
 from negociacion.config import Configuracion
+from negociacion.correo import EnviarCorreo, enviador_smtp
 from negociacion.eventos import atendedor
 from negociacion.integraciones import Integraciones
 from negociacion.modelos import Outbox
@@ -31,6 +33,7 @@ def crear_app(
     fabrica: async_sessionmaker[AsyncSession] | None = None,
     transporte: httpx.AsyncBaseTransport | None = None,
     reloj: Callable[[], datetime] | None = None,
+    enviar_correo: EnviarCorreo | None = None,
 ) -> FastAPI:
     config = configuracion or Configuracion()
     configurar_logs(config.nombre_servicio, config.log_level)
@@ -70,6 +73,7 @@ def crear_app(
     app.state.config = config
     app.state.reloj = reloj or (lambda: datetime.now(UTC))
     app.state.integraciones = Integraciones(http, config.inteligencia_url, config.proveedores_url)
+    app.state.enviar_correo = enviar_correo or enviador_smtp(config.smtp_host, config.smtp_puerto)
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )
@@ -82,4 +86,5 @@ def crear_app(
 
     app.include_router(crear_router_salud({"postgres": verificar_postgres}))
     app.include_router(eventos.router)
+    app.include_router(rutas_sesiones.router)
     return app

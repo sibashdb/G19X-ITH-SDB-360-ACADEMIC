@@ -1,5 +1,7 @@
 """Textos del servicio: nombres de las palancas (y, desde la Task 9, mensajes del agente)."""
 
+CANCELADA = "La negociación se canceló. Gracias por su tiempo."
+
 PALANCAS: dict[str, tuple[str, str | None]] = {
     "precio": ("Precio unitario", None),
     "plazo_meses": ("Plazo del contrato", "meses"),

@@ -9,6 +9,8 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from negociacion.config import Configuracion
+from negociacion.correo import EnviarCorreo
 from negociacion.db import obtener_sesion
 from negociacion.integraciones import Integraciones
 
@@ -33,9 +35,21 @@ def _integraciones(request: Request) -> Integraciones:
     return integraciones
 
 
+def _enviar_correo(request: Request) -> EnviarCorreo:
+    enviar: EnviarCorreo = request.app.state.enviar_correo
+    return enviar
+
+
+def _config(request: Request) -> Configuracion:
+    config: Configuracion = request.app.state.config
+    return config
+
+
 Bd = Annotated[AsyncSession, Depends(obtener_sesion)]
 Lector = Annotated[Usuario, Depends(requiere_rol(*ROLES_INTERNOS))]
 Comprador = Annotated[Usuario, Depends(requiere_rol("comprador"))]
 TokenUsuario = Annotated[str, Depends(_token)]
 Reloj = Annotated[Callable[[], datetime], Depends(_reloj)]
 Integ = Annotated[Integraciones, Depends(_integraciones)]
+Correo = Annotated[EnviarCorreo, Depends(_enviar_correo)]
+Config = Annotated[Configuracion, Depends(_config)]

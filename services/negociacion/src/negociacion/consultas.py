@@ -123,11 +123,12 @@ async def _utilidades(bd: AsyncSession, sesiones: list[uuid.UUID]) -> dict[uuid.
     """La utilidad de la última oferta del proveedor en cada sesión."""
     if not sesiones:
         return {}
+    # En orden de secuencia, la última oferta de cada sesión sustituye a las anteriores. (Sin
+    # DISTINCT ON: SQLAlchemy 2.1 lo cambió de forma y el piso declarado es 2.0.)
     filas = await bd.execute(
         select(Oferta.sesion_id, Oferta.utilidad)
         .where(Oferta.sesion_id.in_(sesiones), Oferta.autor == "proveedor")
-        .distinct(Oferta.sesion_id)
-        .order_by(Oferta.sesion_id, Oferta.secuencia.desc())
+        .order_by(Oferta.secuencia)
     )
     return {sesion_id: float(u) for sesion_id, u in filas}
 
