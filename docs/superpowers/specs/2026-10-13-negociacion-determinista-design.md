@@ -4,7 +4,7 @@
 |---|---|
 | PRD padre | `docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md` (§3.1–§3.6, §5.1, §6.6) |
 | Fecha | 2026-10-13 |
-| Estado | Diseño aprobado por el residente en conversación (2026-10-13); pendiente su revisión del documento |
+| Estado | Aprobada por el residente (2026-10-13); §6.4 precisado con el plan N1a |
 | Base de código | `main` en `1cfd7b5` (Plan B: inteligencia en el servicio y en la interfaz, ya integrado) |
 | Rama | `feat/negociacion-determinista` |
 
@@ -56,14 +56,15 @@ Las metas de acuerdo y ahorro dependen de la calibración: si la simulación no 
 
 **N1a — Servicio de negociación**
 - Servicio `negociacion`: copia local, dominio (utilidad y motor), modelo de datos, API del comprador, API del portal, turnos, correos, outbox, tarea de fecha límite y bitácora.
-- Topología (cola `negociacion.eventos`), cambios en `administracion` (Actividad y Correos), infraestructura y prueba de humo.
+- Topología (cola `negociacion.eventos`), infraestructura y prueba de humo.
+- Cambios en `administracion` (Actividad y Correos), incluidos sus textos y filtros en la web (`actividad.ts`, Actividad y Correos). Van aquí porque una prueba exige que los textos del servidor y los de la web coincidan.
 - Bots y simulación (`tools/simulador`) con su reporte.
 
 **N1b — Negociación en la interfaz**
 - Área «Negociaciones» del comprador: lista, creación, editor de límites, publicación, supervisión y sesión.
 - Portal del proveedor (`/portal`).
 - Botón «Renovar» en el Tablero, en Alertas y en la ficha del proveedor.
-- Cambios de Actividad y Correos en la interfaz, glosario, artículo de ayuda y revisión en navegador.
+- Glosario, artículo de ayuda y revisión en navegador.
 
 ---
 
@@ -90,8 +91,8 @@ Sigue el patrón de `administracion` e `inteligencia`: `negociacion_dueno` es el
 
 | Tabla | Columnas |
 |---|---|
-| `evento` | `id`, `folio` único (`NEG-<año>-<consecutivo de 4 dígitos>`, de una secuencia), `tipo` (`compra` / `renovacion`), `titulo` (≤ 120), `moneda`, `plazo_meses` (1–60, el plazo con que se consulta la referencia), `estado`, `fecha_limite`, `rondas_max` (2–12, por defecto 6), `estilo` (`firme` / `balanceado` / `flexible`), `contrato_origen_id` y `proveedor_vigente_id` (renovación), `foto` (JSONB), `motivo_cancelacion`, `creado_por_id`, `creado_por_nombre`, `creado_en`, `publicado_en`, `cerrado_en`, `version` (bloqueo optimista). |
-| `linea` | `id`, `evento_id`, `orden`, `codigo_servicio`, `nombre`, `unidad`, `cantidad` (> 0), `precio_vigente` (renovación), `ideal`, `limite`. |
+| `evento` | `id`, `folio` único (`NEG-<año>-<consecutivo de 4 dígitos>`, de una secuencia), `tipo` (`compra` / `renovacion`), `titulo` (≤ 120), `moneda`, `plazo_meses` (1–60, el plazo con que se consulta la referencia), `estado`, `fecha_limite`, `rondas_max` (2–12, por defecto 6), `estilo` (`firme` / `balanceado` / `flexible`), `contrato_origen_id` y `proveedor_vigente_id` (renovación), `invitados` (los proveedores elegidos en el borrador; las sesiones se crean al publicar), `foto` (JSONB), `motivo_cancelacion`, `creado_por_id`, `creado_por_nombre`, `creado_en`, `publicado_en`, `cerrado_en`, `version` (bloqueo optimista). |
+| `linea` | `id`, `evento_id`, `orden`, `codigo_servicio`, `nombre`, `unidad`, `cantidad` (> 0), `precio_vigente` (renovación), `ideal`, `limite`, `referencia` (JSONB, la parte de la foto de esa línea). |
 | `palanca` | Llave (`evento_id`, `clave`), `peso` (entero), `ideal`, `limite`. La fila `precio` siempre existe y no lleva ideal ni límite: van por línea. Las palancas inactivas no tienen fila. |
 | `sesion` | `id`, `evento_id`, `proveedor_id`, `proveedor_nombre` y `destinatario` (copiados al publicar), `estado`, `modo`, `ronda` (ofertas del proveedor recibidas), `token_hash` (SHA-256, único, nulo si está revocado), `correo_estado` (`pendiente` / `enviado` / `fallido`), `correo_error`, `correo_en`, `fuera_de_limites` (bandera para el aprobador), `actualizado_en`. |
 | `mensaje` | `id`, `sesion_id`, `autor` (`proveedor` / `agente` / `comprador` / `sistema`), `texto`, `ronda`, `oferta_id`, `clave_idempotencia`, `creado_en`. Único (`sesion_id`, `clave_idempotencia`). |
@@ -101,7 +102,9 @@ Sigue el patrón de `administracion` e `inteligencia`: `negociacion_dueno` es el
 | `servicio` | Copia local del catálogo: `codigo`, `nombre`, `categoria`, `unidad`, `moneda`, `activo`. |
 | `outbox`, `evento_procesado` | Los de `libs/comun`. |
 
-**La foto** (`evento.foto`) guarda la fecha en que se tomó y, por línea, la referencia de `inteligencia` (`p25`, `p50`, `p75`, `metodo`, `version`, `confianza`, `observaciones`) o `null` si no hay referencia. En renovación también guarda los términos vigentes del contrato (`plazo_pago_dias`, `sla_disponibilidad`, `tope_aumento_pct`, `cuota_implementacion`, fechas y precio por línea).
+**La foto** se guarda en dos partes:
+- **Por línea:** cada `linea.referencia` tiene la referencia de `inteligencia` para esa línea (`p25`, `p50`, `p75`, `metodo`, `version`, `confianza`, `observaciones`) o `null` si no hay referencia. Así, al reemplazar las líneas de un borrador, su foto se va con ellas.
+- **Por evento:** `evento.foto` guarda la fecha en que se tomó y, en renovación, los términos vigentes del contrato (`plazo_pago_dias`, `sla_disponibilidad`, `tope_aumento_pct`, `cuota_implementacion`, fechas y precio por línea).
 
 ---
 
@@ -200,7 +203,7 @@ Es un módulo puro, sin base de datos ni red:
    - si eso deja la utilidad por encima de la última contraoferta, se redondea hacia la oferta del proveedor;
    - los extremos de cada tramo ya están en su precisión (las ofertas se validan así y `vᵢ(t)` se redondea al más cercano), así que el redondeo nunca cruza un límite.
 
-**Ejemplo del PRD §3.3** (una línea, ideal 30, límite 35, `T = 6`, β = 0.6, ofertas del proveedor por encima del límite): las contraofertas de las rondas 2, 4, 5 y 6 son 30.80, 32.54, 33.69 y 35.00. Es una prueba de tabla.
+**Ejemplo del PRD §3.3** (una línea, ideal 30, límite 35, `T = 6`, β = 0.6, ofertas del proveedor por encima del límite): el cálculo de la contraoferta da 30.80, 32.54, 33.69 y 35.00 en las rondas 2, 4, 5 y 6. En la ronda 6 el motor no la envía: con una oferta inválida cierra sin acuerdo (§6.3). Es una prueba de tabla.
 
 ### 6.5 Presión competitiva y mensajes
 
@@ -375,8 +378,7 @@ Los acuerdos y escalamientos no se publican en N1, porque nadie los consume toda
 
 - **Actualización:** las dos vistas de supervisión usan `refetchInterval: 3000`, sin consultar en segundo plano. Una región `aria-live="polite"` anuncia solo «Nuevo mensaje del proveedor».
 - **«Renovar»** (solo para `comprador`): en las filas de «Próximos vencimientos» del Tablero, en las alertas de vencimiento y en los contratos vigentes de la ficha del proveedor. Lleva a `/negociaciones/nueva?proveedor=…&contrato=…`.
-- **Actividad:** el filtro agrega el origen «Negociación» y los textos de las tres acciones.
-- **Correos:** agrega el tipo «Invitación a negociar»; sin `usuario_id`, la fila no enlaza a un usuario.
+- **Actividad y Correos** (se hacen en N1a, §2): el filtro de Actividad agrega el origen «Negociación» y los textos de las tres acciones; Correos agrega el tipo «Invitación a negociar».
 - **Glosario y ayuda:**
   - términos con `Termino`: palanca, ideal, límite, ronda y acuerdo tentativo;
   - el artículo «Cómo negocia el agente», que explica la utilidad, las concesiones por ronda y la regla de aceptación sin fórmulas.
@@ -430,7 +432,8 @@ Los acuerdos y escalamientos no se publican en N1, porque nadie los consume toda
 - **Paquete:** `tools/simulador`, miembro del workspace de `uv`, como `tools/generador`.
 - **Bots puros:** reciben la vista del portal y su verdad oculta y devuelven su siguiente acción: una oferta o reenviar la propuesta del agente para aceptarla.
 - **El orquestador** `correr(…)` recibe clientes `httpx` (comprador y portal). No sabe si la app corre dentro del proceso o en un stack; N2 lo reutiliza contra el stack con el token de servicio.
-- **Cada proveedor**, con su registro de `datos/verdad_oculta.json`:
+- **Datos:** salen de `generador.modelo.generar(42)`, el mismo conjunto que escribe `python -m generador` en `datos/`. Se genera en memoria porque `datos/` no se versiona y CI no lo tiene en el trabajo de Python.
+- **Cada proveedor**, con sus variables ocultas (las de `verdad_oculta.json`):
   - precio de lista por línea = P50 × `nivel_precio`;
   - reserva = lista × (1 − `flexibilidad`);
   - primera oferta = lista × (1 + margen), con un margen que depende del estilo;
@@ -444,7 +447,7 @@ Los acuerdos y escalamientos no se publican en N1, porque nadie los consume toda
 - **Escenarios:** compras de 1 a 3 líneas con 2 a 5 proveedores de la misma categoría, y renovaciones de contratos vigentes, todos con semilla fija.
 - **Prueba de simulación** (`services/negociacion/tests/test_simulacion.py`):
   - levanta la app con Testcontainers;
-  - da la foto con un `httpx.MockTransport` que responde cuantiles de `datos/contratos.csv`;
+  - da la foto con un `httpx.MockTransport` que responde cuantiles del precio unitario de cada servicio en los contratos de los últimos 24 meses del generador;
   - corre los bots y exige **0 acuerdos fuera de límites**.
 - **Reporte:** con `SIMULACION_REPORTE=<ruta>`, la prueba escribe `docs/qa/simulacion-negociacion.md` con los acuerdos fuera de límites, la tasa de acuerdo y el ahorro frente a la primera oferta, en total y por estilo, contra las metas del §1.
 
