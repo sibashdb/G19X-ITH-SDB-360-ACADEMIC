@@ -15,6 +15,7 @@ from comun.topologia import (
     ARGUMENTOS_COLA,
     COLA_ADMINISTRACION,
     COLA_INTELIGENCIA,
+    COLA_NEGOCIACION,
     TIPOS_EVENTO,
     coincide,
     colas_de,
@@ -39,9 +40,22 @@ def test_las_claves_comparan_palabra_por_palabra() -> None:
     assert colas_de("servicio.actualizado") == [
         COLA_INTELIGENCIA.nombre,
         COLA_ADMINISTRACION.nombre,
+        COLA_NEGOCIACION.nombre,
     ]
     assert colas_de("importacion.completada") == [COLA_ADMINISTRACION.nombre]
     assert colas_de("modelo.entrenado") == [COLA_ADMINISTRACION.nombre]
+
+
+def test_negociacion_recibe_proveedores_y_catalogo_y_publica_a_administracion() -> None:
+    assert colas_de("proveedor.actualizado") == [COLA_INTELIGENCIA.nombre, COLA_NEGOCIACION.nombre]
+    assert colas_de("contrato.registrado") == [COLA_INTELIGENCIA.nombre]
+    for tipo in (
+        "negociacion.publicada",
+        "negociacion.cancelada",
+        "negociacion.invitacion_enviada",
+    ):
+        assert tipo in TIPOS_EVENTO
+        assert colas_de(tipo) == [COLA_ADMINISTRACION.nombre]
 
 
 def _tipos_publicados() -> set[str]:

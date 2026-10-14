@@ -57,6 +57,25 @@
       "arguments": {
         "x-queue-type": "quorum"
       }
+    },
+    {
+      "name": "negociacion.eventos",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5
+      }
+    },
+    {
+      "name": "negociacion.eventos.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
     }
   ],
   "bindings": [
@@ -141,11 +160,43 @@
       "arguments": {}
     },
     {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "administracion.actividad",
+      "destination_type": "queue",
+      "routing_key": "negociacion.*",
+      "arguments": {}
+    },
+    {
       "source": "eventos.dlx",
       "vhost": "/",
       "destination": "administracion.actividad.dlq",
       "destination_type": "queue",
       "routing_key": "administracion.actividad",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "negociacion.eventos",
+      "destination_type": "queue",
+      "routing_key": "proveedor.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "negociacion.eventos",
+      "destination_type": "queue",
+      "routing_key": "servicio.*",
+      "arguments": {}
+    },
+    {
+      "source": "eventos.dlx",
+      "vhost": "/",
+      "destination": "negociacion.eventos.dlq",
+      "destination_type": "queue",
+      "routing_key": "negociacion.eventos",
       "arguments": {}
     }
   ],
@@ -170,6 +221,17 @@
       "definition": {
         "dead-letter-exchange": "eventos.dlx",
         "dead-letter-routing-key": "administracion.actividad"
+      }
+    },
+    {
+      "vhost": "/",
+      "name": "fallidos-negociacion.eventos",
+      "pattern": "^negociacion\\.eventos$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "dead-letter-exchange": "eventos.dlx",
+        "dead-letter-routing-key": "negociacion.eventos"
       }
     }
   ]

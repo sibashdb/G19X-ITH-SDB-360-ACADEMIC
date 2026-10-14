@@ -35,9 +35,11 @@ COLA_INTELIGENCIA = Cola(
 )
 COLA_ADMINISTRACION = Cola(
     "administracion.actividad",
-    ("importacion.*", "servicio.*", "configuracion.*", "modelo.*"),
+    ("importacion.*", "servicio.*", "configuracion.*", "modelo.*", "negociacion.*"),
 )
-COLAS = (COLA_INTELIGENCIA, COLA_ADMINISTRACION)
+# Copias locales de negociacion: el contacto del proveedor y el catálogo de servicios.
+COLA_NEGOCIACION = Cola("negociacion.eventos", ("proveedor.*", "servicio.*"))
+COLAS = (COLA_INTELIGENCIA, COLA_ADMINISTRACION, COLA_NEGOCIACION)
 
 TIPOS_EVENTO = frozenset(
     {
@@ -50,6 +52,9 @@ TIPOS_EVENTO = frozenset(
         "importacion.rechazada",
         "configuracion.actualizada",
         "modelo.entrenado",
+        "negociacion.publicada",
+        "negociacion.cancelada",
+        "negociacion.invitacion_enviada",
     }
 )
 
