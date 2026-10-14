@@ -1,12 +1,15 @@
 import asyncio
 import hashlib
 import json
+import logging
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 import httpx
 import pytest
+from negociacion import publicacion
 from negociacion.modelos import Mensaje, Oferta, Outbox, SesionNegociacion
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -145,6 +148,34 @@ async def test_si_el_correo_falla_la_sesion_lo_dice_y_el_enlace_se_entrega(
     assert {e.payload["estado"] for e in invitaciones} == {"fallido"}
 
 
+async def test_si_el_envio_falla_por_cualquier_motivo_la_publicacion_conserva_los_enlaces(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    nueva_compra: Any,
+    buzon: Any,
+    fabrica: Fabrica,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    buzon.falla, buzon.error = True, ValueError  # no es de red: igual no debe perder los enlaces
+    evento = await nueva_compra()
+    with caplog.at_level(logging.WARNING, logger="negociacion.publicacion"):
+        respuesta = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
+    assert respuesta.status_code == 200, respuesta.text
+    cuerpo = respuesta.json()
+    assert cuerpo["evento"]["estado"] == "abierto"
+    assert {e["correo_estado"] for e in cuerpo["enlaces"]} == {"fallido"}
+    assert {s["correo_error"] for s in cuerpo["evento"]["sesiones"]} == {
+        "No se pudo entregar el correo al servidor de correo."
+    }
+    invitaciones = [e for e in await _outbox(fabrica) if e.tipo.endswith("invitacion_enviada")]
+    assert [e.payload["estado"] for e in invitaciones] == ["fallido", "fallido"]
+    # El log dice la clase del error, no su mensaje, y nunca el token.
+    avisos = [r.getMessage() for r in caplog.records if r.name == "negociacion.publicacion"]
+    assert len(avisos) == 2 and all("(ValueError)" in aviso for aviso in avisos)
+    assert "sin servidor de correo" not in caplog.text
+    assert not any(_token(e["enlace"]) in caplog.text for e in cuerpo["enlaces"])
+
+
 async def test_cancelar_revoca_los_enlaces_y_cierra_las_sesiones(
     cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, fabrica: Fabrica
 ) -> None:
@@ -218,9 +249,9 @@ async def test_la_utilidad_de_la_sesion_es_la_de_la_ultima_oferta_del_proveedor(
     sesion_id = enlaces[0]["sesion_id"]
     async with fabrica() as bd, bd.begin():
         for autor, ronda, utilidad in (
-            ("proveedor", 1, "0.4000"),
+            ("proveedor", 1, "0.5500"),
             ("agente", 1, "0.7000"),
-            ("proveedor", 2, "0.5500"),
+            ("proveedor", 2, "0.4000"),  # la última es menor que una anterior: no es el máximo
         ):
             bd.add(
                 Oferta(
@@ -235,5 +266,28 @@ async def test_la_utilidad_de_la_sesion_es_la_de_la_ultima_oferta_del_proveedor(
             await bd.flush()  # una por una: la secuencia fija cuál fue la última
     respuesta = await cliente.get(f"/eventos/{evento['id']}", headers=comprador)
     utilidades = {s["id"]: s["utilidad"] for s in respuesta.json()["sesiones"]}
-    assert utilidades.pop(sesion_id) == pytest.approx(0.55)
+    assert utilidades.pop(sesion_id) == pytest.approx(0.40)
     assert list(utilidades.values()) == [None]
+
+
+async def test_reenviar_deja_pendiente_y_sin_el_error_del_envio_anterior(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    nueva_compra: Any,
+    buzon: Any,
+    fabrica: Fabrica,
+) -> None:
+    buzon.falla = True
+    evento = await nueva_compra()
+    respuesta = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
+    sesion_id = uuid.UUID(respuesta.json()["enlaces"][0]["sesion_id"])
+    async with fabrica() as bd, bd.begin():
+        await publicacion.preparar_reenvio(bd, sesion_id, datetime(2026, 10, 13, tzinfo=UTC))
+    async with fabrica() as bd:
+        sesion = await bd.get(SesionNegociacion, sesion_id)
+    assert sesion is not None
+    assert (sesion.correo_estado, sesion.correo_error, sesion.correo_en) == (
+        "pendiente",
+        None,
+        None,
+    )

@@ -243,6 +243,27 @@ async def test_valida_servicios_proveedores_y_moneda(
         assert respuesta.json()["errores"][0]["campo"] == campo
 
 
+async def test_el_titulo_no_admite_saltos_de_linea_ni_caracteres_de_control(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], cuerpo_compra: Any
+) -> None:
+    for titulo in (
+        "Licencias\nde CRM",
+        "Licencias\tde CRM",
+        "Licencias\N{LINE SEPARATOR}de CRM",
+        "A\x85B",
+    ):
+        respuesta = await cliente.post(
+            "/eventos", json=cuerpo_compra(titulo=titulo), headers=comprador
+        )
+        assert respuesta.status_code == 422, titulo
+        assert respuesta.json()["errores"] == [
+            {
+                "campo": "body.titulo",
+                "mensaje": "El título no puede tener saltos de línea ni caracteres de control.",
+            }
+        ]
+
+
 async def test_la_fecha_limite_debe_traer_zona_horaria(
     cliente: httpx.AsyncClient, comprador: dict[str, str], cuerpo_compra: Any
 ) -> None:

@@ -1,14 +1,37 @@
 """Formas de entrada y salida de la API; los montos viajan como texto decimal."""
 
+import unicodedata
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, Field, StringConstraints, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    Field,
+    StringConstraints,
+    model_validator,
+)
+
+# Categorías Zl y Zp (no empiezan con «C»): también parten una línea.
+SEPARADORES_DE_LINEA = "\N{LINE SEPARATOR}\N{PARAGRAPH SEPARATOR}"
+
+
+def _sin_control(titulo: str) -> str:
+    """El título va en el asunto del correo: un salto de línea ahí no puede entrar."""
+    if any(unicodedata.category(c).startswith("C") or c in SEPARADORES_DE_LINEA for c in titulo):
+        raise ValueError("El título no puede tener saltos de línea ni caracteres de control.")
+    return titulo
+
 
 Codigo = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9-]{3,30}$")]
-Titulo = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+Titulo = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
+    AfterValidator(_sin_control),
+]
 Cantidad = Annotated[Decimal, Field(gt=0, le=10_000_000, decimal_places=4)]
 Estilo = Literal["firme", "balanceado", "flexible"]
 TipoEvento = Literal["compra", "renovacion"]

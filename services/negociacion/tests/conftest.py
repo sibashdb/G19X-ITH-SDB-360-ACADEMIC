@@ -202,10 +202,11 @@ class Buzon:
 
     enviados: list[EmailMessage] = field(default_factory=list)
     falla: bool = False
+    error: type[Exception] = OSError  # lo que lanza cuando `falla`
 
     async def enviar(self, mensaje: EmailMessage) -> None:
         if self.falla:
-            raise OSError("sin servidor de correo")
+            raise self.error("sin servidor de correo")
         self.enviados.append(mensaje)
 
 

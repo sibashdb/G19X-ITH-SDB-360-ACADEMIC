@@ -6,9 +6,8 @@ proceso se cae entre medio, el comprador ve el correo pendiente y usa «Reenviar
 """
 
 import logging
-import smtplib
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from comun.outbox import registrar_evento
@@ -32,7 +31,7 @@ class Invitacion:
     proveedor_nombre: str
     contacto: str
     destinatario: str
-    token: str
+    token: str = field(repr=False)  # nunca a un log, ni por un repr
 
 
 @dataclass(frozen=True)
@@ -40,7 +39,7 @@ class Envio:
     sesion_id: uuid.UUID
     proveedor_nombre: str
     destinatario: str
-    enlace: str
+    enlace: str = field(repr=False)  # lleva el token
     estado: str  # enviado o fallido
     error: str | None
 
@@ -120,20 +119,28 @@ async def enviar_invitaciones(
     envios: list[Envio] = []
     for invitacion in invitaciones:
         url = enlace(config.url_publica, invitacion.token)
-        mensaje = correo.invitacion(
-            remitente=config.smtp_remitente,
-            destinatario=invitacion.destinatario,
-            contacto=invitacion.contacto,
-            titulo=evento.titulo,
-            folio=evento.folio,
-            fecha_limite=evento.fecha_limite,
-            enlace=url,
-        )
+        # Las sesiones y sus tokens ya están confirmados: ningún fallo de un correo (armarlo o
+        # mandarlo) puede dejar sin registrar el resultado de los demás ni perder los enlaces.
         try:
-            await enviar(mensaje)
+            await enviar(
+                correo.invitacion(
+                    remitente=config.smtp_remitente,
+                    destinatario=invitacion.destinatario,
+                    contacto=invitacion.contacto,
+                    titulo=evento.titulo,
+                    folio=evento.folio,
+                    fecha_limite=evento.fecha_limite,
+                    enlace=url,
+                )
+            )
             estado, error = "enviado", None
-        except (smtplib.SMTPException, OSError):
-            log.warning("No se pudo enviar la invitación de la sesión %s", invitacion.sesion_id)
+        except Exception as exc:
+            # Solo la clase del error: el mensaje de SMTP repite direcciones, y el token nunca va.
+            log.warning(
+                "No se pudo enviar la invitación de la sesión %s (%s)",
+                invitacion.sesion_id,
+                type(exc).__name__,
+            )
             estado, error = "fallido", correo.NO_ENTREGADO
         envios.append(
             Envio(
@@ -261,7 +268,8 @@ async def preparar_reenvio(
     contacto = sesion.proveedor_nombre if proveedor is None else proveedor.contacto_nombre
     token, huella = nuevo_token()
     sesion.token_hash = huella
-    sesion.correo_estado = "pendiente"
+    # Pendiente de verdad: sin el error ni la hora del envío anterior, que ya no valen.
+    sesion.correo_estado, sesion.correo_error, sesion.correo_en = "pendiente", None, None
     sesion.actualizado_en = momento
     return evento, Invitacion(
         sesion.id, sesion.proveedor_nombre, contacto, sesion.destinatario, token

@@ -32,6 +32,16 @@ async def test_edita_el_borrador_y_sube_la_version(
     assert cuerpo["version"] == 2
 
 
+async def test_el_titulo_editado_no_admite_saltos_de_linea(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], nueva_compra: Any
+) -> None:
+    evento = await nueva_compra()
+    respuesta = await _editar(cliente, comprador, evento, version=1, titulo="CRM\n2027")
+    assert respuesta.status_code == 422
+    assert respuesta.json()["errores"][0]["campo"] == "body.titulo"
+    assert "saltos de línea" in respuesta.json()["errores"][0]["mensaje"]
+
+
 async def test_una_version_vieja_da_409(
     cliente: httpx.AsyncClient, comprador: dict[str, str], nueva_compra: Any
 ) -> None:
