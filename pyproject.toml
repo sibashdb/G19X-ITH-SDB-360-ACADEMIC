@@ -9,6 +9,7 @@ dev = [
     "comun",
     "administracion",
     "inteligencia",
+    "negociacion",
     "proveedores",
     "generador",
     "pytest>=8.3",
@@ -32,6 +33,7 @@ members = ["libs/*", "services/*", "tools/*"]
 comun = { workspace = true }
 administracion = { workspace = true }
 inteligencia = { workspace = true }
+negociacion = { workspace = true }
 proveedores = { workspace = true }
 generador = { workspace = true }
 
@@ -49,7 +51,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["comun", "proveedores", "generador", "administracion", "inteligencia"]
+source = ["comun", "proveedores", "generador", "administracion", "inteligencia", "negociacion"]
 
 [tool.coverage.report]
 fail_under = 80
@@ -72,7 +74,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["comun", "proveedores", "generador", "administracion", "inteligencia"]
+packages = ["comun", "proveedores", "generador", "administracion", "inteligencia", "negociacion"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]

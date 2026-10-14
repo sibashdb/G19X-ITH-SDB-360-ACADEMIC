@@ -12,6 +12,7 @@ members = [
     "comun",
     "generador",
     "inteligencia",
+    "negociacion",
     "plataforma-negociacion",
     "proveedores",
 ]
@@ -1217,6 +1218,35 @@ wheels = [
 ]
 
 [[package]]
+name = "negociacion"
+version = "0.1.0"
+source = { editable = "services/negociacion" }
+dependencies = [
+    { name = "aio-pika" },
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "comun" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "tzdata" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aio-pika", specifier = ">=9.5" },
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "comun", editable = "libs/comun" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
+    { name = "tzdata", specifier = ">=2024.1" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+]
+
+[[package]]
 name = "numpy"
 version = "2.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1341,6 +1371,7 @@ dev = [
     { name = "hypothesis" },
     { name = "inteligencia" },
     { name = "mypy" },
+    { name = "negociacion" },
     { name = "proveedores" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1361,6 +1392,7 @@ dev = [
     { name = "hypothesis", specifier = ">=6.120" },
     { name = "inteligencia", editable = "services/inteligencia" },
     { name = "mypy", specifier = ">=1.13" },
+    { name = "negociacion", editable = "services/negociacion" },
     { name = "proveedores", editable = "services/proveedores" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.25" },
