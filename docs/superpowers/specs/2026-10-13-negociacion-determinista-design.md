@@ -179,7 +179,7 @@ Es un módulo puro, sin base de datos ni red:
 
 - `t` es el número de esta oferta del proveedor (1, 2, …). Si el comprador siguió negociando a mano más allá de `T`, el motor usa `t = T`.
 - `U_obj(t) = 1 − (t / T)^(1/β)`.
-- Curva propia de cada palanca: `vᵢ(t) = Iᵢ + (1 − U_obj(t)) · (Lᵢ − Iᵢ)`. Solo llega al límite en la ronda `T`.
+- Curva propia de cada palanca: `vᵢ(t) = Iᵢ + (1 − U_obj(t)) · (Lᵢ − Iᵢ)`, redondeada hacia el ideal. Por ese redondeo solo llega al límite en la ronda `T`, aun en términos con pocos pasos (meses, días).
 
 ### 6.3 Decisión, en orden
 
@@ -194,14 +194,16 @@ Es un módulo puro, sin base de datos ni red:
 1. **Tres puntos del camino:**
    - `s′`: la oferta con cada valor llevado a su límite si lo cruzaba;
    - `s̃`: igual a `s′`, pero en las palancas (y líneas) donde la oferta cruzaba el límite usa la curva propia `vᵢ(t)`. Así el agente **no contesta con el límite** salvo en la ronda `T`;
-   - `I`: el ideal.
+   - `I′`: el ideal, salvo en los términos donde la oferta ya era mejor que el ideal, que se quedan como los ofreció el proveedor. Así el agente nunca pide algo peor para el comprador que lo que el proveedor ya ofreció (por ejemplo, pagar más de lo que pidió).
 2. **Objetivo:** `objetivo = min(U_obj(t), U(última contraoferta de la sesión))`. Sin contraoferta previa, es `U_obj(t)`. El mínimo es lo que impide retroceder, aunque la contraoferta anterior la haya hecho el comprador.
-3. **Búsqueda:** por bisección sobre el camino `s′ → s̃ → I`, que es lineal por tramos y donde `U` no baja, hasta encontrar el punto con `U = objetivo`. Si `U(s′) ≥ objetivo`, la contraoferta es `s′`.
+3. **Búsqueda:** por bisección sobre el camino `s′ → s̃ → I′`, que es lineal por tramos y donde `U` no baja, hasta encontrar el punto con `U = objetivo`. Si `U(s′) ≥ objetivo`:
+   - con una oferta válida, la contraoferta sería la propia oferta (y el paso 3 de §6.3 la acepta);
+   - con una oferta inválida, la contraoferta es `s̃`. No es `s′`, porque `s′` contestaría con el límite exacto antes de la ronda `T`.
 4. **Redondeo:**
    - precios y cuota a centavos; meses y días a enteros; SLA a 0.01 puntos; tope a 0.1 puntos;
    - primero al valor más cercano;
    - si eso deja la utilidad por encima de la última contraoferta, se redondea hacia la oferta del proveedor;
-   - los extremos de cada tramo ya están en su precisión (las ofertas se validan así y `vᵢ(t)` se redondea al más cercano), así que el redondeo nunca cruza un límite.
+   - los extremos de cada tramo ya están en su precisión (las ofertas se validan así y `vᵢ(t)` se redondea hacia el ideal), así que el redondeo nunca cruza un límite.
 
 **Ejemplo del PRD §3.3** (una línea, ideal 30, límite 35, `T = 6`, β = 0.6, ofertas del proveedor por encima del límite): el cálculo de la contraoferta da 30.80, 32.54, 33.69 y 35.00 en las rondas 2, 4, 5 y 6. En la ronda 6 el motor no la envía: con una oferta inválida cierra sin acuerdo (§6.3). Es una prueba de tabla.
 
@@ -230,7 +232,8 @@ Cada decisión del motor se guarda en la bitácora (acción `motor.decision`) co
 
 - Nunca acepta una oferta inválida.
 - Nunca contraoferta fuera de los límites.
-- La utilidad de las contraofertas no sube de una ronda a otra, salvo cuando `U(s′)` ya supera el objetivo: entonces la contraoferta es `s′`.
+- La utilidad de las contraofertas no sube de una ronda a otra, salvo cuando la oferta es inválida y `U(s′)` ya alcanza el objetivo: entonces la contraoferta es `s̃`.
+- Ningún término de una contraoferta es más favorable al proveedor que lo que él mismo ofreció.
 - La aceptación coincide con la regla del §6.3.
 - Todo valor de una contraoferta está en su precisión.
 - En la ronda `T`, nunca contraoferta.
