@@ -154,4 +154,15 @@ export const marco: RouteObject = {
   children: [{ ErrorBoundary: ErrorDePagina, children: paginas }],
 }
 
-export const router = createBrowserRouter([marco])
+/**
+ * El portal del proveedor va fuera de `marco`: el Layout pediría iniciar sesión con Keycloak, y el
+ * proveedor entra con el token de su enlace (spec §10.2).
+ */
+export const portal: RouteObject = {
+  path: "/portal",
+  lazy: async () => ({ Component: (await import("@/paginas/Portal")).Portal }),
+  HydrateFallback: CargaInicial,
+  ErrorBoundary: ErrorDePagina,
+}
+
+export const router = createBrowserRouter([portal, marco])

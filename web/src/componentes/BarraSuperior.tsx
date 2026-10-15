@@ -152,7 +152,7 @@ function MenuAlertas() {
   )
 }
 
-function SelectorTema() {
+export function SelectorTema() {
   const { tema, cambiarTema } = useTema()
   const Icono = ICONOS_TEMA[tema]
   return (
