@@ -149,6 +149,9 @@ export function EditorBorrador({
     onSuccess: async () => {
       alAvisar("Se guardaron los cambios.")
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
+      // La versión nueva vuelve a montar el editor y el botón enfocado desaparece: el foco pasa
+      // al contenido y no a <body>. Solo tras guardar, para no mover el foco mientras se edita.
+      document.getElementById("contenido")?.focus()
     },
   })
   const publicar = useMutation({

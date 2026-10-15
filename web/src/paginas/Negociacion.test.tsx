@@ -172,11 +172,17 @@ describe("Negociacion en borrador", () => {
   })
 
   it("guarda los cambios con la versión y avisa", async () => {
+    // Al guardar, el servidor sube la versión: el editor se vuelve a montar con lo guardado.
+    let guardado = false
     const api = simularRutas({
-      [`GET ${RUTA}`]: () => respuestaJson(BORRADOR),
-      [`PATCH ${RUTA}`]: () => respuestaJson(BORRADOR),
+      [`GET ${RUTA}`]: () =>
+        respuestaJson(guardado ? { ...BORRADOR, version: 4 } : BORRADOR),
+      [`PATCH ${RUTA}`]: () => {
+        guardado = true
+        return respuestaJson({ ...BORRADOR, version: 4 })
+      },
     })
-    abrir()
+    abrir(<div id="contenido" tabIndex={-1} />)
     const ideal = await screen.findByLabelText("Ideal (Correo en la nube)")
     await userEvent.clear(ideal)
     await userEvent.type(ideal, "85.51")
@@ -202,6 +208,10 @@ describe("Negociacion en borrador", () => {
       ],
       palancas: [{ clave: "precio", peso: 100 }],
     })
+    // El editor se vuelve a montar y el botón enfocado desaparece: el foco pasa al contenido.
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
   })
 
   it("un 409 de versión ofrece recargar y descarta lo local", async () => {
