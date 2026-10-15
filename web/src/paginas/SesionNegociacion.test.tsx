@@ -1,5 +1,12 @@
-import { cleanup, screen, within } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { SesionNegociacion } from "@/paginas/SesionNegociacion"
 import { sesionDePrueba } from "@/pruebas/sesion"
@@ -7,6 +14,7 @@ import {
   esperarSinViolaciones,
   llamadaA,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularRutas,
 } from "@/pruebas/utilidades"
@@ -121,11 +129,18 @@ const SESION = {
   ],
 }
 
-function abrir() {
-  return renderizarPagina(<SesionNegociacion />, {
-    ruta: `/negociaciones/e1/sesiones/${SID}`,
-    patron: "/negociaciones/:id/sesiones/:sesion",
-  })
+/** `junto` se dibuja al lado de la página, como el contenedor enfocable del Layout. */
+function abrir(junto?: ReactNode) {
+  return renderizarPagina(
+    <>
+      <SesionNegociacion />
+      {junto}
+    </>,
+    {
+      ruta: `/negociaciones/e1/sesiones/${SID}`,
+      patron: "/negociaciones/:id/sesiones/:sesion",
+    }
+  )
 }
 
 beforeEach(() => {
@@ -309,5 +324,188 @@ describe("SesionNegociacion", () => {
     ).not.toBeInTheDocument()
     await vi.advanceTimersByTimeAsync(3100)
     expect(api.mock.calls.filter(([url]) => url === RUTA)).toHaveLength(1)
+  })
+})
+
+const ESCALADA = { ...SESION, estado: "escalada", modo: "comprador" }
+
+async function escribirContraoferta(precio: string) {
+  await userEvent.type(
+    await screen.findByLabelText("Mensaje para el proveedor"),
+    "Le proponemos esto."
+  )
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Incluir una contraoferta" })
+  )
+  const campo = screen.getByLabelText("Precio de Correo en la nube")
+  await userEvent.clear(campo)
+  await userEvent.type(campo, precio)
+}
+
+describe("respuesta manual", () => {
+  it("responde a mano con una contraoferta y manda Idempotency-Key", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () => respuestaJson(ESCALADA),
+    })
+    abrir()
+    await userEvent.type(
+      await screen.findByLabelText("Mensaje para el proveedor"),
+      "Podemos llegar a 90."
+    )
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Incluir una contraoferta" })
+    )
+    // Empieza con la última propuesta del agente.
+    expect(screen.getByLabelText("Precio de Correo en la nube")).toHaveValue(89)
+    expect(screen.getByLabelText("Plazo de pago (días)")).toHaveValue(55)
+    const precio = screen.getByLabelText("Precio de Correo en la nube")
+    // userEvent descarta los ceros finales de un decimal en un campo numérico de jsdom.
+    fireEvent.change(precio, { target: { value: "90.00" } })
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar respuesta" })
+    )
+    expect(
+      await screen.findByText("Se envió su respuesta.")
+    ).toBeInTheDocument()
+    const { cuerpo, cabeceras } = llamadaA(api, `${RUTA}/respuestas`, "POST")
+    expect(cuerpo).toEqual({
+      tipo: "mensaje",
+      texto: "Podemos llegar a 90.",
+      contraoferta: {
+        precios: { l1: "90.00" },
+        palancas: { plazo_pago_dias: "55" },
+      },
+      confirmar_fuera_de_limites: false,
+    })
+    expect(cabeceras.get("Idempotency-Key")).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it("una contraoferta fuera de límites pide confirmar y la reenvía marcada", async () => {
+    let intentos = 0
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () => {
+        intentos += 1
+        return intentos === 1
+          ? respuestaJson(
+              {
+                title: "Solicitud inválida",
+                detail: "La contraoferta sale de sus límites.",
+                codigo: "fuera_de_limites",
+              },
+              422
+            )
+          : respuestaJson(ESCALADA)
+      },
+    })
+    abrir()
+    await escribirContraoferta("120.00")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar respuesta" })
+    )
+    const aviso = await screen.findByRole("alertdialog", {
+      name: "Esto sale de sus límites",
+    })
+    expect(aviso).toHaveTextContent("el aprobador lo verá")
+    const primera = llamadaA(api, `${RUTA}/respuestas`, "POST")
+    await userEvent.click(
+      within(aviso).getByRole("button", { name: "Enviar de todos modos" })
+    )
+    expect(
+      await screen.findByText("Se envió su respuesta.")
+    ).toBeInTheDocument()
+    const segunda = llamadaA(api, `${RUTA}/respuestas`, "POST")
+    expect(segunda.cuerpo).toMatchObject({ confirmar_fuera_de_limites: true })
+    expect(segunda.cabeceras.get("Idempotency-Key")).not.toBe(
+      primera.cabeceras.get("Idempotency-Key")
+    )
+  })
+
+  it("aceptar la última oferta pide confirmación y el foco pasa al contenido", async () => {
+    // La petición tarda: el diálogo devuelve el foco a su botón antes de que termine.
+    const respuesta = respuestaDiferida()
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () => respuesta.promesa,
+    })
+    // El contenedor enfocable del Layout: al terminar la sesión desaparece el botón con el foco.
+    abrir(<div id="contenido" tabIndex={-1} />)
+    const aceptar = await screen.findByRole("button", {
+      name: "Aceptar la última oferta",
+    })
+    await userEvent.click(aceptar)
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Aceptar oferta",
+      })
+    )
+    await waitFor(() => expect(aceptar).toHaveFocus())
+    respuesta.resolver(respuestaJson(ESCALADA))
+    expect(
+      await screen.findByText(
+        "Aceptó la última oferta: queda como acuerdo tentativo."
+      )
+    ).toBeInTheDocument()
+    expect(llamadaA(api, `${RUTA}/respuestas`, "POST").cuerpo).toEqual({
+      tipo: "aceptar",
+      texto: "",
+      confirmar_fuera_de_limites: false,
+    })
+    // El foco se mueve después de recargar la sesión, no antes.
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
+  })
+
+  it("muestra junto al campo el error del servicio", async () => {
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () =>
+        respuestaJson(
+          {
+            title: "Solicitud inválida",
+            detail: "Revise los campos indicados.",
+            codigo: "oferta_invalida",
+            errores: [
+              {
+                campo: "contraoferta.precios.l1",
+                mensaje: "Use a lo más 2 decimales.",
+              },
+            ],
+          },
+          422
+        ),
+    })
+    abrir()
+    // Un valor válido para el navegador: el error lo decide la API simulada.
+    await escribirContraoferta("90.10")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar respuesta" })
+    )
+    expect(
+      await screen.findByText("Use a lo más 2 decimales.")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("Precio de Correo en la nube")
+    ).toHaveAttribute("aria-invalid", "true")
+  })
+
+  it("sin el control no muestra el formulario", async () => {
+    simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(SESION) })
+    abrir()
+    await screen.findByText("Es nuestra mejor oferta.")
+    expect(
+      screen.queryByRole("heading", { name: "Responder al proveedor" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("el formulario no tiene violaciones de accesibilidad", async () => {
+    simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(ESCALADA) })
+    const { container } = abrir()
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Incluir una contraoferta" })
+    )
+    await esperarSinViolaciones(container)
   })
 })

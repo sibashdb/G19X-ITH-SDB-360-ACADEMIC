@@ -10,6 +10,7 @@ import { Termino } from "@/componentes/Termino"
 import { ContenidoVivo } from "@/componentes/negociacion/ContenidoVivo"
 import { Conversacion } from "@/componentes/negociacion/Conversacion"
 import { EtiquetaEstadoSesion } from "@/componentes/negociacion/Etiquetas"
+import { RespuestaManual } from "@/componentes/negociacion/RespuestaManual"
 import { TablaOfertas } from "@/componentes/negociacion/TablaOfertas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -114,6 +115,9 @@ function Supervision({ datos }: { datos: SesionDetalle }) {
         </p>
       )}
       {esComprador && !esFinal(datos.estado) && <Control datos={datos} />}
+      {esComprador && datos.modo === "comprador" && !esFinal(datos.estado) && (
+        <RespuestaManual datos={datos} />
+      )}
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <Seccion titulo="Conversación">
           <Conversacion datos={datos} />
