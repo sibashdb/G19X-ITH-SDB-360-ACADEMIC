@@ -22,10 +22,6 @@ FINALES = {"acuerdo_tentativo", "sin_acuerdo", "expirada"}
 Encabezados = Callable[[], dict[str, str]]
 
 
-class NoPublicable(RuntimeError):
-    """Los valores sugeridos dejan el borrador con errores: un comprador tendría que corregirlos."""
-
-
 @dataclass(frozen=True)
 class Contexto:
     datos: DatosSinteticos
@@ -114,7 +110,7 @@ async def _crear(
             )
         )
     if evento["errores"]:
-        raise NoPublicable(evento["errores"][0]["mensaje"])
+        raise RuntimeError(f"La negociación simulada no se puede publicar: {evento['errores']}")
     return evento
 
 
@@ -195,7 +191,7 @@ async def _negociar(
     comprador: Encabezados,
     contexto: Contexto,
     escenario: Escenario,
-    rng: random.Random,
+    numero: int,
 ) -> list[Resultado]:
     borrador = await _crear(cliente, comprador, contexto, escenario)
     publicado = _ok(await cliente.post(f"/eventos/{borrador['id']}/publicar", headers=comprador()))
@@ -207,7 +203,10 @@ async def _negociar(
     portales: dict[str, dict[str, str]] = {}
     for enlace in publicado["enlaces"]:
         sesion_id = str(enlace["sesion_id"])
-        bots[sesion_id] = _bot(verdad[rfc_de[proveedor_de[sesion_id]]], evento, contexto, rng)
+        rfc = rfc_de[proveedor_de[sesion_id]]
+        # Un generador por bot: el orden de los ids de sesión no cambia lo que hace cada uno.
+        rng = random.Random(f"{contexto.semilla}-{numero}-{rfc}")  # noqa: S311 - reproducible
+        bots[sesion_id] = _bot(verdad[rfc], evento, contexto, rng)
         portales[sesion_id] = {"Authorization": f"Invitacion {enlace['enlace'].split('#t=')[1]}"}
     pendientes = set(portales)
     for _ in range(2 * int(evento["rondas_max"]) + 2):  # tope por si una sesión no termina
@@ -244,17 +243,8 @@ async def correr(
     comprador: Encabezados,
     contexto: Contexto,
     escenarios: list[Escenario],
-    omitidos: dict[str, str] | None = None,
 ) -> list[Resultado]:
-    """Cada escenario, en orden. Con `omitidos`, los que no se pueden publicar se saltan y se
-    anotan ahí (título → motivo); sin él, el primero que no se pueda publicar lanza NoPublicable."""
     resultados: list[Resultado] = []
     for numero, escenario in enumerate(escenarios):
-        rng = random.Random(contexto.semilla + numero)  # noqa: S311 - simulación reproducible
-        try:
-            resultados += await _negociar(cliente, comprador, contexto, escenario, rng)
-        except NoPublicable as motivo:
-            if omitidos is None:
-                raise
-            omitidos[escenario.titulo] = str(motivo)
+        resultados += await _negociar(cliente, comprador, contexto, escenario, numero)
     return resultados

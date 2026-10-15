@@ -28,13 +28,36 @@ BANDA = Banda(D("28.1234"), D("31.5049"), D("36.0000"))
         ("renovacion", None, D("40.0000"), D("10.00"), (D("38.00"), D("44.00"))),
         # El techo se redondea hacia abajo para que la sugerencia nunca lo supere.
         ("renovacion", None, D("33.3333"), D("5.00"), (D("31.67"), D("34.99"))),
-        # Banda casi plana: el ideal y el límite no se cruzan al redondear (quedan iguales).
+        # Banda casi plana: al redondear el ideal igualaría al límite; queda un centavo abajo.
         (
             "renovacion",
             Banda(D("31.5060"), D("31.5090"), D("36")),
             D("40.0000"),
             D("10.00"),
-            (D("31.51"), D("31.51")),
+            (D("31.50"), D("31.51")),
+        ),
+        # Precios de pocos centavos: el redondeo los iguala y el borrador no se podría publicar.
+        (
+            "renovacion",
+            Banda(D("0.0520"), D("0.0540"), D("0.0631")),
+            D("0.0538"),
+            None,
+            (D("0.04"), D("0.05")),
+        ),
+        (
+            "compra",
+            Banda(D("0.0480"), D("0.0520"), D("0.0631")),
+            None,
+            None,
+            (D("0.04"), D("0.05")),
+        ),
+        # Con un límite de un centavo no hay dónde bajar: se queda igual y la publicación lo avisa.
+        (
+            "compra",
+            Banda(D("0.0100"), D("0.0120"), D("0.0200")),
+            None,
+            None,
+            (D("0.01"), D("0.01")),
         ),
     ],
 )

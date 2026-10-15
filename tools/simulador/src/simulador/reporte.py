@@ -1,7 +1,7 @@
 """Métricas de la simulación y su reporte en Markdown (docs/qa/simulacion-negociacion.md)."""
 
 import statistics
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from simulador.escenarios import Escenario
@@ -44,23 +44,9 @@ def _fila(nombre: str, m: Metricas) -> str:
     )
 
 
-def reporte(
-    resultados: Sequence[Resultado],
-    escenarios: Sequence[Escenario],
-    semilla: int,
-    omitidos: Mapping[str, str] | None = None,
-) -> str:
-    """`escenarios` son los que se simularon; `omitidos`, los que no se pudieron publicar."""
+def reporte(resultados: Sequence[Resultado], escenarios: Sequence[Escenario], semilla: int) -> str:
     total = metricas(resultados)
     compras = sum(e.tipo == "compra" for e in escenarios)
-    sin_simular = (
-        [
-            f"- **Escenarios sin simular:** {len(omitidos)}, porque sus valores sugeridos no se "
-            "pueden publicar tal cual: " + "; ".join(f"{t} ({m})" for t, m in omitidos.items()),
-        ]
-        if omitidos
-        else []
-    )
     lineas = [
         "# Simulación de negociación con bots (N1)",
         "",
@@ -72,7 +58,6 @@ def reporte(
         "services/negociacion/tests/test_simulacion.py`.",
         "- **Acuerdo posible:** la reserva del bot cabe en los límites del comprador. Sin ese "
         "traslape no hay acuerdo y lo correcto es cerrar sin acuerdo.",
-        *sin_simular,
         "",
         "| Métrica | Meta (PRD §1.6) | Resultado |",
         "|---|---|---|",
@@ -98,4 +83,9 @@ def reporte(
     ]
     for tipo in ("compra", "renovacion"):
         lineas.append(_fila(tipo, metricas([r for r in resultados if r.tipo == tipo])))
+    lineas += [
+        "",
+        "> La sección `## Lectura` que sigue se escribe a mano: al volver a generar este archivo "
+        "se borra.",
+    ]
     return "\n".join(lineas) + "\n"

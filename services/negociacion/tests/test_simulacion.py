@@ -112,16 +112,14 @@ async def test_los_bots_nunca_cierran_fuera_de_limites(
 
     lista = escenarios(datos, HOY.date())
     contexto = Contexto(datos, referencias, _id, HOY + timedelta(days=7))
-    omitidos: dict[str, str] = {}  # escenarios cuyos valores sugeridos no se pueden publicar
     transporte = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as cliente:
-        resultados = await correr(cliente, comprador, contexto, lista, omitidos)
-    simulados = [e for e in lista if e.titulo not in omitidos]
+        resultados = await correr(cliente, comprador, contexto, lista)
     total = metricas(resultados)
     assert total.sesiones > 50
     assert total.fuera_de_limites == 0  # la meta dura del PRD §1.6
     ruta = os.environ.get("SIMULACION_REPORTE")
     if ruta:
         Path(ruta).write_text(  # noqa: ASYNC240 - un archivo al final de la prueba
-            reporte(resultados, simulados, SEMILLA, omitidos), encoding="utf-8"
+            reporte(resultados, lista, SEMILLA), encoding="utf-8", newline="\n"
         )

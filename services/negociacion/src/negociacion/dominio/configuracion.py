@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 
-from negociacion.dominio.terminos import problema_de_valor, redondear
+from negociacion.dominio.terminos import CENTAVO, problema_de_valor, redondear
 
 DESCUENTO_RENOVACION = Decimal("0.95")  # en renovación, el ideal pide al menos 5 % menos que hoy
 VENTANA_FECHA_LIMITE = (timedelta(hours=1), timedelta(days=60))
@@ -72,10 +72,15 @@ def sugerir_precio(
         # El límite no pasa del techo a centavos (hacia abajo) y el ideal no pasa del límite:
         # así la sugerencia nunca invierte la dirección del precio.
         limite = min(redondear("precio", limite), techo_redondeado(vigente, tope_pct))
-        return min(redondear("precio", ideal), limite), limite
-    if banda is None:
+        ideal = min(redondear("precio", ideal), limite)
+    elif banda is None:
         return None, None
-    return redondear("precio", banda.p25), redondear("precio", banda.p50)
+    else:
+        ideal, limite = redondear("precio", banda.p25), redondear("precio", banda.p50)
+    # Con precios de pocos centavos el redondeo los iguala y el borrador no se podría publicar.
+    if ideal == limite and limite >= 2 * CENTAVO:
+        ideal = limite - CENTAVO
+    return ideal, limite
 
 
 def _rango(
