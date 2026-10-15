@@ -247,7 +247,7 @@ describe("explicarDecision", () => {
       "Era la última ronda (6 de 6) y la oferta cruzaba al menos uno de sus límites, así que el agente cerró sin acuerdo."
     )
     expect(explicarDecision({ ...BASE, accion: "pedir_aclaracion" })).toBe(
-      "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
+      "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, el límite), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
     )
   })
 })
@@ -348,10 +348,15 @@ describe("ContenidoVivo", () => {
     renderizarPagina(<Vista />)
     expect(await screen.findByText("Hola")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Actualizar" }))
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "No se pudo actualizar; se volverá a intentar en unos segundos."
-    )
+    expect(
+      await screen.findByText(
+        "No se pudo actualizar; se volverá a intentar en unos segundos."
+      )
+    ).toHaveAttribute("role", "status")
     expect(screen.getByText("Hola")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Reintentar" })
+    ).not.toBeInTheDocument()
   })
 
   it("si nunca cargó, muestra el error con Reintentar", async () => {
@@ -819,7 +824,7 @@ export function explicarDecision(d: Decision): string {
   const vale = `La oferta del proveedor vale ${formatoUtilidad(d.utilidad_oferta)} para usted`
   switch (d.accion) {
     case "pedir_aclaracion":
-      return "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
+      return "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, el límite), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
     case "aceptar":
       return `${vale}, respeta sus límites y alcanza lo que el agente pediría en esta ronda (${formatoUtilidad(d.utilidad_contraoferta ?? 0)}), así que la aceptó como acuerdo tentativo.`
     case "cerrar_sin_acuerdo":
@@ -910,7 +915,10 @@ export function ContenidoVivo<T>({
   }
   return (
     <>
-      <p role="status" className="text-sm text-warning empty:hidden">
+      <p
+        role="status"
+        className={consulta.isRefetchError ? "text-sm text-warning" : "sr-only"}
+      >
         {consulta.isRefetchError
           ? "No se pudo actualizar; se volverá a intentar en unos segundos."
           : ""}
@@ -4235,7 +4243,10 @@ export function Negociacion() {
           </>
         )}
       </ContenidoConsulta>
-      <p role="status" className="text-sm text-success empty:hidden">
+      <p
+        role="status"
+        className={aviso ? "text-sm text-success" : "sr-only"}
+      >
         {aviso}
       </p>
       <DialogoEnlaces enlaces={enlaces} alCerrar={() => setEnlaces(null)} />
@@ -4549,7 +4560,10 @@ export function TablaSesiones({
         </>
       }
     >
-      <p role="status" className="mb-2 text-sm text-destructive empty:hidden">
+      <p
+        role="status"
+        className={aviso ? "mb-2 text-sm text-destructive" : "sr-only"}
+      >
         {aviso}
       </p>
       {evento.sesiones.length === 0 ? (
@@ -5989,7 +6003,10 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
             </Button>
           </ConfirmarAccion>
         </div>
-        <p role="status" className="text-sm text-success empty:hidden">
+        <p
+        role="status"
+        className={aviso ? "text-sm text-success" : "sr-only"}
+      >
           {aviso}
         </p>
         {responder.isError &&
@@ -6684,7 +6701,10 @@ function SesionPortal({ token }: { token: string }) {
   const vista = consulta.data
   return (
     <>
-      <p role="status" className="text-sm text-warning empty:hidden">
+      <p
+        role="status"
+        className={consulta.isRefetchError ? "text-sm text-warning" : "sr-only"}
+      >
         {consulta.isRefetchError
           ? "No se pudo actualizar; se volverá a intentar en unos segundos."
           : ""}
@@ -6973,7 +6993,7 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
               </ConfirmarAccion>
             )}
           </div>
-          <p role="status" className="text-sm empty:hidden">
+          <p role="status" className={aviso ? "text-sm" : "sr-only"}>
             {aviso}
           </p>
           {ofertar.isError && Object.keys(errores).length === 0 && (
@@ -7574,7 +7594,7 @@ export type TemaAyuda =
         titulo: "Lo que nunca hace",
         parrafos: [
           "No acepta nada fuera de sus límites, y nunca muestra al proveedor sus límites, sus pesos ni las ofertas de otros proveedores. Si otro proveedor ofreció algo mejor, solo dice que hay propuestas más competitivas.",
-          "Si un precio parece un error de captura (menos de la décima parte o más de 10 veces la referencia), le pide al proveedor confirmarlo antes de responder, y esa respuesta no cuenta como ronda.",
+          "Si un precio parece un error de captura (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, su límite), le pide al proveedor confirmarlo antes de responder, y esa respuesta no cuenta como ronda.",
         ],
       },
     ],
