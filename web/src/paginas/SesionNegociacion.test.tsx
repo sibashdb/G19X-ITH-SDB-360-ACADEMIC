@@ -258,6 +258,44 @@ describe("SesionNegociacion", () => {
     ).toBeInTheDocument()
   })
 
+  it("anuncia cada mensaje nuevo del proveedor aunque lleguen en el mismo minuto", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let lecturas = 0
+    const mensajeNuevo = (id: string, texto: string, fecha: string) => ({
+      id,
+      autor: "proveedor",
+      texto,
+      ronda: 2,
+      fecha,
+      oferta_id: null,
+      decision: null,
+    })
+    const m3 = mensajeNuevo("m3", "Bajamos a 100.", "2026-10-14T18:20:00Z")
+    const m4 = mensajeNuevo("m4", "Bajamos a 95.", "2026-10-14T18:20:30Z")
+    simularRutas({
+      [`GET ${RUTA}`]: () => {
+        lecturas += 1
+        const nuevos = lecturas === 1 ? [] : lecturas === 2 ? [m3] : [m3, m4]
+        return respuestaJson({
+          ...SESION,
+          mensajes: [...SESION.mensajes, ...nuevos],
+        })
+      },
+    })
+    abrir()
+    await screen.findByText("Es nuestra mejor oferta.")
+    await vi.advanceTimersByTimeAsync(3100)
+    await screen.findByText("Bajamos a 100.")
+    const anuncio = screen.getByText(/^Nuevo mensaje del proveedor, /)
+    expect(anuncio).toHaveAttribute("aria-atomic", "true")
+    const primero = anuncio.textContent
+    await vi.advanceTimersByTimeAsync(3100)
+    await screen.findByText("Bajamos a 95.")
+    expect(
+      screen.getByText(/^Nuevo mensaje del proveedor, /).textContent
+    ).not.toBe(primero)
+  })
+
   it("una sesión terminada no ofrece el control ni se vuelve a consultar", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const api = simularRutas({

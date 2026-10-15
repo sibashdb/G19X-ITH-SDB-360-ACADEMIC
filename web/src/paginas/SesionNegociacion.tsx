@@ -48,7 +48,8 @@ export function SesionNegociacion() {
   return (
     <div className="space-y-6">
       <ContenidoVivo consulta={consulta}>
-        {(datos) => <Supervision datos={datos} />}
+        {/* La clave reinicia «visto al abrir» si la caché trae los datos de otra sesión. */}
+        {(datos) => <Supervision key={datos.id} datos={datos} />}
       </ContenidoVivo>
     </div>
   )
@@ -61,9 +62,14 @@ function Supervision({ datos }: { datos: SesionDetalle }) {
     () => ultimoDelProveedor(datos.mensajes)?.id ?? null
   )
   const ultimo = ultimoDelProveedor(datos.mensajes)
+  // La fecha llega al minuto: sin el conteo, dos mensajes del mismo minuto darían el mismo texto
+  // y el segundo no se anunciaría.
+  const totalDelProveedor = datos.mensajes.filter(
+    (m) => m.autor === "proveedor"
+  ).length
   const anuncio =
     ultimo && ultimo.id !== vistoAlAbrir
-      ? `Nuevo mensaje del proveedor, ${formatoFechaHora(ultimo.fecha)}`
+      ? `Nuevo mensaje del proveedor, ${formatoFechaHora(ultimo.fecha)} (mensaje ${totalDelProveedor})`
       : ""
 
   return (
@@ -80,7 +86,7 @@ function Supervision({ datos }: { datos: SesionDetalle }) {
           </Button>
         }
       />
-      <p aria-live="polite" className="sr-only">
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
         {anuncio}
       </p>
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -137,11 +143,16 @@ function Control({ datos }: { datos: SesionDetalle }) {
         token,
         enviarJson("POST", { accion })
       ),
-    onSuccess: async (_respuesta, accion) => {
+    onSuccess: async (respuesta, accion) => {
       setAviso(
         accion === "tomar"
           ? "Ahora usted atiende esta sesión: el agente no responderá hasta que la devuelva."
           : "El agente vuelve a atender la sesión."
+      )
+      // La respuesta es la sesión completa: el botón cambia de texto sin esperar a la recarga.
+      cliente.setQueryData(
+        ["negociacion", `/sesiones/${encodeURIComponent(datos.id)}`],
+        respuesta
       )
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
