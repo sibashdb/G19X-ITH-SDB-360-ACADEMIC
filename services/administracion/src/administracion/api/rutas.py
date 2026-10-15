@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from administracion.api import esquemas
 from administracion.bitacora import (
+    MAX_NOMBRE,
     Actor,
     FiltroActividad,
     GrupoTipo,
@@ -197,7 +198,7 @@ async def _enviar_correo(
             tipo=tipo,
             destinatario=usuario.correo,
             usuario_id=usuario.id,
-            solicitado_por=actor.nombre,
+            solicitado_por=actor.nombre[:MAX_NOMBRE],
             estado="fallido" if error else "enviado",
             error=error,
         )

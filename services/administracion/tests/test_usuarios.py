@@ -133,6 +133,21 @@ async def test_alta_con_nombre_y_apellidos_de_100_caracteres_queda_en_la_bitacor
     assert {len(str(f["objeto_nombre"])) for f in await _bitacora(fabrica)} == {200}
 
 
+async def test_alta_de_un_admin_con_nombre_de_255_caracteres_queda_en_los_correos(
+    cliente: httpx.AsyncClient,
+    claves: ClavesPrueba,
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    # Keycloak admite nombres de usuario de 255 y la columna solicitado_por mide 200.
+    token = claves.token("admin", sub="admin-1", preferred_username="x" * 255)
+    respuesta = await cliente.post(
+        "/usuarios", json=NUEVO, headers={"Authorization": f"Bearer {token}"}
+    )
+    assert respuesta.status_code == 201, respuesta.text
+    async with fabrica() as sesion:
+        assert await sesion.scalar(text("SELECT solicitado_por FROM correo_enviado")) == "x" * 200
+
+
 async def test_alta_con_contrasena_temporal_no_la_guarda(
     cliente: httpx.AsyncClient,
     admin: dict[str, str],
