@@ -60,6 +60,13 @@ export const paginas: RouteObject[] = [
     }),
   },
   {
+    path: "negociaciones/:id/sesiones/:sesion",
+    lazy: async () => ({
+      Component: (await import("@/paginas/SesionNegociacion"))
+        .SesionNegociacion,
+    }),
+  },
+  {
     path: "importacion",
     lazy: async () => ({
       Component: (await import("@/paginas/Importacion")).Importacion,
