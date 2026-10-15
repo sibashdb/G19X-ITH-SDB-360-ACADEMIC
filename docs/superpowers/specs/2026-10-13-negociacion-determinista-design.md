@@ -143,6 +143,8 @@ Sigue el patrón de `administracion` e `inteligencia`: `negociacion_dueno` es el
 ### 5.3 Validación al publicar
 
 - Cada línea y cada palanca activa tiene ideal y límite, con `ideal ≠ límite`. La dirección se deduce de ellos: si el ideal es menor que el límite, menos es mejor.
+  - Para quien compra, el precio, la cuota de implementación y el tope de aumento siempre mejoran al bajar: la publicación rechaza un ideal mayor que el límite en esos tres términos.
+  - El resto de los términos (plazo, plazo de pago, SLA) conserva la dirección deducida.
 - Los pesos de las palancas activas son enteros positivos y suman 100.
 - **Rangos:**
   - precio > 0;
@@ -203,7 +205,8 @@ Es un módulo puro, sin base de datos ni red:
    - precios y cuota a centavos; meses y días a enteros; SLA a 0.01 puntos; tope a 0.1 puntos;
    - primero al valor más cercano;
    - si eso deja la utilidad por encima de la última contraoferta, se redondea hacia la oferta del proveedor;
-   - los extremos de cada tramo ya están en su precisión (las ofertas se validan así y `vᵢ(t)` se redondea hacia el ideal), así que el redondeo nunca cruza un límite.
+   - los extremos de cada tramo ya están en su precisión (las ofertas se validan así y `vᵢ(t)` se redondea hacia el ideal), así que el redondeo nunca cruza un límite;
+   - antes de la ronda `T`, si tras el redondeo un término que cruzaba su límite queda exactamente en él (la bisección cayó casi en `s′`), se mueve un paso de precisión hacia el ideal: el límite exacto solo se revela en la ronda `T`.
 
 **Ejemplo del PRD §3.3** (una línea, ideal 30, límite 35, `T = 6`, β = 0.6, ofertas del proveedor por encima del límite): el cálculo de la contraoferta da 30.80, 32.54, 33.69 y 35.00 en las rondas 2, 4, 5 y 6. En la ronda 6 el motor no la envía: con una oferta inválida cierra sin acuerdo (§6.3). Es una prueba de tabla.
 
@@ -232,7 +235,8 @@ Cada decisión del motor se guarda en la bitácora (acción `motor.decision`) co
 
 - Nunca acepta una oferta inválida.
 - Nunca contraoferta fuera de los límites.
-- La utilidad de las contraofertas no sube de una ronda a otra, salvo cuando la oferta es inválida y `U(s′)` ya alcanza el objetivo: entonces la contraoferta es `s̃`.
+- La utilidad de las contraofertas no sube de una ronda a otra, salvo cuando la oferta es inválida y `U(s′)` ya alcanza el objetivo: entonces la contraoferta es `s̃`; o, a lo sumo un paso de precisión, cuando un término que cruzaba su límite caería en él.
+- Antes de la ronda `T`, ningún término que cruzaba su límite se contesta con ese límite exacto.
 - Ningún término de una contraoferta es más favorable al proveedor que lo que él mismo ofreció.
 - La aceptación coincide con la regla del §6.3.
 - Todo valor de una contraoferta está en su precisión.
@@ -499,6 +503,6 @@ Cada plan se ejecuta con subagentes, con revisión por tarea, revisión final y 
   - eventos y colas (§2.2);
   - entidades de `negociacion` (§4.1);
   - matriz de permisos (comprador opera; aprobador y admin consultan);
-  - nota en §3.3 sobre el camino `s′ → s̃ → I`, la curva propia por palanca y el redondeo, que precisan la contraoferta.
+  - nota en §3.3 sobre el camino `s′ → s̃ → I′`, la curva propia por palanca y el redondeo, que precisan la contraoferta.
 - **README:** el servicio y su puerto, las variables nuevas, el portal, el llenado de las copias con el reproceso y cómo correr la simulación.
 - **`docs/qa/`:** `simulacion-negociacion.md` (N1a) y `revision-negociacion.md` (N1b).

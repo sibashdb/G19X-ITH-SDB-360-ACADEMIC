@@ -215,6 +215,7 @@ services:
       PROVEEDORES_URL: http://proveedores:8000
       SMTP_HOST: mailpit
       SMTP_PUERTO: "1025"
+      SMTP_REMITENTE: compras@plataforma.example
       URL_PUBLICA: http://localhost:8080
     depends_on:
       postgres:

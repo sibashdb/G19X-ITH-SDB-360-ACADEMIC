@@ -256,10 +256,10 @@ Una oferta que viola cualquier límite duro es **inválida** sin importar su uti
 
 **Contraoferta:** se interpola entre la última oferta del proveedor `s` y el ideal del comprador `I`: `o(α) = s + α·(I − s)`. Se busca por bisección el α con `U(o(α)) = U_obj(t)` y luego se ajusta a límites duros y a unidades válidas (centavos, meses enteros). Así la contraoferta queda lo más cerca posible de lo que pidió el proveedor.
 
-> **Precisión de N1** (`docs/superpowers/specs/2026-10-13-negociacion-determinista-design.md`, §6.4): el camino de la contraoferta va de la oferta acotada a los límites (`s′`), a la oferta con la curva propia del agente en los términos que cruzaban un límite (`s̃`; así no contesta con el límite antes de la ronda `T`), y de ahí a `I′`: el ideal, salvo en los términos donde la oferta ya era mejor que el ideal, que se quedan con el valor ofrecido. La curva se redondea hacia el ideal; el resultado, al valor más cercano, salvo que eso suba la utilidad sobre la contraoferta anterior. La regla completa está en ese §6.4.
+> **Precisión de N1** (`docs/superpowers/specs/2026-10-13-negociacion-determinista-design.md`, §6.4): el camino de la contraoferta va de la oferta acotada a los límites (`s′`), a la oferta con la curva propia del agente en los términos que cruzaban un límite (`s̃`; así no contesta con el límite antes de la ronda `T`), y de ahí a `I′`: el ideal, salvo en los términos donde la oferta ya era mejor que el ideal, que se quedan con el valor ofrecido. La curva se redondea hacia el ideal; el resultado, al valor más cercano, salvo que eso suba la utilidad sobre la contraoferta anterior, en cuyo caso se redondea hacia la oferta del proveedor. La regla completa está en ese §6.4.
 
 **Invariantes probadas por tests:**
-- El agente nunca retrocede en sus concesiones: la utilidad de sus contraofertas no aumenta de una ronda a otra.
+- El agente nunca retrocede en sus concesiones: la utilidad de sus contraofertas no aumenta de una ronda a otra, con las dos excepciones acotadas de N1 (spec N1, §6.7): la contraoferta `s̃` de una oferta inválida cuyo `s′` ya alcanza el objetivo y, a lo sumo, un paso de precisión cuando un término que cruzaba su límite caería en él.
 - Nunca propone ni acepta nada fuera de los límites.
 
 **Regla de aceptación:** se acepta, como *acuerdo tentativo*, si `U(oferta del proveedor) ≥ U(contraoferta que el agente haría en la siguiente ronda)` y la oferta es válida. En la última ronda se pide "mejor y última oferta": se acepta si es válida y si no, termina sin acuerdo.
