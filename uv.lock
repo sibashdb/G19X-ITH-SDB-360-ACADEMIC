@@ -15,6 +15,7 @@ members = [
     "negociacion",
     "plataforma-negociacion",
     "proveedores",
+    "simulador",
 ]
 
 [[package]]
@@ -1377,6 +1378,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "simulador" },
     { name = "testcontainers", extra = ["rabbitmq"] },
 ]
 
@@ -1398,6 +1400,7 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.25" },
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.8" },
+    { name = "simulador", editable = "tools/simulador" },
     { name = "testcontainers", extras = ["postgres", "rabbitmq"], specifier = ">=4.9" },
 ]
 
@@ -1904,6 +1907,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/d9/135be205d9de8783193aff9cc3bf483a03a38e4b29432c954e8cb66ac14e/scipy-1.18.1-cp315-cp315t-musllinux_1_2_x86_64.whl", hash = "sha256:179ce34a8d0fe273d8883ba59e17e052247d08973dfcb743ca52bb1cce2d60b0", size = 37521946, upload-time = "2026-08-21T23:28:35.245Z" },
     { url = "https://files.pythonhosted.org/packages/5c/a2/5b7d5270621ab7cfa3f7766067bf95dc360b5efb6394694e8143b4156e2b/scipy-1.18.1-cp315-cp315t-win_amd64.whl", hash = "sha256:5632e3ae3d09197c446310cd5187de63e28448ce22f0f67b2b93d97503c0c230", size = 37408295, upload-time = "2026-08-21T23:28:40.724Z" },
     { url = "https://files.pythonhosted.org/packages/63/ad/741c19fcb66755ff953daf9243af8480e4bf3d7fbe57583c178c7d2b6b51/scipy-1.18.1-cp315-cp315t-win_arm64.whl", hash = "sha256:eda632a7981f69730d6281f451db9c1c370993a2c0d7ddb43e2a809a2862b83a", size = 25319710, upload-time = "2026-08-21T23:28:45.713Z" },
+]
+
+[[package]]
+name = "simulador"
+version = "0.1.0"
+source = { editable = "tools/simulador" }
+dependencies = [
+    { name = "generador" },
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "generador", editable = "tools/generador" },
+    { name = "httpx", specifier = ">=0.28" },
 ]
 
 [[package]]

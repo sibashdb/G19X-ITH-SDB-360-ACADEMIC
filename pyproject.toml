@@ -12,6 +12,7 @@ dev = [
     "negociacion",
     "proveedores",
     "generador",
+    "simulador",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
     "pytest-cov>=6.0",
@@ -36,6 +37,7 @@ inteligencia = { workspace = true }
 negociacion = { workspace = true }
 proveedores = { workspace = true }
 generador = { workspace = true }
+simulador = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["libs", "services", "tools"]
@@ -51,7 +53,15 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["comun", "proveedores", "generador", "administracion", "inteligencia", "negociacion"]
+source = [
+    "comun",
+    "proveedores",
+    "generador",
+    "administracion",
+    "inteligencia",
+    "negociacion",
+    "simulador",
+]
 
 [tool.coverage.report]
 fail_under = 80
@@ -69,12 +79,20 @@ exclude = ["*.md"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "S105", "S106"]
+"**/tests/**" = ["S101", "S105", "S106", "S311"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["comun", "proveedores", "generador", "administracion", "inteligencia", "negociacion"]
+packages = [
+    "comun",
+    "proveedores",
+    "generador",
+    "administracion",
+    "inteligencia",
+    "negociacion",
+    "simulador",
+]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
