@@ -68,6 +68,30 @@ export function urlDeLlamada(
   )
 }
 
+/**
+ * La última llamada a fetch simulada con esa URL exacta (y ese método, si se indica): su cuerpo
+ * JSON y sus cabeceras. Sin método en `init`, la llamada cuenta como GET.
+ */
+export function llamadaA(
+  simulado: { mock: { calls: unknown[][] } },
+  url: string,
+  metodo?: string
+): { cuerpo: unknown; cabeceras: Headers } {
+  const llamada = simulado.mock.calls.findLast(
+    ([u, init]) =>
+      u === url &&
+      (!metodo ||
+        ((init as RequestInit | undefined)?.method ?? "GET") === metodo)
+  )
+  if (!llamada)
+    throw new Error(`No hubo ninguna llamada ${metodo ?? ""} a ${url}`)
+  const init = (llamada[1] ?? {}) as RequestInit
+  return {
+    cuerpo: init.body ? JSON.parse(String(init.body)) : undefined,
+    cabeceras: new Headers(init.headers),
+  }
+}
+
 function Ubicacion() {
   const { pathname, search } = useLocation()
   return (

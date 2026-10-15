@@ -48,6 +48,12 @@ export const paginas: RouteObject[] = [
     }),
   },
   {
+    path: "negociaciones/nueva",
+    lazy: async () => ({
+      Component: (await import("@/paginas/NegociacionNueva")).NegociacionNueva,
+    }),
+  },
+  {
     path: "importacion",
     lazy: async () => ({
       Component: (await import("@/paginas/Importacion")).Importacion,
