@@ -13,6 +13,7 @@ ACUERDO = (
     "apruebe la adjudicación."
 )
 SIN_ACUERDO = "Gracias por su tiempo. En esta ocasión no fue posible llegar a un acuerdo."
+EXPIRADA = "La fecha límite pasó sin acuerdo. Gracias por su tiempo."
 EN_REVISION = "Una persona del equipo de compras revisará su oferta y le responderá."
 ESCALADA = "Avisamos al equipo de compras; una persona le responderá aquí."
 PIDE_PERSONA = "Pidió hablar con una persona del equipo de compras."

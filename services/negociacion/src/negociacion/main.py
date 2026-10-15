@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from negociacion import vencimientos
 from negociacion.api import eventos, portal
 from negociacion.api import sesiones as rutas_sesiones  # `sesiones` es la fábrica de sesiones de BD
 from negociacion.config import Configuracion
@@ -44,6 +45,7 @@ def crear_app(
     relay = RelayOutbox(sesiones, Outbox, config.rabbitmq_url)
     consumidor = ConsumidorEventos(config.rabbitmq_url, COLA_NEGOCIACION, atendedor(sesiones))
     http = httpx.AsyncClient(transport=transporte)
+    ahora = reloj or (lambda: datetime.now(UTC))
 
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
@@ -52,6 +54,10 @@ def crear_app(
             await relay.conectar()
             tareas.append(asyncio.create_task(relay.ejecutar()))
             tareas.append(asyncio.create_task(consumidor.ejecutar()))
+        if config.tareas_periodicas:
+            tareas.append(
+                asyncio.create_task(vencimientos.ejecutar_periodicamente(sesiones, ahora))
+            )
         yield
         for tarea in tareas:
             tarea.cancel()
@@ -71,7 +77,7 @@ def crear_app(
     )
     app.state.fabrica = sesiones
     app.state.config = config
-    app.state.reloj = reloj or (lambda: datetime.now(UTC))
+    app.state.reloj = ahora
     app.state.integraciones = Integraciones(http, config.inteligencia_url, config.proveedores_url)
     app.state.enviar_correo = enviar_correo or enviador_smtp(config.smtp_host, config.smtp_puerto)
     app.state.validador = validador or validador_desde_jwks(

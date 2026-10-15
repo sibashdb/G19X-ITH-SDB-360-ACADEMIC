@@ -20,3 +20,5 @@ class Configuracion(ConfiguracionBase):
     smtp_remitente: str = "compras@plataforma.example"
     # Dirección pública de la plataforma, para el enlace del portal en las invitaciones.
     url_publica: str = "http://localhost:8080"
+    # La tarea que expira las sesiones al llegar la fecha límite (spec §8.4).
+    tareas_periodicas: bool = True
