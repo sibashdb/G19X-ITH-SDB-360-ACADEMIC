@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -58,8 +58,10 @@ describe("ErrorDePagina", () => {
     ).toBeInTheDocument()
     expect(screen.queryByText(/Unexpected Application Error/)).toBeNull()
     expect(screen.queryByText(/dynamically imported/)).toBeNull()
-    // El detalle técnico solo va a la consola.
-    expect(registro).toHaveBeenCalledWith(expect.any(String), error)
+    // El detalle técnico solo va a la consola (el efecto que lo escribe corre después de pintar).
+    await waitFor(() =>
+      expect(registro).toHaveBeenCalledWith(expect.any(String), error)
+    )
     await esperarSinViolaciones(container)
   })
 
