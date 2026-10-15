@@ -7,7 +7,7 @@ from typing import Any
 from comun.consumidor import Atender, EventoInvalido
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from administracion.bitacora import Actor, Objeto, registrar
+from administracion.bitacora import MAX_NOMBRE, Actor, Objeto, registrar
 from administracion.modelos import CorreoEnviado
 
 NOMBRES_ENTIDAD = {
@@ -83,7 +83,7 @@ def _negociacion(
         }
         correo = CorreoNegociacion(
             str(payload["destinatario"]),
-            actor.nombre,
+            actor.nombre[:MAX_NOMBRE],  # la columna mide lo mismo que actor_nombre
             estado,
             None if error is None else str(error),
         )

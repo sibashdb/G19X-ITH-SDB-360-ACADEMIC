@@ -122,7 +122,7 @@ describe("descripciones del menú", () => {
       Actividad: "Quién hizo qué y cuándo",
       Catálogo: "Servicios de TI que se compran",
       "Estado del sistema": "Si cada servicio responde",
-      Correos: "Invitaciones y restablecimientos enviados",
+      Correos: "Invitaciones, restablecimientos e invitaciones a negociar",
       Importación: "Cargar datos del ERP",
       Configuración: "Ajustes de puntuación y precios",
       "Centro de ayuda": "Guías y preguntas frecuentes",

@@ -310,6 +310,21 @@ async def test_una_invitacion_queda_una_vez_en_actividad_y_en_correos(
 
 
 @pytest.mark.integracion
+async def test_un_comprador_de_255_caracteres_no_hace_perder_la_invitacion(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    # Keycloak admite nombres de usuario de hasta 255; las columnas miden 200.
+    actor = {"id": "c-1", "nombre": "x" * 255}
+    sobre = _sobre("negociacion.invitacion_enviada", INVITACION | {"actor": actor})
+    await atendedor(fabrica)(sobre)
+    async with fabrica() as sesion:
+        actividad = (await sesion.execute(text("SELECT actor_nombre FROM actividad"))).all()
+        correos = (await sesion.execute(text("SELECT solicitado_por FROM correo_enviado"))).all()
+    assert [tuple(f) for f in actividad] == [("x" * 200,)]
+    assert [tuple(f) for f in correos] == [("x" * 200,)]
+
+
+@pytest.mark.integracion
 async def test_un_mensaje_mal_formado_no_detiene_la_cola(
     fabrica: async_sessionmaker[AsyncSession], url_rabbitmq: str
 ) -> None:
