@@ -2,11 +2,13 @@ import { useState } from "react"
 import { useParams } from "react-router"
 import { useRoles } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
-import { ContenidoConsulta } from "@/componentes/Estados"
+import { ContenidoVivo } from "@/componentes/negociacion/ContenidoVivo"
+import { DialogoCancelar } from "@/componentes/negociacion/DialogoCancelar"
 import { DialogoEnlaces } from "@/componentes/negociacion/DialogoEnlaces"
 import { EditorBorrador } from "@/componentes/negociacion/EditorBorrador"
 import { EtiquetaEstadoEvento } from "@/componentes/negociacion/Etiquetas"
 import { ResumenConfiguracion } from "@/componentes/negociacion/ResumenConfiguracion"
+import { TablaSesiones } from "@/componentes/negociacion/TablaSesiones"
 import {
   NOMBRES_TIPO,
   useNegociacion,
@@ -17,14 +19,21 @@ import {
 export function Negociacion() {
   const { id = "" } = useParams()
   const esComprador = useRoles().includes("comprador")
-  const consulta = useNegociacion<Evento>(`/eventos/${encodeURIComponent(id)}`)
+  const consulta = useNegociacion<Evento>(
+    `/eventos/${encodeURIComponent(id)}`,
+    {
+      // Supervisión en vivo (spec D6): solo mientras la negociación está abierta.
+      refetchInterval: (q) =>
+        q.state.data?.estado === "abierto" ? 3000 : false,
+    }
+  )
   const [aviso, setAviso] = useState("")
   // Los enlaces viven aquí y no en el editor: al publicar, el editor se desmonta.
   const [enlaces, setEnlaces] = useState<EnlaceInvitacion[] | null>(null)
 
   return (
     <div className="space-y-6">
-      <ContenidoConsulta consulta={consulta}>
+      <ContenidoVivo consulta={consulta}>
         {(evento) => (
           <>
             <EncabezadoPagina
@@ -45,11 +54,29 @@ export function Negociacion() {
                 alPublicar={setEnlaces}
               />
             ) : (
-              <ResumenConfiguracion evento={evento} />
+              <>
+                {esComprador && evento.estado === "abierto" && (
+                  <div className="flex justify-end">
+                    <DialogoCancelar
+                      ruta={`/negociacion/eventos/${encodeURIComponent(evento.id)}`}
+                      borrador={false}
+                      alCancelar={() => setAviso("Se canceló la negociación.")}
+                    />
+                  </div>
+                )}
+                {evento.estado !== "borrador" && (
+                  <TablaSesiones
+                    evento={evento}
+                    esComprador={esComprador}
+                    alReenviar={(enlace) => setEnlaces([enlace])}
+                  />
+                )}
+                <ResumenConfiguracion evento={evento} />
+              </>
             )}
           </>
         )}
-      </ContenidoConsulta>
+      </ContenidoVivo>
       <p role="status" className={aviso ? "text-sm text-success" : "sr-only"}>
         {aviso}
       </p>

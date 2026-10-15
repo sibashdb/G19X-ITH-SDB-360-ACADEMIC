@@ -93,6 +93,43 @@ const BORRADOR = {
   sesiones: [],
 }
 
+const SESIONES = [
+  {
+    id: "s1",
+    proveedor_id: "p1",
+    proveedor_nombre: "Nube Norte",
+    estado: "escalada",
+    modo: "comprador",
+    ronda: 2,
+    utilidad: 0.413,
+    correo_estado: "enviado",
+    correo_error: null,
+    fuera_de_limites: false,
+    actualizado_en: "2026-10-14T18:30:00Z",
+  },
+  {
+    id: "s2",
+    proveedor_id: "p2",
+    proveedor_nombre: "Datos del Sur",
+    estado: "invitada",
+    modo: "agente",
+    ronda: 0,
+    utilidad: null,
+    correo_estado: "fallido",
+    correo_error: "No se pudo entregar el correo al servidor de correo.",
+    fuera_de_limites: false,
+    actualizado_en: "2026-10-14T18:00:00Z",
+  },
+]
+
+const ABIERTA = {
+  ...BORRADOR,
+  estado: "abierto",
+  publicado_en: "2026-10-14T18:00:00Z",
+  version: 4,
+  sesiones: SESIONES,
+}
+
 /** `junto` se dibuja al lado de la página, como el contenedor enfocable del Layout. */
 function abrir(junto?: ReactNode) {
   return renderizarPagina(
@@ -154,6 +191,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe("Negociacion en borrador", () => {
@@ -584,5 +622,125 @@ describe("Negociacion en borrador", () => {
     expect(
       screen.queryByRole("button", { name: "Guardar cambios" })
     ).not.toBeInTheDocument()
+  })
+})
+
+describe("Negociacion abierta", () => {
+  it("muestra sus sesiones con estado, quién atiende, ronda, utilidad y correo", async () => {
+    simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(ABIERTA) })
+    const { container } = abrir()
+    expect(
+      await screen.findByRole("link", { name: "Nube Norte" })
+    ).toHaveAttribute("href", `/negociaciones/${ID}/sesiones/s1`)
+    const fila = screen.getByRole("row", { name: /Nube Norte/ })
+    expect(within(fila).getByText("Escalada")).toBeInTheDocument()
+    expect(within(fila).getByText("Persona")).toBeInTheDocument()
+    expect(within(fila).getByText("2 de 6")).toBeInTheDocument()
+    expect(within(fila).getByText("41 %")).toBeInTheDocument()
+    const otra = screen.getByRole("row", { name: /Datos del Sur/ })
+    expect(within(otra).getByText("Sin ofertas")).toBeInTheDocument()
+    expect(within(otra).getByText("No se envió")).toBeInTheDocument()
+    expect(within(otra).getByText("—")).toBeInTheDocument()
+    await esperarSinViolaciones(container)
+  })
+
+  it("reenviar una invitación pide confirmar y muestra el enlace nuevo una sola vez", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ABIERTA),
+      "POST /api/negociacion/sesiones/s2/invitacion": () =>
+        respuestaJson({
+          sesion_id: "s2",
+          proveedor_nombre: "Datos del Sur",
+          destinatario: "ana@datossur.example",
+          enlace: "http://localhost:8080/portal#t=nuevo-456",
+          correo_estado: "enviado",
+        }),
+    })
+    const { cliente } = abrir()
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Reenviar la invitación a Datos del Sur",
+      })
+    )
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Reenviar",
+      })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Enlace de invitación",
+    })
+    expect(
+      within(dialogo).getByText("http://localhost:8080/portal#t=nuevo-456")
+    ).toBeInTheDocument()
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Listo" })
+    )
+    await esperarSinEnMutaciones(cliente, "nuevo-456")
+    expect(
+      llamadaA(api, "/api/negociacion/sesiones/s2/invitacion", "POST")
+    ).toBeTruthy()
+  })
+
+  it("solo el comprador puede cancelar y reenviar", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(ABIERTA) })
+    abrir()
+    await screen.findByRole("link", { name: "Nube Norte" })
+    expect(
+      screen.queryByRole("button", { name: /Reenviar/ })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Cancelar negociación" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("cancela una negociación abierta con su motivo", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ABIERTA),
+      [`POST ${RUTA}/cancelar`]: () =>
+        respuestaJson({ ...ABIERTA, estado: "cancelado" }),
+    })
+    abrir()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Cancelar negociación" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Cancelar la negociación",
+    })
+    expect(dialogo).toHaveTextContent("Los enlaces dejan de servir")
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo"),
+      "Cambió el presupuesto"
+    )
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Cancelar negociación" })
+    )
+    expect(
+      await screen.findByText("Se canceló la negociación.")
+    ).toBeInTheDocument()
+    expect(llamadaA(api, `${RUTA}/cancelar`, "POST").cuerpo).toEqual({
+      motivo: "Cambió el presupuesto",
+    })
+  })
+
+  it("se actualiza cada 3 s mientras está abierta", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const api = simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(ABIERTA) })
+    abrir()
+    await screen.findByRole("link", { name: "Nube Norte" })
+    const lecturas = () => api.mock.calls.filter(([url]) => url === RUTA).length
+    expect(lecturas()).toBe(1)
+    await vi.advanceTimersByTimeAsync(3100)
+    await waitFor(() => expect(lecturas()).toBe(2))
+  })
+
+  it("un borrador no se vuelve a consultar solo", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const api = simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(BORRADOR) })
+    abrir()
+    await screen.findByLabelText("Ideal (Correo en la nube)")
+    await vi.advanceTimersByTimeAsync(3100)
+    expect(api.mock.calls.filter(([url]) => url === RUTA)).toHaveLength(1)
   })
 })
