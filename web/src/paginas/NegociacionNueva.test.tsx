@@ -125,6 +125,15 @@ async function capturarCompra() {
   )
 }
 
+async function elegirServicio(fila: number) {
+  await userEvent.click(
+    await screen.findByRole("combobox", { name: `Servicio ${fila}` })
+  )
+  await userEvent.click(
+    await screen.findByRole("option", { name: "Correo en la nube (MXN)" })
+  )
+}
+
 beforeEach(() => {
   sesionDePrueba.roles = ["comprador"]
 })
@@ -188,7 +197,7 @@ describe("NegociacionNueva", () => {
     )
   })
 
-  it("envía todas las filas, así el error de la fila 2 cae en la fila 2 aunque la 1 esté sin servicio", async () => {
+  it("envía todas las filas, así el error de la fila 2 cae en la fila 2 y se olvida al mover las filas", async () => {
     const api = apiDeCompra(() =>
       respuestaJson(
         {
@@ -207,16 +216,10 @@ describe("NegociacionNueva", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Agregar servicio" })
     )
-    // La fila 1 queda sin servicio (con cantidad, para pasar la validación nativa del navegador).
+    await elegirServicio(1)
     await userEvent.type(screen.getByLabelText("Cantidad 1"), "5")
-    await userEvent.click(screen.getByRole("combobox", { name: "Servicio 2" }))
-    await userEvent.click(
-      await screen.findByRole("option", { name: "Correo en la nube (MXN)" })
-    )
+    await elegirServicio(2)
     await userEvent.type(screen.getByLabelText("Cantidad 2"), "250")
-    expect(
-      screen.getByRole("combobox", { name: "Servicio 1" })
-    ).toHaveTextContent("Elija un servicio")
     await userEvent.click(
       await screen.findByRole("checkbox", { name: /Nube Norte/ })
     )
@@ -233,9 +236,82 @@ describe("NegociacionNueva", () => {
     )
     const { cuerpo } = llamadaA(api, "/api/negociacion/eventos")
     expect((cuerpo as { lineas: unknown[] }).lineas).toEqual([
-      { codigo_servicio: "", cantidad: "5" },
+      { codigo_servicio: "LIC-CORREO", cantidad: "5" },
       { codigo_servicio: "LIC-CORREO", cantidad: "250" },
     ])
+    // Al mover las filas, el error de la API ya no apunta a la misma fila: se olvida.
+    await userEvent.click(
+      screen.getByRole("button", { name: "Agregar servicio" })
+    )
+    expect(screen.queryByText("Debe ser mayor que 0.")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Cantidad 2")).not.toHaveAttribute(
+      "aria-invalid"
+    )
+  })
+
+  it("una fila sin servicio lo pide bajo «Servicio N» y no llama a la API", async () => {
+    const api = apiDeCompra()
+    renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })
+    await userEvent.type(await screen.findByLabelText("Título"), "Compra mixta")
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Agregar servicio" })
+    )
+    // La fila 1 queda sin servicio (con cantidad, para pasar la validación nativa del navegador).
+    await userEvent.type(screen.getByLabelText("Cantidad 1"), "5")
+    await elegirServicio(2)
+    await userEvent.type(screen.getByLabelText("Cantidad 2"), "250")
+    expect(
+      screen.getByRole("combobox", { name: "Servicio 1" })
+    ).toHaveTextContent("Elija un servicio")
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /Nube Norte/ })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Crear borrador" })
+    )
+    expect(await screen.findByText("Elija un servicio.")).toBeInTheDocument()
+    expect(screen.getAllByText("Elija un servicio.")).toHaveLength(1)
+    expect(
+      screen.getByRole("combobox", { name: "Servicio 1" })
+    ).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByRole("combobox", { name: "Servicio 1" })).toHaveFocus()
+    expect(
+      screen.getByRole("combobox", { name: "Servicio 2" })
+    ).not.toHaveAttribute("aria-invalid")
+    expect(() => llamadaA(api, "/api/negociacion/eventos")).toThrow()
+    // Al elegir el servicio, el aviso de esa fila se va.
+    await elegirServicio(1)
+    expect(screen.queryByText("Elija un servicio.")).not.toBeInTheDocument()
+  })
+
+  it("Enter en el buscador de proveedores no crea el borrador", async () => {
+    const api = apiDeCompra()
+    renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })
+    await capturarCompra()
+    await userEvent.type(
+      screen.getByLabelText("Buscar proveedor"),
+      "Datos{Enter}"
+    )
+    await waitFor(() =>
+      expect(urlDeLlamada(api).searchParams.get("q")).toBe("Datos")
+    )
+    expect(() => llamadaA(api, "/api/negociacion/eventos")).toThrow()
+  })
+
+  it("mientras no llega el catálogo de servicios no se puede crear el borrador", async () => {
+    const api = simularApi((url) => {
+      if (url === "/api/proveedores/servicios")
+        return new Promise<Response>(() => {})
+      if (url.startsWith("/api/proveedores/proveedores?"))
+        return respuestaJson(PROVEEDORES)
+      return new Response("", { status: 404 })
+    })
+    renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })
+    await userEvent.type(await screen.findByLabelText("Título"), "Compra")
+    const crear = screen.getByRole("button", { name: "Crear borrador" })
+    expect(crear).toHaveAttribute("aria-disabled", "true")
+    await userEvent.click(crear)
+    expect(() => llamadaA(api, "/api/negociacion/eventos")).toThrow()
   })
 
   it("si la referencia de precios no responde, lo dice y conserva lo capturado", async () => {
@@ -347,6 +423,22 @@ describe("NegociacionNueva", () => {
       contrato_id: CONTRATO,
     })
     expect(cuerpo).not.toHaveProperty("lineas")
+  })
+
+  it("renovar acepta el id del contrato en mayúsculas y muestra la cantidad completa", async () => {
+    apiDeRenovacion([
+      {
+        ...CONTRATO_VIGENTE,
+        lineas: [{ ...CONTRATO_VIGENTE.lineas[0], cantidad: "250.1234" }],
+      },
+    ])
+    renderizarPagina(<NegociacionNueva />, {
+      ruta: `/negociaciones/nueva?proveedor=${NUBE_NORTE}&contrato=${CONTRATO.toUpperCase()}`,
+    })
+    expect(await screen.findByLabelText("Título")).toHaveValue(
+      "Renovación C-001101"
+    )
+    expect(screen.getByText("250.1234")).toBeInTheDocument()
   })
 
   it("un contrato que no es del proveedor no se puede renovar", async () => {

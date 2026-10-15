@@ -130,6 +130,10 @@ export function SelectorProveedores({
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
+            // Enter en el buscador no envía el formulario de la negociación que lo contiene.
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault()
+            }}
           />
         )}
       </Campo>

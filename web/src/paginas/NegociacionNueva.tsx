@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { aEntradaFechaHora, desdeEntradaFechaHora } from "@/fechas"
-import { porUnidad } from "@/inteligencia"
+import { formatoDecimal, porUnidad } from "@/inteligencia"
 import {
   ESTILOS,
   esUuid,
@@ -126,7 +126,9 @@ function CargarRenovacion({
       />
     )
   }
-  const contrato = contratos.data.find((c) => c.id === contratoId)
+  const contrato = contratos.data.find(
+    (c) => c.id.toLowerCase() === contratoId.toLowerCase()
+  )
   if (!contrato) {
     return (
       <EstadoVacio
@@ -180,7 +182,7 @@ function ContratoRenovado({ renovacion }: { renovacion: Renovacion }) {
                 {l.nombre_servicio}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {Number(l.cantidad).toLocaleString("es-MX")}
+                {formatoDecimal(Number(l.cantidad), 4)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {`${formatoMoneda(l.precio_unitario, contrato.moneda)} ${porUnidad(l.unidad)}`}
@@ -212,6 +214,8 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
     { clave: 1, codigo: "", cantidad: "" },
   ])
   const [invitados, setInvitados] = useState<Invitado[]>([])
+  // Claves de las filas sin servicio al intentar enviar; se validan aquí, antes de llamar a la API.
+  const [sinServicio, setSinServicio] = useState<number[]>([])
   const catalogo = useQuery({
     queryKey: ["servicios", "activos"],
     queryFn: () => pedir<Servicio[]>("/proveedores/servicios", token),
@@ -231,6 +235,11 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
   )
   const estiloElegido = ESTILOS.find((e) => e.clave === estilo)
 
+  // Un error de la API apunta a `lineas.N`: al mover las filas ya no apunta a la misma.
+  function olvidarErrorDeApi() {
+    if (crear.isError) crear.reset()
+  }
+
   function cambiarLinea(clave: number, cambio: Partial<LineaCaptura>) {
     setLineas((previas) =>
       previas.map((l) => (l.clave === clave ? { ...l, ...cambio } : l))
@@ -239,6 +248,7 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
 
   function agregarLinea() {
     if (lineas.length >= MAXIMO_LINEAS) return
+    olvidarErrorDeApi()
     setLineas((previas) => [
       ...previas,
       {
@@ -251,6 +261,7 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
 
   function quitarLinea(clave: number) {
     if (lineas.length === 1) return
+    olvidarErrorDeApi()
     setLineas((previas) => previas.filter((l) => l.clave !== clave))
     // El botón «Quitar» desaparece con su fila: el foco pasa a «Agregar servicio».
     agregar.current?.focus()
@@ -258,7 +269,17 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    if (crear.isPending) return
+    // Una compra espera al catálogo: sin él no hay filas y los errores de línea no tendrían dónde verse.
+    if (crear.isPending || (!renovacion && !catalogo.isSuccess)) return
+    if (!renovacion) {
+      const vacias = lineas.filter((l) => !l.codigo).map((l) => l.clave)
+      setSinServicio(vacias)
+      if (vacias.length > 0) {
+        olvidarErrorDeApi()
+        document.getElementById(`${id}-servicio-${vacias[0]}`)?.focus()
+        return
+      }
+    }
     const comun = {
       titulo,
       fecha_limite: desdeEntradaFechaHora(fechaLimite),
@@ -312,14 +333,21 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
                 <Campo
                   id={`${id}-servicio-${linea.clave}`}
                   etiqueta={`Servicio ${i + 1}`}
-                  error={errores[`lineas.${i}.codigo_servicio`]}
+                  error={
+                    sinServicio.includes(linea.clave)
+                      ? "Elija un servicio."
+                      : errores[`lineas.${i}.codigo_servicio`]
+                  }
                 >
                   {(control) => (
                     <Select
                       value={linea.codigo}
-                      onValueChange={(codigo) =>
+                      onValueChange={(codigo) => {
                         cambiarLinea(linea.clave, { codigo })
-                      }
+                        setSinServicio((claves) =>
+                          claves.filter((c) => c !== linea.clave)
+                        )
+                      }}
                     >
                       <SelectTrigger {...control} className="w-full">
                         <SelectValue placeholder="Elija un servicio" />
@@ -540,7 +568,12 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
         </Alert>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" aria-disabled={crear.isPending}>
+        <Button
+          type="submit"
+          aria-disabled={
+            crear.isPending || (!renovacion && !catalogo.isSuccess)
+          }
+        >
           Crear borrador
         </Button>
         <Button asChild variant="outline">
