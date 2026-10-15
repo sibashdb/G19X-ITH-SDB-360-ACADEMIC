@@ -101,15 +101,22 @@ function SesionPortal({ token }: { token: string }) {
     )
   }
   const vista = consulta.data
+  // Esta región siempre está montada, así que anuncia el desenlace aunque el formulario (con su
+  // «Se envió su oferta.») desaparezca. El desenlace va oculto: la alerta visible dice lo mismo.
+  const aviso = consulta.isRefetchError
+    ? "No se pudo actualizar; se volverá a intentar en unos segundos."
+    : vista.estado === "acuerdo_tentativo"
+      ? "La negociación terminó con un acuerdo tentativo."
+      : vista.estado === "sin_acuerdo" || vista.estado === "expirada"
+        ? "La negociación terminó sin acuerdo."
+        : ""
   return (
     <>
       <p
         role="status"
         className={consulta.isRefetchError ? "text-sm text-warning" : "sr-only"}
       >
-        {consulta.isRefetchError
-          ? "No se pudo actualizar; se volverá a intentar en unos segundos."
-          : ""}
+        {aviso}
       </p>
       <Resumen vista={vista} />
       <Seccion titulo="Conversación">

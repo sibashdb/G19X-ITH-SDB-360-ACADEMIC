@@ -335,6 +335,34 @@ describe("Portal", () => {
     expect(
       screen.queryByRole("button", { name: "Enviar oferta" })
     ).not.toBeInTheDocument()
+    expect(
+      screen.getByText("La negociación terminó sin acuerdo.")
+    ).toHaveAttribute("role", "status")
+  })
+
+  it("al enviar la oferta que cierra con un acuerdo tentativo, lo anuncia en una región de estado", async () => {
+    simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(VISTA),
+      [`POST ${OFERTAS}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          estado: "acuerdo_tentativo",
+          ultima_propuesta: null,
+        }),
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Precio de Correo en la nube"),
+      "100"
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    // El formulario (y su «Se envió su oferta.») desaparece: el desenlace lo anuncia la región fija.
+    expect(
+      await screen.findByText(
+        "La negociación terminó con un acuerdo tentativo."
+      )
+    ).toHaveAttribute("role", "status")
   })
 
   it("muestra junto al campo el error del servicio", async () => {
