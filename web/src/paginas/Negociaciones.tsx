@@ -1,11 +1,13 @@
 import { keepPreviousData } from "@tanstack/react-query"
-import { Handshake, Plus, TriangleAlert, X } from "lucide-react"
+import { Hand, Handshake, Plus, X } from "lucide-react"
+import { useRef } from "react"
 import { Link } from "react-router"
 import { useRoles } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Filtro } from "@/componentes/Filtro"
 import { Paginacion } from "@/componentes/Paginacion"
+import { Termino } from "@/componentes/Termino"
 import { EtiquetaEstadoEvento } from "@/componentes/negociacion/Etiquetas"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -36,6 +38,7 @@ const TIPOS = Object.keys(NOMBRES_TIPO) as TipoEvento[]
 export function Negociaciones() {
   const esComprador = useRoles().includes("comprador")
   const [parametros, actualizar] = useParametros()
+  const filtros = useRef<HTMLDivElement>(null)
   // Los valores de la URL se validan: uno inválido cuenta como "sin filtro" y no llega a la API.
   const estado = unoDe(parametros.get("estado"), ESTADOS)
   const tipo = unoDe(parametros.get("tipo"), TIPOS)
@@ -58,6 +61,16 @@ export function Negociaciones() {
     </Button>
   ) : undefined
 
+  // El botón usado desaparece con los datos nuevos: el foco pasa a «Todas», que siempre está en pantalla.
+  function quitarFiltros() {
+    actualizar({ estado: null, tipo: null, pagina: null })
+    filtros.current?.querySelector("button")?.focus()
+  }
+  function irALaPrimera() {
+    actualizar({ pagina: null })
+    filtros.current?.querySelector("button")?.focus()
+  }
+
   function contenido() {
     if (consulta.isPending) return <EstadoCarga />
     if (consulta.isError) {
@@ -75,10 +88,7 @@ export function Negociaciones() {
           titulo="Esta página ya no existe"
           descripcion="La lista cambió y ya no llega hasta aquí."
           accion={
-            <Button
-              variant="outline"
-              onClick={() => actualizar({ pagina: null })}
-            >
+            <Button variant="outline" onClick={irALaPrimera}>
               Ir a la primera página
             </Button>
           }
@@ -92,12 +102,7 @@ export function Negociaciones() {
           titulo="Ninguna negociación con estos filtros"
           descripcion="Pruebe con otro estado o con otro tipo."
           accion={
-            <Button
-              variant="outline"
-              onClick={() =>
-                actualizar({ estado: null, tipo: null, pagina: null })
-              }
-            >
+            <Button variant="outline" onClick={quitarFiltros}>
               <X aria-hidden />
               Quitar filtros
             </Button>
@@ -148,7 +153,7 @@ export function Negociaciones() {
                     <EtiquetaEstadoEvento estado={e.estado} />
                     {e.escaladas > 0 && (
                       <Badge variant="warning">
-                        <TriangleAlert aria-hidden />
+                        <Hand aria-hidden />
                         {e.escaladas === 1
                           ? "1 escalada"
                           : `${e.escaladas} escaladas`}
@@ -179,13 +184,19 @@ export function Negociaciones() {
     <div className="space-y-6">
       <EncabezadoPagina
         titulo="Negociaciones"
-        descripcion="Un agente negocia por usted con cada proveedor, dentro de los límites que usted fije."
+        descripcion={
+          <>
+            Un agente negocia por usted con cada proveedor, dentro de los{" "}
+            <Termino clave="limite">límites</Termino> que usted fije.
+          </>
+        }
         acciones={nueva}
       />
       <Card>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
             <div
+              ref={filtros}
               role="group"
               aria-label="Estado"
               className="flex flex-wrap gap-2"

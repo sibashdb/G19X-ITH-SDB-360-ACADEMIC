@@ -136,6 +136,14 @@ describe("Negociaciones", () => {
       await screen.findByRole("button", { name: "Quitar filtros" })
     )
     expect(ubicacionActual()).toBe("/negociaciones")
+    expect(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        {
+          name: "Todas",
+        }
+      )
+    ).toHaveFocus()
   })
 
   it("una página fuera de rango ofrece volver a la primera", async () => {
@@ -145,6 +153,14 @@ describe("Negociaciones", () => {
       await screen.findByRole("button", { name: "Ir a la primera página" })
     )
     expect(ubicacionActual()).toBe("/negociaciones")
+    expect(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        {
+          name: "Todas",
+        }
+      )
+    ).toHaveFocus()
   })
 
   it("si el servicio no responde, lo dice y permite reintentar", async () => {
