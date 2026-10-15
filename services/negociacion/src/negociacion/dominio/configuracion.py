@@ -8,6 +8,8 @@ from negociacion.dominio.terminos import CENTAVO, problema_de_valor, redondear
 
 DESCUENTO_RENOVACION = Decimal("0.95")  # en renovación, el ideal pide al menos 5 % menos que hoy
 VENTANA_FECHA_LIMITE = (timedelta(hours=1), timedelta(days=60))
+# Palancas donde pagar menos es siempre mejor para quien compra; las demás deducen su dirección.
+MENOS_SIEMPRE = ("cuota_implementacion", "tope_aumento_pct")
 
 
 @dataclass(frozen=True)
@@ -84,8 +86,14 @@ def sugerir_precio(
 
 
 def _rango(
-    campo: str, clave: str, ideal: Decimal | None, limite: Decimal | None, que: str
+    campo: str,
+    clave: str,
+    ideal: Decimal | None,
+    limite: Decimal | None,
+    que: str,
+    menos_siempre: bool = False,
 ) -> list[Problema]:
+    """Los problemas de un ideal y un límite; `menos_siempre`: pagar menos es siempre mejor."""
     problemas: list[Problema] = []
     if ideal is None:
         problemas.append(Problema(f"{campo}.ideal", f"Indique {que} ideal."))
@@ -97,6 +105,11 @@ def _rango(
             problemas.append(Problema(f"{campo}.{nombre}", mensaje))
     if ideal is not None and limite is not None and ideal == limite:
         problemas.append(Problema(f"{campo}.limite", "El ideal y el límite deben ser distintos."))
+    if menos_siempre and ideal is not None and limite is not None and ideal > limite:
+        # Con el ideal arriba, el motor deduciría «más es mejor» y negociaría hacia arriba (R25).
+        problemas.append(
+            Problema(f"{campo}.limite", f"{que.capitalize()} ideal debe ser menor que el límite.")
+        )
     return problemas
 
 
@@ -114,12 +127,9 @@ def errores(revision: Revision, ahora: datetime) -> list[Problema]:
     if revision.invitados == 0:
         problemas.append(Problema("proveedores", "Invite al menos a un proveedor."))
     for i, linea in enumerate(revision.lineas):
-        problemas += _rango(f"lineas.{i}", "precio", linea.ideal, linea.limite, "el precio")
-        if linea.ideal is not None and linea.limite is not None and linea.ideal > linea.limite:
-            # Quien compra quiere pagar menos: con el ideal arriba, el motor subiría el precio.
-            problemas.append(
-                Problema(f"lineas.{i}.limite", "El precio ideal debe ser menor que el límite.")
-            )
+        problemas += _rango(
+            f"lineas.{i}", "precio", linea.ideal, linea.limite, "el precio", menos_siempre=True
+        )
         if (
             revision.tipo == "renovacion"
             and linea.precio_vigente is not None
@@ -144,7 +154,14 @@ def errores(revision: Revision, ahora: datetime) -> list[Problema]:
                 Problema(f"{campo}.peso", "Cada palanca activa necesita un peso de al menos 1.")
             )
         if palanca.clave != "precio":
-            problemas += _rango(campo, palanca.clave, palanca.ideal, palanca.limite, "el valor")
+            problemas += _rango(
+                campo,
+                palanca.clave,
+                palanca.ideal,
+                palanca.limite,
+                "el valor",
+                menos_siempre=palanca.clave in MENOS_SIEMPRE,
+            )
     if pesos != 100:
         problemas.append(Problema("palancas", f"Los pesos deben sumar 100; ahora suman {pesos}."))
     return problemas

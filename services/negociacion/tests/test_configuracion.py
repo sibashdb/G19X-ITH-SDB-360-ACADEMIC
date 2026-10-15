@@ -128,6 +128,37 @@ def test_el_ideal_del_precio_no_puede_superar_al_limite() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("clave", "bajo", "alto"),
+    [("cuota_implementacion", D("1000.00"), D("5000.00")), ("tope_aumento_pct", D("5"), D("10"))],
+)
+def test_la_cuota_y_el_tope_tampoco_admiten_el_ideal_sobre_el_limite(
+    clave: str, bajo: D, alto: D
+) -> None:
+    # Para quien compra, menos es siempre mejor en el precio, la cuota y el tope (R25 ampliada).
+    invertida = (PalancaRevision("precio", 80), PalancaRevision(clave, 20, alto, bajo))
+    assert errores(_revision(palancas=invertida), AHORA) == [
+        Problema(f"palancas.{clave}.limite", "El valor ideal debe ser menor que el límite.")
+    ]
+    asi = (PalancaRevision("precio", 80), PalancaRevision(clave, 20, bajo, alto))
+    assert errores(_revision(palancas=asi), AHORA) == []
+    iguales = (PalancaRevision("precio", 80), PalancaRevision(clave, 20, bajo, bajo))
+    assert errores(_revision(palancas=iguales), AHORA) == [
+        Problema(f"palancas.{clave}.limite", "El ideal y el límite deben ser distintos.")
+    ]
+
+
+def test_las_demas_palancas_conservan_la_direccion_deducida() -> None:
+    # Más días de pago, más meses y más disponibilidad son mejores: el ideal puede ser el mayor.
+    palancas = (
+        PalancaRevision("precio", 55),
+        PalancaRevision("plazo_pago_dias", 15, D(60), D(30)),
+        PalancaRevision("plazo_meses", 15, D(36), D(12)),
+        PalancaRevision("sla_disponibilidad", 15, D("99.9"), D("99.0")),
+    )
+    assert errores(_revision(palancas=palancas), AHORA) == []
+
+
 def test_en_renovacion_el_limite_no_supera_el_vigente_mas_el_tope() -> None:
     lineas = (LineaRevision("Licencias", D("30.00"), D("33.61"), precio_vigente=D("32.0000")),)
     assert errores(_revision(tipo="renovacion", lineas=lineas, tope_pct=D("5.00")), AHORA) == [
