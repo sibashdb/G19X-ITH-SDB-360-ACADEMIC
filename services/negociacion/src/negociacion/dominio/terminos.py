@@ -171,13 +171,6 @@ def combinar(
     )
 
 
-def ideales(terminos: Terminos) -> Valores:
-    return Valores(
-        {linea.id: linea.rango.ideal for linea in terminos.lineas},
-        {p.clave: p.rango.ideal for p in terminos.palancas},
-    )
-
-
 def fuera_de_limite(terminos: Terminos, valores: Valores) -> list[str]:
     """Las líneas (por id) y las palancas (por clave) que cruzan su límite."""
     return [

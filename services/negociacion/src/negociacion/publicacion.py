@@ -202,6 +202,12 @@ async def registrar_envios(
 async def cancelar(
     bd: AsyncSession, evento_id: uuid.UUID, motivo: str, actor: Actor, momento: datetime
 ) -> None:
+    # ponytail: bloquea el evento y luego las sesiones; el turno que cierra la última sesión
+    # (turnos.py) y el barrido de vencimientos las bloquean al revés. Si coinciden, PostgreSQL
+    # aborta una de las dos transacciones: un 500 y, al reintentar, el 409 correcto, sin corrupción
+    # (la ventana es de milisegundos). Corrección futura: SELECT … FOR UPDATE SKIP LOCKED sobre el
+    # evento en cerrar_eventos_terminados (lo que se salte lo cierra la tarea en menos de un
+    # minuto); no reordenar cancelar: abriría una carrera con una publicación concurrente.
     evento = await consultas.evento_o_404(bd, evento_id, bloquear=True)
     if evento.estado not in ("borrador", "abierto"):
         raise conflicto(

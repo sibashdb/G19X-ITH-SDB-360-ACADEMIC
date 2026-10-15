@@ -195,6 +195,18 @@ async def test_las_palancas_se_negocian_y_se_exigen(
     )  # pidió 15 días (más allá del límite) y no se le contesta el límite
 
 
+async def test_los_valores_con_exponente_se_guardan_en_la_precision_del_termino(
+    con_plazo_de_pago: Any, ofertar: Any, fabrica: Fabrica
+) -> None:
+    evento, enlaces = await con_plazo_de_pago()
+    linea = _linea(evento)
+    respuesta = await ofertar(enlaces[0], {linea: "3.1E+1"}, {"plazo_pago_dias": "4E+1"})
+    assert respuesta.status_code == 200, respuesta.text
+    async with fabrica() as bd:
+        guardada = await bd.scalar(select(Oferta.valores).where(Oferta.autor == "proveedor"))
+    assert guardada == {"precios": {linea: "31.00"}, "palancas": {"plazo_pago_dias": "40"}}
+
+
 async def test_escalar_pasa_la_sesion_a_una_persona(
     cliente: httpx.AsyncClient, publicar: Any, ofertar: Any, portal: Any, fabrica: Fabrica
 ) -> None:

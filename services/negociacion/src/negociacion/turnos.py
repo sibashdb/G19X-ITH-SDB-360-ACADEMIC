@@ -17,7 +17,14 @@ from negociacion import consultas, textos
 from negociacion.api import esquemas
 from negociacion.bitacora import AGENTE, SISTEMA, Actor, registrar
 from negociacion.dominio.motor import BETA, Estado, decidir
-from negociacion.dominio.terminos import Terminos, Valores, es_valida, problema_de_valor, utilidad
+from negociacion.dominio.terminos import (
+    Terminos,
+    Valores,
+    es_valida,
+    problema_de_valor,
+    redondear,
+    utilidad,
+)
 from negociacion.errores import conflicto, invalidos, no_existe
 from negociacion.modelos import FINALES, Evento, Mensaje, Oferta, SesionNegociacion
 
@@ -101,9 +108,10 @@ def valores_de(terminos: Terminos, entrada: esquemas.ValoresEntrada, prefijo: st
             errores.append({"campo": f"{prefijo}.palancas.{palanca.clave}", "mensaje": mensaje})
     if errores:
         raise invalidos(errores, "oferta_invalida")
+    # El historial es de solo inserción: «1E+2» ya pasó la precisión y se guarda como 100.00.
     return Valores(
-        {linea.id: precios[linea.id] for linea in terminos.lineas},
-        {p.clave: entrada.palancas[p.clave] for p in terminos.palancas},
+        {linea.id: redondear("precio", precios[linea.id]) for linea in terminos.lineas},
+        {p.clave: redondear(p.clave, entrada.palancas[p.clave]) for p in terminos.palancas},
     )
 
 
@@ -384,7 +392,8 @@ async def devolver_control(
     pendiente = await oferta_sin_respuesta(bd, sesion.id)
     if pendiente is not None:
         terminos = await consultas.terminos_de(bd, evento)
-        # La persona ya vio la oferta: no se pide aclaración; la ronda ya se contó al recibirla.
+        # La ronda ya se contó al recibir la oferta. Se revisa la cordura: «confirmar_valores» no se
+        # guarda, así que un precio absurdo tecleado mientras atendía una persona se aclara (§6.3).
         await responder(
             bd,
             evento,
@@ -393,7 +402,7 @@ async def devolver_control(
             Valores.de_json(pendiente.valores),
             pendiente.utilidad,
             sesion.ronda,
-            True,
+            False,
             momento,
         )
         await cerrar_eventos_terminados(bd, momento, evento.id)

@@ -115,6 +115,11 @@ def errores(revision: Revision, ahora: datetime) -> list[Problema]:
         problemas.append(Problema("proveedores", "Invite al menos a un proveedor."))
     for i, linea in enumerate(revision.lineas):
         problemas += _rango(f"lineas.{i}", "precio", linea.ideal, linea.limite, "el precio")
+        if linea.ideal is not None and linea.limite is not None and linea.ideal > linea.limite:
+            # Quien compra quiere pagar menos: con el ideal arriba, el motor subiría el precio.
+            problemas.append(
+                Problema(f"lineas.{i}.limite", "El precio ideal debe ser menor que el límite.")
+            )
         if (
             revision.tipo == "renovacion"
             and linea.precio_vigente is not None

@@ -136,6 +136,43 @@ async def test_aceptar_la_ultima_oferta_cierra_la_sesion_y_el_evento(
     assert detalle["estado"] == "en_evaluacion"
 
 
+async def test_aceptar_una_oferta_fuera_de_limites_exige_confirmacion_y_queda_marcada(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, ofertar: Any
+) -> None:
+    evento, enlaces = await publicar()
+    linea, sesion = _linea(evento), enlaces[0]["sesion_id"]
+    await _control(cliente, comprador, sesion, "tomar")
+    await ofertar(enlaces[0], {linea: "40.00"})  # cruza el límite de 31.50
+    sin_confirmar = await _responder(cliente, comprador, sesion, "respuesta-0001", tipo="aceptar")
+    assert sin_confirmar.status_code == 422
+    assert sin_confirmar.json()["codigo"] == "fuera_de_limites"
+    confirmada = await _responder(
+        cliente,
+        comprador,
+        sesion,
+        "respuesta-0002",
+        tipo="aceptar",
+        confirmar_fuera_de_limites=True,
+    )
+    assert confirmada.status_code == 200, confirmada.text
+    assert confirmada.json()["estado"] == "acuerdo_tentativo"
+    assert confirmada.json()["fuera_de_limites"] is True
+
+
+async def test_un_evento_con_dos_sesiones_sigue_abierto_al_cerrar_una(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, ofertar: Any
+) -> None:
+    evento, enlaces = await publicar()
+    assert len(enlaces) == 2
+    sesion = enlaces[0]["sesion_id"]
+    await _control(cliente, comprador, sesion, "tomar")
+    await ofertar(enlaces[0], {_linea(evento): "31.00"})
+    aceptada = await _responder(cliente, comprador, sesion, tipo="aceptar")
+    assert aceptada.json()["estado"] == "acuerdo_tentativo"
+    detalle = (await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()
+    assert detalle["estado"] == "abierto"  # la otra sesión sigue en curso
+
+
 async def test_cerrar_sin_acuerdo(
     cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any
 ) -> None:
@@ -172,6 +209,23 @@ async def test_al_devolver_el_control_el_agente_responde_sin_retroceder(
     assert len(agente) == 1
     # El comprador ya había ofrecido 29: el agente no vuelve a pedir menos.
     assert D(agente[0]["valores"]["precios"][linea]) >= D("29.00")
+
+
+async def test_al_devolver_el_control_un_precio_absurdo_pendiente_pide_aclaracion(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, ofertar: Any
+) -> None:
+    evento, enlaces = await publicar()
+    linea, sesion = _linea(evento), enlaces[0]["sesion_id"]
+    await _control(cliente, comprador, sesion, "tomar")
+    # Válido (bajo el límite de 31.50) pero bajo 0.1 x P50: pudo ser un error de captura.
+    await ofertar(enlaces[0], {linea: "1.00"})
+    devuelta = await _control(cliente, comprador, sesion, "devolver")
+    assert devuelta.status_code == 200, devuelta.text
+    detalle = devuelta.json()
+    assert (detalle["modo"], detalle["estado"]) == ("agente", "activa")  # sin acuerdo tentativo
+    assert [o["autor"] for o in detalle["ofertas"]] == ["proveedor"]
+    assert detalle["mensajes"][-1]["autor"] == "agente"
+    assert "parece fuera de lo usual" in detalle["mensajes"][-1]["texto"]
 
 
 async def test_pedir_a_una_persona_no_deja_sin_respuesta_la_oferta_pendiente(

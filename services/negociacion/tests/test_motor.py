@@ -14,6 +14,7 @@ from negociacion.dominio.terminos import (
     Rango,
     Terminos,
     Valores,
+    combinar,
     es_valida,
     redondear,
     utilidad,
@@ -125,6 +126,46 @@ def test_no_contesta_con_el_limite_exacto_antes_de_la_ultima_ronda() -> None:
     assert (traza["tramo"], traza["paso"], traza["atajo"]) == ("propia", 1.0, True)
 
 
+def test_la_biseccion_no_cae_en_el_limite_aunque_el_redondeo_lo_acerque() -> None:
+    # U(s') queda justo bajo el objetivo (0.6848 contra 0.6850): la bisección cae casi en s' y el
+    # redondeo al más cercano dejaba el plazo de pago, que cruzaba su límite, en 30 (R26).
+    terminos = Terminos(80, PRD.lineas, (Palanca("plazo_pago_dias", 20, Rango(D(60), D(30))),))
+    oferta = Valores({"l": D("30.72")}, {"plazo_pago_dias": D(25)})
+    propuesta, traza = contraoferta(terminos, oferta, Estado(3, 6, 0.6))
+    assert traza["atajo"] is False
+    assert propuesta.palancas["plazo_pago_dias"] == D(31)  # un paso hacia el ideal (60)
+    assert propuesta.precios["l"] == D("30.72")
+    # En la última ronda sí contesta con el límite: ahí ya no queda nada que proteger.
+    assert contraoferta(terminos, oferta, Estado(6, 6, 0.6))[0].palancas["plazo_pago_dias"] == D(30)
+
+
+def test_el_empujon_puede_pedir_un_paso_mas_que_la_contraoferta_anterior() -> None:
+    # La excepción de «no retrocede» (§6.7): el plazo (2 a 3 meses) cruzaba su límite y el
+    # objetivo lo dejaría en él; el paso hacia el ideal vale 0.25 de utilidad, más que el hueco.
+    cent = D("0.01")
+    terminos = Terminos(
+        55,
+        (Linea("l", "Licencia", D(1), Rango(cent, 2 * cent)),),
+        (
+            Palanca("plazo_meses", 25, Rango(D(3), D(2))),
+            Palanca("plazo_pago_dias", 1, Rango(D(0), D(1))),
+            Palanca("sla_disponibilidad", 19, Rango(5 * cent, D(0))),
+        ),
+    )
+
+    def oferta(sla: D) -> Valores:
+        return Valores(
+            {"l": cent}, {"plazo_meses": D(1), "plazo_pago_dias": D(0), "sla_disponibilidad": sla}
+        )
+
+    primera = decidir(terminos, Estado(1, 5, 1.0), oferta(D(0)), True).contraoferta
+    assert primera is not None
+    segunda = decidir(terminos, Estado(2, 5, 1.0, primera), oferta(cent), True).contraoferta
+    assert segunda is not None
+    assert segunda.palancas["plazo_meses"] == D(3)  # sin el paso habría quedado en el límite (2)
+    assert utilidad(terminos, segunda) > utilidad(terminos, primera)
+
+
 def test_no_pide_mas_de_lo_que_el_proveedor_ofrecio_aunque_sea_mejor_que_el_ideal() -> None:
     lineas = tuple(Linea(i, i.upper(), D(1), Rango(D(30), D(35))) for i in "abc")
     terminos = Terminos(80, lineas, (Palanca("plazo_pago_dias", 20, Rango(D(60), D(30))),))
@@ -209,6 +250,18 @@ def _por_termino(terminos: Terminos, a: Valores, b: Valores) -> Iterator[tuple[R
         yield p.rango, a.palancas[p.clave], b.palancas[p.clave]
 
 
+def _sin_empujon(terminos: Terminos, propuesta: Valores, oferta: Valores) -> Valores:
+    """La propuesta con cada término que cruzaba su límite y está a un paso de él, en el límite."""
+
+    def al_limite(clave: str, rango: Rango, valor: D, ofrecido: D) -> D:
+        paso = -PRECISION[clave] if rango.menos_es_mejor else PRECISION[clave]
+        return (
+            rango.limite if not rango.valido(ofrecido) and valor == rango.limite + paso else valor
+        )
+
+    return combinar(terminos, propuesta, oferta, al_limite)
+
+
 # (términos, rondas, β, ofertas del proveedor, contraoferta previa del comprador)
 Escenario = tuple[Terminos, int, float, list[Valores], Valores | None]
 
@@ -273,7 +326,11 @@ def test_propiedades_del_motor(escenario: Escenario) -> None:
         for rango, nueva, ofrecida in _por_termino(terminos, propuesta, oferta):
             # Ningún término favorece más al proveedor que lo que él mismo ofreció.
             assert nueva <= ofrecida if rango.menos_es_mejor else nueva >= ofrecida
+            if not rango.valido(ofrecida):
+                assert nueva != rango.limite  # antes de T no revela el límite exacto (R26)
         if anterior is not None and not decision.traza["atajo"]:
-            # No retrocede, salvo en el atajo: la oferta acotada ya alcanza el objetivo (spec §6.7).
-            assert utilidad(terminos, propuesta) <= utilidad(terminos, anterior) + 1e-12
+            # No retrocede, salvo en el atajo (la oferta acotada ya alcanza el objetivo) y, a lo
+            # sumo un paso de precisión, en el término que cruzaba su límite y caería en él (§6.7).
+            sin_empujon = _sin_empujon(terminos, propuesta, oferta)
+            assert utilidad(terminos, sin_empujon) <= utilidad(terminos, anterior) + 1e-12
         anterior = propuesta

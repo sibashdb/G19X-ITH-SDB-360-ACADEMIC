@@ -120,6 +120,14 @@ def test_cada_linea_necesita_ideal_y_limite_distintos_y_en_centavos() -> None:
     ]
 
 
+def test_el_ideal_del_precio_no_puede_superar_al_limite() -> None:
+    # Con el ideal sobre el límite el motor negociaría el precio hacia arriba (R25).
+    lineas = (LineaRevision("Invertida", D("35.00"), D("30.00")),)
+    assert errores(_revision(lineas=lineas), AHORA) == [
+        Problema("lineas.0.limite", "El precio ideal debe ser menor que el límite.")
+    ]
+
+
 def test_en_renovacion_el_limite_no_supera_el_vigente_mas_el_tope() -> None:
     lineas = (LineaRevision("Licencias", D("30.00"), D("33.61"), precio_vigente=D("32.0000")),)
     assert errores(_revision(tipo="renovacion", lineas=lineas, tope_pct=D("5.00")), AHORA) == [

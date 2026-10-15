@@ -9,6 +9,7 @@ from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any, Literal
 
 from negociacion.dominio.terminos import (
+    PRECISION,
     Rango,
     Terminos,
     Valores,
@@ -21,7 +22,7 @@ from negociacion.dominio.terminos import (
     utilidades,
 )
 
-VERSION_MOTOR = 1  # sube con cada cambio de comportamiento; queda en cada traza
+VERSION_MOTOR = 2  # sube con cada cambio de comportamiento; queda en cada traza
 BETA = {"firme": 0.3, "balanceado": 0.6, "flexible": 1.0}
 ITERACIONES = 60  # bisección sobre un camino de largo 2: sobra para centavos
 TOLERANCIA = 1e-12  # ruido de punto flotante al comparar utilidades
@@ -85,6 +86,13 @@ def _interpolar(terminos: Terminos, a: Valores, b: Valores, fraccion: float) -> 
     return combinar(terminos, a, b, lambda _c, _r, x, y: x + f * (y - x))
 
 
+def _sin_tocar_el_limite(clave: str, rango: Rango, valor: Decimal, ofrecido: Decimal) -> Decimal:
+    """Si el término cruzaba su límite y el valor cayó justo en él, un paso hacia el ideal."""
+    if valor != rango.limite or rango.valido(ofrecido):
+        return valor
+    return valor - PRECISION[clave] if rango.menos_es_mejor else valor + PRECISION[clave]
+
+
 def contraoferta(
     terminos: Terminos, oferta: Valores, estado: Estado
 ) -> tuple[Valores, dict[str, Any]]:
@@ -99,6 +107,8 @@ def contraoferta(
     Si la oferta acotada ya alcanza el objetivo no hace falta bisección (el «atajo»): una oferta
     válida se deja como está y una que cruzaba un límite se contesta con s̃, nunca con el límite
     exacto antes de la última ronda (en la ronda T la curva vale el límite, así que s̃ = s').
+    Con la bisección ocurre lo mismo: si el redondeo deja en su límite un término que cruzaba el
+    suyo, antes de la ronda T se mueve un paso de precisión hacia el ideal.
     """
     u_obj = u_objetivo(estado.ronda, estado.rondas, estado.beta)
     u_anterior = None if estado.anterior is None else utilidad(terminos, estado.anterior)
@@ -140,6 +150,10 @@ def contraoferta(
                 sin_redondear,
                 lambda c, r, v: redondear(c, v, ROUND_CEILING if r.menos_es_mejor else ROUND_FLOOR),
             )
+        if estado.ronda < estado.rondas:
+            # Si la bisección cae casi en s', el redondeo puede dejar en el límite exacto un término
+            # que cruzaba el suyo: se mueve un paso de precisión hacia el ideal (R26).
+            resultado = combinar(terminos, resultado, oferta, _sin_tocar_el_limite)
     traza: dict[str, Any] = {
         "u_objetivo": u_obj,
         "objetivo": objetivo,
