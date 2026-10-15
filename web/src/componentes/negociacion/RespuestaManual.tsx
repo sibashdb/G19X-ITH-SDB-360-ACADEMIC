@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useId, useState, type FormEvent } from "react"
+import { useId, useRef, useState, type FormEvent } from "react"
 import { ErrorApi, erroresPorCampo, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { ConfirmarAccion } from "@/componentes/ConfirmarAccion"
@@ -61,6 +61,7 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
   // La respuesta que espera confirmar que sale de los límites.
   const [pendiente, setPendiente] = useState<Respuesta | null>(null)
   const [aviso, setAviso] = useState("")
+  const campoTexto = useRef<HTMLTextAreaElement>(null)
 
   const responder = useMutation({
     mutationFn: (cuerpo: Respuesta) => {
@@ -84,6 +85,8 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
       setTexto("")
       setConContraoferta(false)
       setAviso(AVISOS[cuerpo.tipo])
+      // La contraoferta se cierra: si se envió con Enter desde un precio, el foco caería en <body>.
+      if (cuerpo.tipo === "mensaje") campoTexto.current?.focus()
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
       // Aceptar o cerrar termina la sesión: la página quita el formulario y el botón de control, y
       // el foco caería en <body>. El diálogo ya devolvió el foco a su botón antes de la petición.
@@ -134,6 +137,7 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
           {(control) => (
             <Textarea
               {...control}
+              ref={campoTexto}
               required
               maxLength={2000}
               value={texto}
@@ -203,13 +207,11 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
         <p role="status" className={aviso ? "text-sm text-success" : "sr-only"}>
           {aviso}
         </p>
-        {responder.isError &&
-          !fueraDeLimites &&
-          Object.keys(errores).length === 0 && (
-            <p role="alert" className="text-sm text-destructive">
-              {responder.error.message}
-            </p>
-          )}
+        {responder.isError && !fueraDeLimites && (
+          <p role="alert" className="text-sm text-destructive">
+            {responder.error.message}
+          </p>
+        )}
       </form>
       <AlertDialog
         open={pendiente !== null}

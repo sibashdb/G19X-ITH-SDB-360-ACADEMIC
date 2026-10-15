@@ -491,6 +491,128 @@ describe("respuesta manual", () => {
     ).toHaveAttribute("aria-invalid", "true")
   })
 
+  it("muestra en un aviso el error del servicio aunque ningún campo lo muestre", async () => {
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () =>
+        respuestaJson(
+          {
+            title: "Solicitud inválida",
+            detail: "Revise los campos indicados.",
+            codigo: "invalido",
+            errores: [
+              {
+                campo: "body",
+                mensaje: "Escriba el mensaje para el proveedor.",
+              },
+            ],
+          },
+          422
+        ),
+    })
+    abrir()
+    // Solo espacios: pasa `required` del navegador y el servicio lo rechaza.
+    await userEvent.type(
+      await screen.findByLabelText("Mensaje para el proveedor"),
+      "   "
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar respuesta" })
+    )
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Revise los campos indicados."
+    )
+  })
+
+  it("al enviar un mensaje con Enter desde un precio el foco vuelve al mensaje", async () => {
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () => respuestaJson(ESCALADA),
+    })
+    abrir()
+    await escribirContraoferta("90.10")
+    // El cursor sigue en el precio: Enter envía el formulario y la contraoferta se cierra.
+    await userEvent.keyboard("{Enter}")
+    expect(
+      await screen.findByText("Se envió su respuesta.")
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByLabelText("Mensaje para el proveedor")).toHaveFocus()
+    )
+  })
+
+  it("Revisar cierra el aviso de límites sin enviar de nuevo", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () =>
+        respuestaJson(
+          {
+            title: "Solicitud inválida",
+            detail: "La contraoferta sale de sus límites.",
+            codigo: "fuera_de_limites",
+          },
+          422
+        ),
+    })
+    abrir()
+    await escribirContraoferta("120.00")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar respuesta" })
+    )
+    const aviso = await screen.findByRole("alertdialog", {
+      name: "Esto sale de sus límites",
+    })
+    await userEvent.click(
+      within(aviso).getByRole("button", { name: "Revisar" })
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    )
+    const envios = api.mock.calls.filter(
+      ([url, init]) =>
+        url === `${RUTA}/respuestas` &&
+        (init as RequestInit | undefined)?.method === "POST"
+    )
+    expect(envios).toHaveLength(1)
+  })
+
+  it("dos mensajes iguales, uno tras otro, llevan Idempotency-Key distinta", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ESCALADA),
+      [`POST ${RUTA}/respuestas`]: () => respuestaJson(ESCALADA),
+    })
+    abrir()
+    const enviar = async () => {
+      await userEvent.type(
+        await screen.findByLabelText("Mensaje para el proveedor"),
+        "Quedamos atentos."
+      )
+      await userEvent.click(
+        screen.getByRole("button", { name: "Enviar respuesta" })
+      )
+    }
+    const envios = () =>
+      api.mock.calls.filter(
+        ([url, init]) =>
+          url === `${RUTA}/respuestas` &&
+          (init as RequestInit | undefined)?.method === "POST"
+      )
+    await enviar()
+    await waitFor(() => expect(envios()).toHaveLength(1))
+    // El aviso del primero sigue en pantalla: la prueba espera a que el formulario se limpie.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Mensaje para el proveedor")).toHaveValue("")
+    )
+    await enviar()
+    await waitFor(() => expect(envios()).toHaveLength(2))
+    const [primero, segundo] = envios().map(([, init]) =>
+      new Headers((init as RequestInit).headers).get("Idempotency-Key")
+    )
+    expect(primero).toMatch(/^[0-9a-f-]{36}$/)
+    expect(segundo).toMatch(/^[0-9a-f-]{36}$/)
+    expect(segundo).not.toBe(primero)
+  })
+
   it("sin el control no muestra el formulario", async () => {
     simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(SESION) })
     abrir()
