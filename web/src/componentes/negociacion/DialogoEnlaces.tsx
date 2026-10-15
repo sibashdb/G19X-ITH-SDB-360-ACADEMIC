@@ -104,9 +104,8 @@ export function DialogoEnlaces({
                 onClick={() => void copiar(e)}
               >
                 <Copy aria-hidden />
-                Copiar
+                Copiar{" "}
                 <span className="sr-only">
-                  {" "}
                   el enlace de {e.proveedor_nombre}
                 </span>
               </Button>

@@ -89,7 +89,7 @@ describe("DialogoEnlaces", () => {
     expect(aviso).toHaveClass("sr-only")
     await userEvent.click(
       within(dialogo).getByRole("button", {
-        name: /Copiar\s*el enlace de Nube Norte/,
+        name: "Copiar el enlace de Nube Norte",
       })
     )
     expect(aviso).not.toHaveClass("sr-only")
