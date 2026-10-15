@@ -35,3 +35,21 @@ export function haceCuanto(iso: string, ahora: Date = new Date()): string {
   }
   return "hace un momento"
 }
+
+const dosDigitos = (n: number) => String(n).padStart(2, "0")
+
+/** "2026-10-21T18:00" en la hora del navegador, para un <input type="datetime-local">. */
+export function aEntradaFechaHora(fecha: Date): string {
+  return `${fecha.getFullYear()}-${dosDigitos(fecha.getMonth() + 1)}-${dosDigitos(fecha.getDate())}T${dosDigitos(fecha.getHours())}:${dosDigitos(fecha.getMinutes())}`
+}
+
+/** El valor de un <input type="datetime-local"> como instante ISO; null si está vacío o no sirve. */
+export function desdeEntradaFechaHora(valor: string): string | null {
+  const fecha = new Date(valor)
+  return valor && !Number.isNaN(fecha.getTime()) ? fecha.toISOString() : null
+}
+
+/** Hoy en la Ciudad de México, "AAAA-MM-DD", para compararlo con las fechas de los contratos. */
+export function hoyEnMexico(ahora: Date = new Date()): string {
+  return ahora.toLocaleDateString("en-CA", { timeZone: ZONA })
+}

@@ -4,6 +4,7 @@ import {
   Building2,
   FileUp,
   Gauge,
+  Handshake,
   History,
   LayoutDashboard,
   LifeBuoy,
@@ -75,6 +76,17 @@ export const NAVEGACION: SeccionNavegacion[] = [
         ruta: "/alertas",
         descripcion: "Qué atender hoy",
         icono: Bell,
+      },
+    ],
+  },
+  {
+    titulo: "Negociación",
+    elementos: [
+      {
+        titulo: "Negociaciones",
+        ruta: "/negociaciones",
+        descripcion: "Negociar con proveedores dentro de sus límites",
+        icono: Handshake,
       },
     ],
   },
@@ -194,10 +206,12 @@ export function migasDe(pathname: string): Miga[] {
   const migas: Miga[] =
     seccion.titulo === elemento.titulo ? [] : [{ titulo: seccion.titulo }]
   if (ruta !== elemento.ruta) {
+    // La única subruta con nombre propio es la de crear (/negociaciones/nueva).
+    const titulo = ruta === `${elemento.ruta}/nueva` ? "Nueva" : "Detalle"
     return [
       ...migas,
       { titulo: elemento.titulo, ruta: elemento.ruta },
-      { titulo: "Detalle" },
+      { titulo },
     ]
   }
   return [...migas, { titulo: elemento.titulo }]

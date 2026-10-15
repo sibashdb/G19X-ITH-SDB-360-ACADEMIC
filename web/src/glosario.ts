@@ -59,6 +59,31 @@ export const GLOSARIO = {
     definicion:
       "Precio de referencia calculado directamente con los contratos de los últimos 24 meses, sin el modelo de precios.",
   },
+  palanca: {
+    termino: "Palanca",
+    definicion:
+      "Un término del contrato que se negocia además del precio: plazo, plazo de pago, SLA, tope de aumento o cuota de implementación. Usted elige cuáles se negocian y cuánto pesa cada uno.",
+  },
+  ideal: {
+    termino: "Ideal",
+    definicion:
+      "El valor que a usted le gustaría conseguir. El agente empieza pidiéndolo y cede poco a poco hacia el límite.",
+  },
+  limite: {
+    termino: "Límite",
+    definicion:
+      "El peor valor que usted acepta. El agente nunca acuerda algo que lo cruce y nunca se lo muestra al proveedor.",
+  },
+  ronda: {
+    termino: "Ronda",
+    definicion:
+      "Cada oferta del proveedor con la respuesta del agente. En la última ronda, el agente acepta si la oferta respeta sus límites o cierra sin acuerdo.",
+  },
+  acuerdoTentativo: {
+    termino: "Acuerdo tentativo",
+    definicion:
+      "El proveedor y el agente coincidieron dentro de sus límites. No es vinculante hasta que se adjudique y se apruebe.",
+  },
 } as const satisfies Record<string, { termino: string; definicion: string }>
 
 export type ClaveGlosario = keyof typeof GLOSARIO

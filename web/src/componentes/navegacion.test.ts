@@ -12,6 +12,7 @@ describe("navegacionPara", () => {
       "Ranking",
       "Precios",
       "Alertas",
+      "Negociaciones",
       "Centro de ayuda",
     ])
     expect(titulos([])).toEqual([
@@ -20,6 +21,7 @@ describe("navegacionPara", () => {
       "Ranking",
       "Precios",
       "Alertas",
+      "Negociaciones",
       "Centro de ayuda",
     ])
   })
@@ -30,6 +32,7 @@ describe("navegacionPara", () => {
       "Resumen",
       "Proveedores",
       "Inteligencia",
+      "Negociación",
       "Sistema",
       "Soporte",
     ])
@@ -71,6 +74,26 @@ describe("migasDe", () => {
     ],
     ["/ranking", [{ titulo: "Proveedores" }, { titulo: "Ranking" }]],
     ["/precios", [{ titulo: "Inteligencia" }, { titulo: "Precios" }]],
+    [
+      "/negociaciones",
+      [{ titulo: "Negociación" }, { titulo: "Negociaciones" }],
+    ],
+    [
+      "/negociaciones/nueva",
+      [
+        { titulo: "Negociación" },
+        { titulo: "Negociaciones", ruta: "/negociaciones" },
+        { titulo: "Nueva" },
+      ],
+    ],
+    [
+      "/negociaciones/abc/sesiones/def",
+      [
+        { titulo: "Negociación" },
+        { titulo: "Negociaciones", ruta: "/negociaciones" },
+        { titulo: "Detalle" },
+      ],
+    ],
     ["/sistema/usuarios", [{ titulo: "Sistema" }, { titulo: "Usuarios" }]],
     [
       "/sistema/usuarios/abc",
@@ -117,6 +140,7 @@ describe("descripciones del menú", () => {
       Ranking: "Los mejores proveedores por categoría",
       Precios: "Cuánto debería pagar",
       Alertas: "Qué atender hoy",
+      Negociaciones: "Negociar con proveedores dentro de sus límites",
       Panel: "Lo importante de un vistazo",
       Usuarios: "Quién entra y con qué rol",
       Actividad: "Quién hizo qué y cuándo",
