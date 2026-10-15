@@ -31,10 +31,15 @@ describe("ContenidoVivo", () => {
     renderizarPagina(<Vista />)
     expect(await screen.findByText("Hola")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Actualizar" }))
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "No se pudo actualizar; se volverá a intentar en unos segundos."
-    )
+    expect(
+      await screen.findByText(
+        "No se pudo actualizar; se volverá a intentar en unos segundos."
+      )
+    ).toHaveAttribute("role", "status")
     expect(screen.getByText("Hola")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Reintentar" })
+    ).not.toBeInTheDocument()
   })
 
   it("si nunca cargó, muestra el error con Reintentar", async () => {

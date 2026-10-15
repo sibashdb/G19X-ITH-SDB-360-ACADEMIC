@@ -24,7 +24,10 @@ export function ContenidoVivo<T>({
   }
   return (
     <>
-      <p role="status" className="text-sm text-warning empty:hidden">
+      <p
+        role="status"
+        className={consulta.isRefetchError ? "text-sm text-warning" : "sr-only"}
+      >
         {consulta.isRefetchError
           ? "No se pudo actualizar; se volverá a intentar en unos segundos."
           : ""}

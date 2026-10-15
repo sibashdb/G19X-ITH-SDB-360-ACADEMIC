@@ -346,7 +346,7 @@ export function explicarDecision(d: Decision): string {
   const vale = `La oferta del proveedor vale ${formatoUtilidad(d.utilidad_oferta)} para usted`
   switch (d.accion) {
     case "pedir_aclaracion":
-      return "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
+      return "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, el límite), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
     case "aceptar":
       return `${vale}, respeta sus límites y alcanza lo que el agente pediría en esta ronda (${formatoUtilidad(d.utilidad_contraoferta ?? 0)}), así que la aceptó como acuerdo tentativo.`
     case "cerrar_sin_acuerdo":

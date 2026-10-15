@@ -65,7 +65,7 @@ describe("explicarDecision", () => {
       "Era la última ronda (6 de 6) y la oferta cruzaba al menos uno de sus límites, así que el agente cerró sin acuerdo."
     )
     expect(explicarDecision({ ...BASE, accion: "pedir_aclaracion" })).toBe(
-      "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
+      "Algún precio de la oferta quedó muy lejos de lo usual (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, el límite), así que el agente pidió al proveedor confirmarlo. Esta respuesta no cuenta como ronda."
     )
   })
 })
