@@ -43,6 +43,21 @@ export function simularApi(
   return simulado
 }
 
+/**
+ * Sustituye fetch y responde por método y URL exacta, con claves como "PATCH /api/…". Sin método
+ * en `init`, la llamada cuenta como GET. Lo que no está en la tabla responde 404.
+ */
+export function simularRutas(rutas: Record<string, () => Respuesta>) {
+  const simulado = vi.fn((url: string, init?: RequestInit) => {
+    const respuesta = rutas[`${init?.method ?? "GET"} ${url}`]
+    return Promise.resolve(
+      respuesta ? respuesta() : new Response("", { status: 404 })
+    )
+  })
+  vi.stubGlobal("fetch", simulado)
+  return simulado
+}
+
 /** Espera a que ninguna mutación en caché conserve el texto (el gcTime de la mutación debe ser 0). */
 export async function esperarSinEnMutaciones(
   cliente: QueryClient,
