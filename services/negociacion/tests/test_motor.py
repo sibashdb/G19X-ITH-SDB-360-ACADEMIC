@@ -1,9 +1,11 @@
 from collections.abc import Iterator
 from decimal import Decimal as D
+from unittest.mock import patch
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from negociacion.dominio import motor
 from negociacion.dominio.motor import BETA, Estado, contraoferta, curva, decidir, u_objetivo
 from negociacion.dominio.terminos import (
     PALANCAS,
@@ -14,7 +16,6 @@ from negociacion.dominio.terminos import (
     Rango,
     Terminos,
     Valores,
-    combinar,
     es_valida,
     redondear,
     utilidad,
@@ -133,6 +134,7 @@ def test_la_biseccion_no_cae_en_el_limite_aunque_el_redondeo_lo_acerque() -> Non
     oferta = Valores({"l": D("30.72")}, {"plazo_pago_dias": D(25)})
     propuesta, traza = contraoferta(terminos, oferta, Estado(3, 6, 0.6))
     assert traza["atajo"] is False
+    assert traza["empujados"] == ["plazo_pago_dias"]
     assert propuesta.palancas["plazo_pago_dias"] == D(31)  # un paso hacia el ideal (60)
     assert propuesta.precios["l"] == D("30.72")
     # En la última ronda sí contesta con el límite: ahí ya no queda nada que proteger.
@@ -215,6 +217,7 @@ def test_la_traza_explica_la_decision() -> None:
         "atajo",
         "de_curva",
         "redondeo",
+        "empujados",
         "utilidad_contraoferta",
         "contraoferta",
     } <= set(traza)
@@ -250,16 +253,22 @@ def _por_termino(terminos: Terminos, a: Valores, b: Valores) -> Iterator[tuple[R
         yield p.rango, a.palancas[p.clave], b.palancas[p.clave]
 
 
-def _sin_empujon(terminos: Terminos, propuesta: Valores, oferta: Valores) -> Valores:
-    """La propuesta con cada término que cruzaba su límite y está a un paso de él, en el límite."""
+def _solo_empujones(
+    terminos: Terminos, cruda: Valores, propuesta: Valores, oferta: Valores
+) -> None:
+    """La propuesta difiere de la cruda (sin empujón) solo en el paso de R26 desde el límite."""
 
-    def al_limite(clave: str, rango: Rango, valor: D, ofrecido: D) -> D:
-        paso = -PRECISION[clave] if rango.menos_es_mejor else PRECISION[clave]
-        return (
-            rango.limite if not rango.valido(ofrecido) and valor == rango.limite + paso else valor
-        )
+    def revisar(clave: str, rango: Rango, c: D, p: D, ofrecido: D) -> None:
+        if p != c:
+            paso = -PRECISION[clave] if rango.menos_es_mejor else PRECISION[clave]
+            assert c == rango.limite and not rango.valido(ofrecido) and p == c + paso
 
-    return combinar(terminos, propuesta, oferta, al_limite)
+    for linea in terminos.lineas:
+        i = linea.id
+        revisar("precio", linea.rango, cruda.precios[i], propuesta.precios[i], oferta.precios[i])
+    for pa in terminos.palancas:
+        k = pa.clave
+        revisar(k, pa.rango, cruda.palancas[k], propuesta.palancas[k], oferta.palancas[k])
 
 
 # (términos, rondas, β, ofertas del proveedor, contraoferta previa del comprador)
@@ -328,9 +337,15 @@ def test_propiedades_del_motor(escenario: Escenario) -> None:
             assert nueva <= ofrecida if rango.menos_es_mejor else nueva >= ofrecida
             if not rango.valido(ofrecida):
                 assert nueva != rango.limite  # antes de T no revela el límite exacto (R26)
-        if anterior is not None and not decision.traza["atajo"]:
+        if not decision.traza["atajo"]:
             # No retrocede, salvo en el atajo (la oferta acotada ya alcanza el objetivo) y, a lo
-            # sumo un paso de precisión, en el término que cruzaba su límite y caería en él (§6.7).
-            sin_empujon = _sin_empujon(terminos, propuesta, oferta)
-            assert utilidad(terminos, sin_empujon) <= utilidad(terminos, anterior) + 1e-12
+            # sumo un paso de precisión, en el término que cruzaba su límite y caería en él (§6.7):
+            # la contraoferta sin el empujón no retrocede y el empujón solo mueve ese paso.
+            with patch.object(motor, "_sin_tocar_el_limite", lambda _c, _r, v, _o: v):
+                cruda = decidir(terminos, Estado(t, rondas, beta, anterior), oferta, True)
+            assert cruda.contraoferta is not None
+            _solo_empujones(terminos, cruda.contraoferta, propuesta, oferta)
+            if anterior is not None:
+                u_cruda = utilidad(terminos, cruda.contraoferta)
+                assert u_cruda <= utilidad(terminos, anterior) + 1e-12
         anterior = propuesta

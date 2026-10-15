@@ -227,7 +227,7 @@ Es un módulo puro, sin base de datos ni red:
 Cada decisión del motor se guarda en la bitácora (acción `motor.decision`) con:
 - `u` por palanca y por línea, `U`, `U_obj`, `t`, `T` y β;
 - el tramo y el parámetro de la bisección;
-- las palancas que se tomaron de su curva propia y el redondeo aplicado;
+- las palancas que se tomaron de su curva propia, el redondeo aplicado y los términos que el redondeo movió un paso para no contestar con su límite (`empujados`);
 - `hay_mejor_oferta`;
 - la versión del motor (`VERSION_MOTOR`, una constante que sube con cada cambio de comportamiento).
 

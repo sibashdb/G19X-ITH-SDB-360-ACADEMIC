@@ -124,6 +124,7 @@ def contraoferta(
         return _interpolar(terminos, propia, ideal, paso - 1)
 
     redondeo = "ninguno"  # s', s̃ y la oferta ya están en la precisión de cada término
+    empujados: list[str] = []
     atajo = utilidad(terminos, acotada) >= objetivo
     if atajo:
         paso, resultado, tramo = (1.0, propia, "propia") if de_curva else (0.0, acotada, "acotada")
@@ -153,7 +154,12 @@ def contraoferta(
         if estado.ronda < estado.rondas:
             # Si la bisección cae casi en s', el redondeo puede dejar en el límite exacto un término
             # que cruzaba el suyo: se mueve un paso de precisión hacia el ideal (R26).
-            resultado = combinar(terminos, resultado, oferta, _sin_tocar_el_limite)
+            empujada = combinar(terminos, resultado, oferta, _sin_tocar_el_limite)
+            empujados = [
+                *(k for k, v in empujada.precios.items() if v != resultado.precios[k]),
+                *(k for k, v in empujada.palancas.items() if v != resultado.palancas[k]),
+            ]
+            resultado = empujada
     traza: dict[str, Any] = {
         "u_objetivo": u_obj,
         "objetivo": objetivo,
@@ -162,6 +168,7 @@ def contraoferta(
         "atajo": atajo,
         "de_curva": de_curva,
         "redondeo": redondeo,
+        "empujados": empujados,
         "utilidad_contraoferta": utilidad(terminos, resultado),
     }
     return resultado, traza
