@@ -74,6 +74,9 @@ async def comprobar_todo(
     async def inteligencia() -> None:
         await obtener(f"{config.inteligencia_url}/salud/listo")
 
+    async def negociacion() -> None:
+        await obtener(f"{config.negociacion_url}/salud/listo")
+
     async def identidad() -> None:
         await obtener(
             f"{config.keycloak_url}/realms/{config.keycloak_realm}/.well-known/openid-configuration"
@@ -111,6 +114,7 @@ async def comprobar_todo(
         ("base_de_datos", "Base de datos de administración", base_de_datos),
         ("proveedores", "Servicio de proveedores", proveedores),
         ("inteligencia", "Servicio de inteligencia", inteligencia),
+        ("negociacion", "Servicio de negociación", negociacion),
         ("identidad", "Identidad (Keycloak)", identidad),
         ("mensajeria", "Mensajería (RabbitMQ)", mensajeria),
         ("correo", "Buzón de correo (Mailpit)", correo),

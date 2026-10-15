@@ -9,7 +9,7 @@ from typing import Any
 import aio_pika
 import pytest
 from administracion.bitacora import Actor, Objeto
-from administracion.eventos import Registro, atendedor, traducir
+from administracion.eventos import CorreoNegociacion, Registro, atendedor, traducir
 from comun.consumidor import ConsumidorEventos, EventoInvalido
 from comun.outbox import EXCHANGE_EVENTOS
 from comun.topologia import COLA_ADMINISTRACION
@@ -131,6 +131,55 @@ def test_traduce_un_entrenamiento_del_modelo(promovido: bool) -> None:
     assert registro.clave_origen.startswith("inteligencia:")
 
 
+NEGOCIACION = {
+    "folio": "NEG-2026-0001",
+    "titulo": "CRM 2027",
+    "actor": {"id": "c-1", "nombre": "comprador1"},
+}
+INVITACION = NEGOCIACION | {
+    "proveedor": "Nube Norte S.A. de C.V.",
+    "destinatario": "lucia@nubenorte.example",
+    "estado": "enviado",
+    "error": None,
+    "reenvio": False,
+}
+
+
+def test_traduce_las_acciones_de_negociacion() -> None:
+    publicada = traducir(
+        _sobre("negociacion.publicada", NEGOCIACION | {"tipo": "compra", "proveedores": 3}, "n-1")
+    )
+    assert publicada == Registro(
+        tipo="negociacion.publicada",
+        actor=Actor("c-1", "comprador1"),
+        objeto=Objeto("negociacion", "NEG-2026-0001", "NEG-2026-0001 «CRM 2027»"),
+        detalle={"proveedores": 3},
+        resultado="exito",
+        clave_origen="negociacion:n-1",
+        fecha=datetime(2026, 10, 9, 15, tzinfo=UTC),
+        origen="negociacion",
+    )
+    cancelada = traducir(_sobre("negociacion.cancelada", NEGOCIACION | {"motivo": "Se pospuso"}))
+    assert cancelada is not None and cancelada.detalle == {"motivo": "Se pospuso"}
+    invitacion = traducir(_sobre("negociacion.invitacion_enviada", INVITACION))
+    assert invitacion is not None
+    assert invitacion.detalle == {
+        "proveedor": "Nube Norte S.A. de C.V.",
+        "destinatario": "lucia@nubenorte.example",
+        "estado": "enviado",
+        "reenvio": False,
+    }
+    assert invitacion.correo == CorreoNegociacion(
+        "lucia@nubenorte.example", "comprador1", "enviado", None
+    )
+    fallida = traducir(
+        _sobre("negociacion.invitacion_enviada", INVITACION | {"estado": "fallido", "error": "x"})
+    )
+    assert fallida is not None and fallida.resultado == "fallo"
+    with pytest.raises(EventoInvalido):
+        traducir(_sobre("negociacion.invitacion_enviada", INVITACION | {"estado": "perdido"}))
+
+
 def test_ignora_lo_que_no_va_a_la_bitacora() -> None:
     assert traducir(_sobre("proveedor.actualizado", {"id": "x"})) is None
     # Un servicio.actualizado sin cambio ni actor (p. ej. una instantánea del Plan B): no es acción.
@@ -234,6 +283,30 @@ async def test_guarda_los_registros_de_inteligencia_una_sola_vez(
         assert [tuple(f) for f in filas] == [
             ("inteligencia", f"inteligencia:{sobre['event_id']}", "modelo de precios v4", None)
         ]
+
+
+@pytest.mark.integracion
+async def test_una_invitacion_queda_una_vez_en_actividad_y_en_correos(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    sobre = _sobre("negociacion.invitacion_enviada", INVITACION)
+    atender = atendedor(fabrica)
+    await atender(sobre)
+    await atender(sobre)  # el mismo evento entregado dos veces
+    async with fabrica() as sesion:
+        actividad = (await sesion.execute(text("SELECT origen, tipo FROM actividad"))).all()
+        correos = (
+            await sesion.execute(
+                text(
+                    "SELECT tipo, destinatario, usuario_id, solicitado_por, estado "
+                    "FROM correo_enviado"
+                )
+            )
+        ).all()
+    assert [tuple(f) for f in actividad] == [("negociacion", "negociacion.invitacion_enviada")]
+    assert [tuple(f) for f in correos] == [
+        ("negociacion", "lucia@nubenorte.example", None, "comprador1", "enviado")
+    ]
 
 
 @pytest.mark.integracion

@@ -73,6 +73,19 @@ def _entrenamiento(a: Actividad) -> str:
     )
 
 
+def _proveedores(valor: object) -> str:
+    cuantos = valor if isinstance(valor, int) else 0
+    return "1 proveedor" if cuantos == 1 else f"{cuantos} proveedores"
+
+
+def _invitacion(a: Actividad) -> str:
+    proveedor = a.detalle.get("proveedor", "")
+    if a.detalle.get("estado") == "fallido":
+        return f"No se pudo enviar a {proveedor} la invitación a negociar {a.objeto_nombre}"
+    accion = "Reenvió" if a.detalle.get("reenvio") else "Envió"
+    return f"{accion} a {proveedor} la invitación a negociar {a.objeto_nombre}"
+
+
 TEXTOS: dict[str, Callable[[Actividad], str]] = {
     "sesion.iniciada": lambda a: "Inició sesión",
     "sesion.fallida": _sesion_fallida,
@@ -103,6 +116,13 @@ TEXTOS: dict[str, Callable[[Actividad], str]] = {
     "servicio.activado": lambda a: f"Activó el servicio {a.objeto_nombre}",
     "configuracion.actualizada": _ajustes,
     "modelo.entrenado": _entrenamiento,
+    "negociacion.publicada": lambda a: (
+        f"Publicó la negociación {a.objeto_nombre} con {_proveedores(a.detalle.get('proveedores'))}"
+    ),
+    "negociacion.cancelada": lambda a: (
+        f"Canceló la negociación {a.objeto_nombre}: {a.detalle.get('motivo', '')}"
+    ),
+    "negociacion.invitacion_enviada": _invitacion,
 }
 
 

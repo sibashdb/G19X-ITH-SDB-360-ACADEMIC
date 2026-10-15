@@ -11,13 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from administracion.modelos import Actividad
 
-GrupoTipo = Literal["sesiones", "usuarios", "importaciones", "catalogo", "inteligencia"]
+GrupoTipo = Literal[
+    "sesiones", "usuarios", "importaciones", "catalogo", "inteligencia", "negociacion"
+]
 PREFIJOS_GRUPO: dict[str, tuple[str, ...]] = {
     "sesiones": ("sesion.",),
     "usuarios": ("usuario.",),
     "importaciones": ("importacion.",),
     "catalogo": ("servicio.",),
     "inteligencia": ("configuracion.", "modelo."),
+    "negociacion": ("negociacion.",),
 }
 MAX_NOMBRE = 200  # largo de actor_nombre y objeto_nombre; Keycloak admite usuarios de hasta 255
 
@@ -55,8 +58,11 @@ async def registrar(
     origen: str = "administracion",
     clave_origen: str | None = None,
     fecha: datetime | None = None,
-) -> None:
-    """Agrega un registro a la transacción en curso; una clave de origen repetida no hace nada."""
+) -> bool:
+    """Agrega un registro a la transacción en curso.
+
+    Devuelve False si la clave de origen ya existía.
+    """
     valores: dict[str, Any] = {
         "actor_id": actor.id,
         "actor_nombre": actor.nombre[:MAX_NOMBRE],
@@ -72,9 +78,13 @@ async def registrar(
     }
     if fecha is not None:
         valores["fecha"] = fecha
-    await sesion.execute(
-        insert(Actividad).values(**valores).on_conflict_do_nothing(index_elements=["clave_origen"])
+    insertado = await sesion.scalar(
+        insert(Actividad)
+        .values(**valores)
+        .on_conflict_do_nothing(index_elements=["clave_origen"])
+        .returning(Actividad.id)
     )
+    return insertado is not None
 
 
 def _filtrada(filtro: FiltroActividad) -> Select[Actividad]:

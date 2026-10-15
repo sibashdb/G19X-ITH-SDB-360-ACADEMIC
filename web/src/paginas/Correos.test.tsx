@@ -63,6 +63,28 @@ describe("Correos", () => {
     await esperarSinViolaciones(container)
   })
 
+  it("muestra las invitaciones a negociar", async () => {
+    simularApi(() =>
+      respuestaJson({
+        total: 1,
+        buzon_url: null,
+        elementos: [
+          {
+            id: "c3",
+            fecha: "2026-10-13T18:00:00Z",
+            tipo: "negociacion",
+            destinatario: "lucia@nubenorte.example",
+            solicitado_por: "comprador1",
+            estado: "enviado",
+            error: null,
+          },
+        ],
+      })
+    )
+    renderizarPagina(<Correos />, { ruta: "/sistema/correos" })
+    expect(await screen.findByText("Invitación a negociar")).toBeInTheDocument()
+  })
+
   it("estado vacío sin buzón", async () => {
     simularApi(() =>
       respuestaJson({ total: 0, elementos: [], buzon_url: null })

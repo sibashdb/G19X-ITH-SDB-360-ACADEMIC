@@ -208,7 +208,7 @@ export type PaginaActividad = { total: number; elementos: RegistroActividad[] }
 export type CorreoEnviado = {
   id: string
   fecha: string
-  tipo: "invitacion" | "restablecimiento"
+  tipo: "invitacion" | "restablecimiento" | "negociacion"
   destinatario: string
   solicitado_por: string
   estado: "enviado" | "fallido"

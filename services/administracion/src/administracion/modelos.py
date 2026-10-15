@@ -20,7 +20,8 @@ class Actividad(Base):
     __table_args__ = (
         CheckConstraint("resultado IN ('exito', 'fallo')", name="resultado"),
         CheckConstraint(
-            "origen IN ('keycloak', 'proveedores', 'administracion', 'inteligencia')",
+            "origen IN ('keycloak', 'proveedores', 'administracion', 'inteligencia', "
+            "'negociacion')",
             name="origen",
         ),
         Index("ix_actividad_fecha", "fecha"),
@@ -46,7 +47,7 @@ class Actividad(Base):
 class CorreoEnviado(Base):
     __tablename__ = "correo_enviado"
     __table_args__ = (
-        CheckConstraint("tipo IN ('invitacion', 'restablecimiento')", name="tipo"),
+        CheckConstraint("tipo IN ('invitacion', 'restablecimiento', 'negociacion')", name="tipo"),
         CheckConstraint("estado IN ('enviado', 'fallido')", name="estado"),
         Index("ix_correo_enviado_fecha", "fecha"),
     )
@@ -55,7 +56,7 @@ class CorreoEnviado(Base):
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_ahora)
     tipo: Mapped[str] = mapped_column(String(20))
     destinatario: Mapped[str] = mapped_column(String(254))
-    usuario_id: Mapped[str] = mapped_column(String(64))
+    usuario_id: Mapped[str | None] = mapped_column(String(64))
     solicitado_por: Mapped[str] = mapped_column(String(200))
     estado: Mapped[str] = mapped_column(String(10))
     error: Mapped[str | None] = mapped_column(String(500))

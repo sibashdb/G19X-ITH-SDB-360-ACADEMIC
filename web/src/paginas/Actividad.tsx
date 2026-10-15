@@ -44,6 +44,7 @@ const GRUPOS = [
   ["importaciones", "Importaciones"],
   ["catalogo", "Catálogo"],
   ["inteligencia", "Inteligencia"],
+  ["negociacion", "Negociación"],
 ] as const
 const CLAVES_GRUPO = GRUPOS.map(([clave]) => clave)
 const FECHA_MINIMA = "2000-01-01"

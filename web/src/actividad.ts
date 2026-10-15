@@ -21,6 +21,9 @@ export const TIPOS_ACTIVIDAD = [
   "servicio.activado",
   "configuracion.actualizada",
   "modelo.entrenado",
+  "negociacion.publicada",
+  "negociacion.cancelada",
+  "negociacion.invitacion_enviada",
 ] as const
 type TipoActividad = (typeof TIPOS_ACTIVIDAD)[number]
 
@@ -71,6 +74,19 @@ function entrenamiento(a: RegistroActividad): string {
   return `Reentrenó el modelo de precios: versión ${String(a.detalle.version ?? "?")}, MAPE ${porcentaje} %, ${resultado}`
 }
 
+function proveedores(valor: unknown): string {
+  const cuantos = typeof valor === "number" ? valor : 0
+  return cuantos === 1 ? "1 proveedor" : `${cuantos} proveedores`
+}
+
+function invitacion(a: RegistroActividad): string {
+  const proveedor = String(a.detalle.proveedor ?? "")
+  if (a.detalle.estado === "fallido")
+    return `No se pudo enviar a ${proveedor} la invitación a negociar ${a.objeto_nombre}`
+  const accion = a.detalle.reenvio ? "Reenvió" : "Envió"
+  return `${accion} a ${proveedor} la invitación a negociar ${a.objeto_nombre}`
+}
+
 const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
   "sesion.iniciada": () => "Inició sesión",
   "sesion.fallida": (a) => {
@@ -102,6 +118,11 @@ const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
   "servicio.activado": (a) => `Activó el servicio ${a.objeto_nombre}`,
   "configuracion.actualizada": ajustes,
   "modelo.entrenado": entrenamiento,
+  "negociacion.publicada": (a) =>
+    `Publicó la negociación ${a.objeto_nombre} con ${proveedores(a.detalle.proveedores)}`,
+  "negociacion.cancelada": (a) =>
+    `Canceló la negociación ${a.objeto_nombre}: ${String(a.detalle.motivo ?? "")}`,
+  "negociacion.invitacion_enviada": invitacion,
 }
 
 // Un alta que quedó a medias trae en el detalle qué faltó.

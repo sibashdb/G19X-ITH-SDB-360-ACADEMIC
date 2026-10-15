@@ -8,6 +8,7 @@ from comun.consumidor import Atender, EventoInvalido
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from administracion.bitacora import Actor, Objeto, registrar
+from administracion.modelos import CorreoEnviado
 
 NOMBRES_ENTIDAD = {
     "servicios": "servicios del catálogo",
@@ -18,6 +19,17 @@ NOMBRES_ENTIDAD = {
 }
 CAMBIOS_SERVICIO = frozenset({"creado", "actualizado", "desactivado", "activado"})
 TIPOS_INTELIGENCIA = ("configuracion.", "modelo.")  # los publica inteligencia
+PREFIJO_NEGOCIACION = "negociacion."  # los publica negociacion
+
+
+@dataclass(frozen=True)
+class CorreoNegociacion:
+    """La invitación a negociar que mandó el servicio de negociación, para la página Correos."""
+
+    destinatario: str
+    solicitado_por: str
+    estado: str  # enviado o fallido
+    error: str | None
 
 
 @dataclass(frozen=True)
@@ -30,6 +42,7 @@ class Registro:
     clave_origen: str
     fecha: datetime
     origen: str = "proveedores"
+    correo: CorreoNegociacion | None = None
 
 
 def _actor(payload: dict[str, Any]) -> Actor:
@@ -37,14 +50,60 @@ def _actor(payload: dict[str, Any]) -> Actor:
     return Actor(actor.get("id"), str(actor.get("nombre") or "Sistema"))
 
 
+def _origen(tipo: str) -> str:
+    if tipo.startswith(TIPOS_INTELIGENCIA):
+        return "inteligencia"
+    if tipo.startswith(PREFIJO_NEGOCIACION):
+        return "negociacion"
+    return "proveedores"
+
+
+def _negociacion(
+    tipo: str, payload: dict[str, Any], clave: str, fecha: datetime
+) -> Registro | None:
+    folio = str(payload["folio"])
+    objeto = Objeto("negociacion", folio, f"{folio} «{payload['titulo']}»")
+    actor = _actor(payload)
+    if tipo == "negociacion.publicada":
+        detalle: dict[str, Any] = {"proveedores": int(payload["proveedores"])}
+        return Registro(tipo, actor, objeto, detalle, "exito", clave, fecha, "negociacion")
+    if tipo == "negociacion.cancelada":
+        detalle = {"motivo": str(payload["motivo"])}
+        return Registro(tipo, actor, objeto, detalle, "exito", clave, fecha, "negociacion")
+    if tipo == "negociacion.invitacion_enviada":
+        estado = str(payload["estado"])
+        if estado not in ("enviado", "fallido"):
+            raise ValueError(f"Estado de correo desconocido: {estado}")
+        error = payload.get("error")
+        detalle = {
+            "proveedor": str(payload["proveedor"]),
+            "destinatario": str(payload["destinatario"]),
+            "estado": estado,
+            "reenvio": bool(payload["reenvio"]),
+        }
+        correo = CorreoNegociacion(
+            str(payload["destinatario"]),
+            actor.nombre,
+            estado,
+            None if error is None else str(error),
+        )
+        resultado = "exito" if estado == "enviado" else "fallo"
+        return Registro(
+            tipo, actor, objeto, detalle, resultado, clave, fecha, "negociacion", correo
+        )
+    return None
+
+
 def traducir(sobre: dict[str, Any]) -> Registro | None:
     """El registro de bitácora de un sobre de evento; None si el evento no es una acción."""
     try:
         tipo = sobre["type"]
         payload = sobre["payload"]
-        origen = "inteligencia" if tipo.startswith(TIPOS_INTELIGENCIA) else "proveedores"
+        origen = _origen(tipo)
         clave = f"{origen}:{sobre['event_id']}"
         fecha = datetime.fromisoformat(sobre["occurred_at"])
+        if tipo.startswith(PREFIJO_NEGOCIACION):
+            return _negociacion(tipo, payload, clave, fecha)
         if tipo in ("importacion.completada", "importacion.rechazada"):
             entidad = str(payload["entidad"])
             objeto = Objeto("importacion", entidad, NOMBRES_ENTIDAD.get(entidad, entidad))
@@ -112,9 +171,9 @@ def traducir(sobre: dict[str, Any]) -> Registro | None:
 
 
 async def guardar(fabrica: async_sessionmaker[AsyncSession], registro: Registro) -> None:
-    """Inserta el registro; un evento ya recibido (misma clave de origen) no hace nada."""
+    """Inserta el registro (y su correo, si trae); un evento ya recibido no hace nada."""
     async with fabrica() as sesion:
-        await registrar(
+        nuevo = await registrar(
             sesion,
             registro.tipo,
             registro.actor,
@@ -125,6 +184,18 @@ async def guardar(fabrica: async_sessionmaker[AsyncSession], registro: Registro)
             clave_origen=registro.clave_origen,
             fecha=registro.fecha,
         )
+        if nuevo and registro.correo is not None:
+            sesion.add(
+                CorreoEnviado(
+                    fecha=registro.fecha,
+                    tipo="negociacion",
+                    destinatario=registro.correo.destinatario,
+                    usuario_id=None,
+                    solicitado_por=registro.correo.solicitado_por,
+                    estado=registro.correo.estado,
+                    error=registro.correo.error,
+                )
+            )
         await sesion.commit()
 
 

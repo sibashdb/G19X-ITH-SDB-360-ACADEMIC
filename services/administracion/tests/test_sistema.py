@@ -29,7 +29,7 @@ async def _colas(_: httpx.Request) -> httpx.Response:
 @pytest.fixture
 def rutas() -> dict[str, Manejador]:
     """Respuestas de las dependencias por host; cada prueba cambia las que le interesan."""
-    return {"prov": _ok, "intel": _ok, "kc": _ok, "rmq": _colas, "mail": _ok}
+    return {"prov": _ok, "intel": _ok, "neg": _ok, "kc": _ok, "rmq": _colas, "mail": _ok}
 
 
 @pytest.fixture
@@ -49,6 +49,7 @@ async def cliente_sistema(
             consumir_eventos=False,
             proveedores_url="http://prov",
             inteligencia_url="http://intel",
+            negociacion_url="http://neg",
             keycloak_url="http://kc/auth",
             rabbitmq_url="amqp://usuario:clave@rmq:5672/",
             rabbitmq_api_url="http://rmq/api",
@@ -97,6 +98,7 @@ async def test_todo_sano(
         "base_de_datos",
         "proveedores",
         "inteligencia",
+        "negociacion",
         "identidad",
         "mensajeria",
         "correo",

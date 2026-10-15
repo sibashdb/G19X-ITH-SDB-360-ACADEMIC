@@ -149,6 +149,42 @@ CASOS: list[tuple[str, str, dict[str, object], str]] = [
         {"version": 6, "mape": 0.1125, "promovido": True},
         "Reentrenó el modelo de precios: versión 6, MAPE 11.3 %, promovido",
     ),
+    (
+        "negociacion.publicada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedores": 3},
+        "Publicó la negociación NEG-2026-0001 «CRM 2027» con 3 proveedores",
+    ),
+    (
+        "negociacion.publicada",
+        "NEG-2026-0002 «Renovación»",
+        {"proveedores": 1},
+        "Publicó la negociación NEG-2026-0002 «Renovación» con 1 proveedor",
+    ),
+    (
+        "negociacion.cancelada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"motivo": "Se pospuso"},
+        "Canceló la negociación NEG-2026-0001 «CRM 2027»: Se pospuso",
+    ),
+    (
+        "negociacion.invitacion_enviada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "estado": "enviado", "reenvio": False},
+        "Envió a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ),
+    (
+        "negociacion.invitacion_enviada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "estado": "enviado", "reenvio": True},
+        "Reenvió a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ),
+    (
+        "negociacion.invitacion_enviada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "estado": "fallido", "reenvio": False},
+        "No se pudo enviar a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ),
 ]
 
 

@@ -25,6 +25,7 @@ const POR_PAGINA = 25
 const TIPOS = {
   invitacion: "Invitación",
   restablecimiento: "Restablecimiento",
+  negociacion: "Invitación a negociar",
 }
 
 export function Correos() {
@@ -65,7 +66,7 @@ function ContenidoCorreos() {
         <EstadoVacio
           icono={Mail}
           titulo="Aún no se han enviado correos"
-          descripcion="Las invitaciones y los correos para restablecer la contraseña aparecerán aquí."
+          descripcion="Las invitaciones, los restablecimientos de contraseña y las invitaciones a negociar aparecerán aquí."
         />
       )
     return (

@@ -23,6 +23,7 @@ class Configuracion(ConfiguracionBase):
     consumir_eventos: bool = True
     proveedores_url: str = "http://localhost:8000"
     inteligencia_url: str = "http://localhost:8000"
+    negociacion_url: str = "http://localhost:8000"
     mailpit_url: str = "http://localhost:8025"
     rabbitmq_api_url: str = "http://localhost:15672/api"
     version_app: str = "desarrollo"

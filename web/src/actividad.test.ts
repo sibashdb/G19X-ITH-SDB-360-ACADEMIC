@@ -86,6 +86,44 @@ describe("describirActividad", () => {
     expect(describirActividad({ ...base, tipo, detalle })).toBe(esperado)
   })
 
+  it.each([
+    [
+      "negociacion.publicada",
+      { proveedores: 3 },
+      "Publicó la negociación NEG-2026-0001 «CRM 2027» con 3 proveedores",
+    ],
+    [
+      "negociacion.publicada",
+      { proveedores: 1 },
+      "Publicó la negociación NEG-2026-0001 «CRM 2027» con 1 proveedor",
+    ],
+    [
+      "negociacion.cancelada",
+      { motivo: "Se pospuso" },
+      "Canceló la negociación NEG-2026-0001 «CRM 2027»: Se pospuso",
+    ],
+    [
+      "negociacion.invitacion_enviada",
+      { proveedor: "Nube Norte", estado: "enviado", reenvio: false },
+      "Envió a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ],
+    [
+      "negociacion.invitacion_enviada",
+      { proveedor: "Nube Norte", estado: "enviado", reenvio: true },
+      "Reenvió a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ],
+    [
+      "negociacion.invitacion_enviada",
+      { proveedor: "Nube Norte", estado: "fallido", reenvio: false },
+      "No se pudo enviar a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ],
+  ])("negociación: %s", (tipo, detalle, esperado) => {
+    const objeto_nombre = "NEG-2026-0001 «CRM 2027»"
+    expect(describirActividad({ ...base, tipo, detalle, objeto_nombre })).toBe(
+      esperado
+    )
+  })
+
   it("un tipo desconocido se muestra tal cual", () => {
     expect(describirActividad({ ...base, tipo: "otro.tipo" })).toBe("otro.tipo")
   })

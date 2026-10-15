@@ -90,6 +90,30 @@ async def test_filtro_de_inteligencia(
     ]
 
 
+async def test_filtro_de_negociacion(
+    cliente: httpx.AsyncClient, admin: dict[str, str], fabrica: async_sessionmaker[AsyncSession]
+) -> None:
+    async with fabrica() as sesion:
+        await registrar(
+            sesion,
+            "negociacion.publicada",
+            Actor("c-1", "comprador1"),
+            objeto=Objeto("negociacion", "NEG-2026-0001", "NEG-2026-0001 «CRM 2027»"),
+            detalle={"proveedores": 2},
+            origen="negociacion",
+        )
+        await registrar(
+            sesion,
+            "servicio.creado",
+            Actor("admin-1", "admin1"),
+            objeto=Objeto("servicio", "SOP-X", "SOP-X"),
+            origen="proveedores",
+        )
+        await sesion.commit()
+    cuerpo = (await cliente.get("/actividad", params={"tipo": "negociacion"}, headers=admin)).json()
+    assert [e["tipo"] for e in cuerpo["elementos"]] == ["negociacion.publicada"]
+
+
 async def test_rango_invertido(cliente: httpx.AsyncClient, admin: dict[str, str]) -> None:
     respuesta = await cliente.get(
         "/actividad", params={"desde": "2026-10-08", "hasta": "2026-10-01"}, headers=admin
