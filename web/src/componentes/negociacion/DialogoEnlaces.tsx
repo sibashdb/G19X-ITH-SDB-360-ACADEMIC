@@ -1,5 +1,5 @@
 import { Copy } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,7 +14,9 @@ import type { EnlaceInvitacion } from "@/negociacion"
 
 /**
  * Los enlaces de invitación, que la API entrega una sola vez (spec D3). Se abre por estado; al
- * cerrar, el padre los descarta y el foco vuelve al contenido de la página.
+ * cerrar, el padre los descarta. El foco vuelve a quien abrió el diálogo si sigue en pantalla
+ * (p. ej. «Reenviar invitación»); si ya no (el botón «Publicar» desaparece al publicar), pasa al
+ * contenido de la página.
  */
 export function DialogoEnlaces({
   enlaces,
@@ -24,6 +26,7 @@ export function DialogoEnlaces({
   alCerrar: () => void
 }) {
   const [copia, setCopia] = useState<{ id: string; ok: boolean } | null>(null)
+  const abrio = useRef<Element | null>(null)
 
   async function copiar(enlace: EnlaceInvitacion) {
     try {
@@ -35,6 +38,11 @@ export function DialogoEnlaces({
   }
 
   const copiado = enlaces?.find((e) => e.sesion_id === copia?.id)
+  const textoCopia =
+    copiado &&
+    (copia?.ok
+      ? `Se copió el enlace de ${copiado.proveedor_nombre}.`
+      : "No se pudo copiar; selecciónelo y cópielo a mano.")
   return (
     <Dialog
       open={enlaces !== null}
@@ -47,9 +55,24 @@ export function DialogoEnlaces({
     >
       <DialogContent
         className="sm:max-w-2xl"
+        // Un clic fuera no los cierra: se pierden y no se pueden volver a ver. Escape y «Listo» sí.
+        onInteractOutside={(evento) => evento.preventDefault()}
+        onOpenAutoFocus={() => {
+          abrio.current = document.activeElement
+        }}
         onCloseAutoFocus={(evento) => {
+          // Radix solo devuelve el foco a un DialogTrigger y este diálogo se abre por estado, así
+          // que se hace aquí: al elemento que lo abrió si sigue en pantalla; si no (o si no había
+          // nada enfocado: <body>), al contenido, para que no caiga en <body>.
+          const previo = abrio.current
           evento.preventDefault()
-          document.getElementById("contenido")?.focus()
+          if (
+            previo instanceof HTMLElement &&
+            previo.isConnected &&
+            previo !== document.body
+          )
+            previo.focus()
+          else document.getElementById("contenido")?.focus()
         }}
       >
         <DialogHeader>
@@ -90,11 +113,11 @@ export function DialogoEnlaces({
             </li>
           ))}
         </ul>
-        <p aria-live="polite" className="text-sm text-muted-foreground">
-          {copiado &&
-            (copia?.ok
-              ? `Se copió el enlace de ${copiado.proveedor_nombre}.`
-              : "No se pudo copiar; selecciónelo y cópielo a mano.")}
+        <p
+          aria-live="polite"
+          className={textoCopia ? "text-sm text-muted-foreground" : "sr-only"}
+        >
+          {textoCopia}
         </p>
         <DialogFooter>
           <DialogClose asChild>

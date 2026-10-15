@@ -9,6 +9,7 @@ import {
   esperarSinViolaciones,
   llamadaA,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularRutas,
 } from "@/pruebas/utilidades"
@@ -106,6 +107,46 @@ function abrir(junto?: ReactNode) {
   )
 }
 
+/** El servidor de una publicación: el GET devuelve el borrador y, tras publicar, la negociación abierta. */
+function simularPublicacion(correoEstado = "enviado") {
+  let publicado = false
+  const ABIERTO = {
+    ...BORRADOR,
+    estado: "abierto",
+    publicado_en: "2026-10-14T19:00:00Z",
+    version: 4,
+  }
+  return simularRutas({
+    [`GET ${RUTA}`]: () => respuestaJson(publicado ? ABIERTO : BORRADOR),
+    [`POST ${RUTA}/publicar`]: () => {
+      publicado = true
+      return respuestaJson({
+        evento: ABIERTO,
+        enlaces: [
+          {
+            sesion_id: "s1",
+            proveedor_nombre: "Nube Norte",
+            destinatario: "lucia@nubenorte.example",
+            enlace: "http://localhost:8080/portal#t=secreto-123",
+            correo_estado: correoEstado,
+          },
+        ],
+      })
+    },
+  })
+}
+
+/** Publica desde el editor (botón y confirmación) y devuelve el diálogo con los enlaces. */
+async function publicar() {
+  await userEvent.click(await screen.findByRole("button", { name: "Publicar" }))
+  await userEvent.click(
+    within(await screen.findByRole("alertdialog")).getByRole("button", {
+      name: "Publicar",
+    })
+  )
+  return screen.findByRole("dialog", { name: "Enlace de invitación" })
+}
+
 beforeEach(() => {
   sesionDePrueba.roles = ["comprador"]
 })
@@ -148,6 +189,11 @@ describe("Negociacion en borrador", () => {
       await screen.findByLabelText("Ideal (Correo en la nube)")
     ).toHaveValue(88)
     expect(screen.getByLabelText("Límite (Correo en la nube)")).toHaveValue(95)
+    // El tope de Monto en la API: el navegador lo marca antes de que la API responda 422 por índice.
+    for (const campo of ["Ideal", "Límite"])
+      expect(
+        screen.getByLabelText(`${campo} (Correo en la nube)`)
+      ).toHaveAttribute("max", "10000000")
     expect(screen.getByText("Típico (P50)")).toBeInTheDocument()
     expect(
       screen.getByText(formatoMoneda("104.0000", "MXN"))
@@ -212,6 +258,88 @@ describe("Negociacion en borrador", () => {
     await waitFor(() =>
       expect(document.getElementById("contenido")).toHaveFocus()
     )
+  })
+
+  it("limpia el aviso al empezar a guardar otra vez, para que el siguiente se anuncie", async () => {
+    let version = 3
+    let guardados = 0
+    const segunda = respuestaDiferida()
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson({ ...BORRADOR, version }),
+      [`PATCH ${RUTA}`]: () => {
+        guardados += 1
+        if (guardados === 2) return segunda.promesa
+        version += 1
+        return respuestaJson({ ...BORRADOR, version })
+      },
+    })
+    abrir()
+    const primero = await screen.findByLabelText("Ideal (Correo en la nube)")
+    await userEvent.clear(primero)
+    await userEvent.type(primero, "85.51")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar cambios" })
+    )
+    expect(
+      await screen.findByText("Se guardaron los cambios.")
+    ).toBeInTheDocument()
+    // La versión nueva vuelve a montar el editor; se edita y se guarda otra vez.
+    await waitFor(() => expect(primero).not.toBeInTheDocument())
+    const otro = screen.getByLabelText("Ideal (Correo en la nube)")
+    await userEvent.clear(otro)
+    await userEvent.type(otro, "86.51")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar cambios" })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Se guardaron los cambios.")
+      ).not.toBeInTheDocument()
+    )
+    version = 5
+    segunda.resolver(respuestaJson({ ...BORRADOR, version }))
+    expect(
+      await screen.findByText("Se guardaron los cambios.")
+    ).toBeInTheDocument()
+  })
+
+  it("cancelar con cambios sin guardar no dispara el guardado del editor", async () => {
+    let cancelado = false
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () =>
+        respuestaJson(
+          cancelado ? { ...BORRADOR, estado: "cancelado" } : BORRADOR
+        ),
+      [`POST ${RUTA}/cancelar`]: () => {
+        cancelado = true
+        return respuestaJson({ ...BORRADOR, estado: "cancelado" })
+      },
+    })
+    abrir()
+    await userEvent.type(await screen.findByLabelText("Título"), " (v2)")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cancelar borrador" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Cancelar el borrador",
+    })
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo"),
+      "Ya no se necesita"
+    )
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Cancelar borrador" })
+    )
+    expect(
+      await screen.findByText("Se canceló el borrador.")
+    ).toBeInTheDocument()
+    expect(llamadaA(api, `${RUTA}/cancelar`, "POST").cuerpo).toEqual({
+      motivo: "Ya no se necesita",
+    })
+    // El formulario del diálogo se dibuja en un portal dentro del del editor: no lo envía.
+    expect(
+      api.mock.calls.filter(([, init]) => init?.method === "PATCH")
+    ).toHaveLength(0)
   })
 
   it("un 409 de versión ofrece recargar y descarta lo local", async () => {
@@ -314,43 +442,9 @@ describe("Negociacion en borrador", () => {
   })
 
   it("publica, muestra los enlaces una sola vez y no los deja en caché", async () => {
-    let publicado = false
-    const ABIERTO = {
-      ...BORRADOR,
-      estado: "abierto",
-      publicado_en: "2026-10-14T19:00:00Z",
-      version: 4,
-    }
-    simularRutas({
-      [`GET ${RUTA}`]: () => respuestaJson(publicado ? ABIERTO : BORRADOR),
-      [`POST ${RUTA}/publicar`]: () => {
-        publicado = true
-        return respuestaJson({
-          evento: ABIERTO,
-          enlaces: [
-            {
-              sesion_id: "s1",
-              proveedor_nombre: "Nube Norte",
-              destinatario: "lucia@nubenorte.example",
-              enlace: "http://localhost:8080/portal#t=secreto-123",
-              correo_estado: "enviado",
-            },
-          ],
-        })
-      },
-    })
-    const { cliente } = abrir()
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Publicar" })
-    )
-    await userEvent.click(
-      within(await screen.findByRole("alertdialog")).getByRole("button", {
-        name: "Publicar",
-      })
-    )
-    const dialogo = await screen.findByRole("dialog", {
-      name: "Enlace de invitación",
-    })
+    simularPublicacion()
+    const { cliente } = abrir(<div id="contenido" tabIndex={-1} />)
+    const dialogo = await publicar()
     expect(
       within(dialogo).getByText("http://localhost:8080/portal#t=secreto-123")
     ).toBeInTheDocument()
@@ -359,12 +453,54 @@ describe("Negociacion en borrador", () => {
         "Se envió por correo a lucia@nubenorte.example."
       )
     ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Se publicó la negociación y se enviaron las invitaciones."
+      )
+    ).toBeInTheDocument()
     await userEvent.click(
       within(dialogo).getByRole("button", { name: "Listo" })
     )
     expect(screen.queryByText(/secreto-123/)).not.toBeInTheDocument()
     await esperarSinEnMutaciones(cliente, "secreto-123")
     expect(await screen.findByText("Sus límites")).toBeInTheDocument()
+    // El botón «Publicar» ya no existe: el foco pasa al contenido, no a <body>.
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
+  })
+
+  it("avisa que no todas las invitaciones se enviaron si algún correo falló", async () => {
+    simularPublicacion("fallido")
+    abrir()
+    const dialogo = await publicar()
+    expect(
+      within(dialogo).getByText(/No se pudo enviar el correo a lucia@nubenorte/)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Se publicó la negociación; algunas invitaciones no se enviaron: revise los enlaces."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/se enviaron las invitaciones/)
+    ).not.toBeInTheDocument()
+  })
+
+  it("los enlaces no se pierden por un clic fuera: solo Escape o «Listo» los cierran", async () => {
+    simularPublicacion()
+    abrir()
+    await publicar()
+    const fondo = document.querySelector('[data-slot="dialog-overlay"]')
+    expect(fondo).not.toBeNull()
+    await userEvent.click(fondo!)
+    expect(
+      screen.getByRole("dialog", { name: "Enlace de invitación" })
+    ).toBeInTheDocument()
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
   })
 
   it("cancela el borrador con su motivo", async () => {

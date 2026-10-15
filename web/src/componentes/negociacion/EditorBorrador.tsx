@@ -146,6 +146,8 @@ export function EditorBorrador({
   const guardar = useMutation({
     mutationFn: () =>
       pedir<Evento>(ruta, token, enviarJson("PATCH", aCambios(evento, f))),
+    // Se vacía el aviso al empezar: así el siguiente, aunque sea igual, se vuelve a anunciar.
+    onMutate: () => alAvisar(""),
     onSuccess: async () => {
       alAvisar("Se guardaron los cambios.")
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
@@ -159,9 +161,14 @@ export function EditorBorrador({
       pedir<Publicacion>(`${ruta}/publicar`, token, { method: "POST" }),
     // Los enlaces solo viven en el diálogo: la mutación no los conserva en caché.
     gcTime: 0,
+    onMutate: () => alAvisar(""),
     onSuccess: async ({ enlaces }) => {
       alPublicar(enlaces)
-      alAvisar("Se publicó la negociación y se enviaron las invitaciones.")
+      alAvisar(
+        enlaces.every((e) => e.correo_estado === "enviado")
+          ? "Se publicó la negociación y se enviaron las invitaciones."
+          : "Se publicó la negociación; algunas invitaciones no se enviaron: revise los enlaces."
+      )
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
   })
@@ -247,6 +254,8 @@ export function EditorBorrador({
             type="number"
             inputMode="decimal"
             min="0"
+            // El tope de Monto en la API: pasado, el 422 nombra el campo por índice y no cae en él.
+            max="10000000"
             step={paso}
             value={valor}
             onChange={(e) => alCambiar(e.target.value)}
