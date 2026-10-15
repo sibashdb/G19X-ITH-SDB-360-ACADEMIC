@@ -188,6 +188,56 @@ describe("NegociacionNueva", () => {
     )
   })
 
+  it("envía todas las filas, así el error de la fila 2 cae en la fila 2 aunque la 1 esté sin servicio", async () => {
+    const api = apiDeCompra(() =>
+      respuestaJson(
+        {
+          title: "Solicitud inválida",
+          detail: "Revise los campos indicados.",
+          codigo: "invalido",
+          errores: [
+            { campo: "lineas.1.cantidad", mensaje: "Debe ser mayor que 0." },
+          ],
+        },
+        422
+      )
+    )
+    renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })
+    await userEvent.type(await screen.findByLabelText("Título"), "Compra mixta")
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Agregar servicio" })
+    )
+    // La fila 1 queda sin servicio (con cantidad, para pasar la validación nativa del navegador).
+    await userEvent.type(screen.getByLabelText("Cantidad 1"), "5")
+    await userEvent.click(screen.getByRole("combobox", { name: "Servicio 2" }))
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Correo en la nube (MXN)" })
+    )
+    await userEvent.type(screen.getByLabelText("Cantidad 2"), "250")
+    expect(
+      screen.getByRole("combobox", { name: "Servicio 1" })
+    ).toHaveTextContent("Elija un servicio")
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /Nube Norte/ })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Crear borrador" })
+    )
+    expect(await screen.findByText("Debe ser mayor que 0.")).toBeInTheDocument()
+    expect(screen.getByLabelText("Cantidad 2")).toHaveAttribute(
+      "aria-invalid",
+      "true"
+    )
+    expect(screen.getByLabelText("Cantidad 1")).not.toHaveAttribute(
+      "aria-invalid"
+    )
+    const { cuerpo } = llamadaA(api, "/api/negociacion/eventos")
+    expect((cuerpo as { lineas: unknown[] }).lineas).toEqual([
+      { codigo_servicio: "", cantidad: "5" },
+      { codigo_servicio: "LIC-CORREO", cantidad: "250" },
+    ])
+  })
+
   it("si la referencia de precios no responde, lo dice y conserva lo capturado", async () => {
     apiDeCompra(() =>
       respuestaJson(

@@ -277,12 +277,11 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
             ...comun,
             tipo: "compra",
             plazo_meses: Number(plazo),
-            lineas: lineas
-              .filter((l) => l.codigo)
-              .map((l) => ({
-                codigo_servicio: l.codigo,
-                cantidad: l.cantidad,
-              })),
+            // Se envían todas las filas: así el índice `lineas.N` del error es la fila N de la pantalla.
+            lineas: lineas.map((l) => ({
+              codigo_servicio: l.codigo,
+              cantidad: l.cantidad,
+            })),
             proveedores: invitados.map((i) => i.id),
           }
     )
@@ -317,7 +316,7 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
                 >
                   {(control) => (
                     <Select
-                      value={linea.codigo || undefined}
+                      value={linea.codigo}
                       onValueChange={(codigo) =>
                         cambiarLinea(linea.clave, { codigo })
                       }
