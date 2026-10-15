@@ -159,13 +159,15 @@ flowchart LR
 | `contrato.registrado` | proveedores | inteligencia | Historial de precios y condiciones. |
 | `desempeno.registrado` | proveedores | inteligencia | KPIs para puntuación. |
 | `negociacion.adjudicada` | negociacion | proveedores, inteligencia | Crear contrato nuevo y actualizar historial. |
-| `servicio.actualizado` | proveedores | administracion, inteligencia | Cambios del catálogo (con quién los hizo) y copia local del servicio, también al importar el catálogo. |
+| `servicio.actualizado` | proveedores | administracion, inteligencia, negociacion | Cambios del catálogo (con quién los hizo) y copia local del servicio, también al importar el catálogo. |
 | `importacion.completada` · `importacion.rechazada` | proveedores | administracion | Bitácora de importaciones con quién las hizo. |
 | `tipo_cambio.registrado` | proveedores | inteligencia | Tipo de cambio mensual para llevar los montos a MXN. |
 | `configuracion.actualizada` | inteligencia | administracion | Bitácora de los cambios de pesos, umbral e inflación. |
 | `modelo.entrenado` | inteligencia | administracion | Bitácora de cada entrenamiento del modelo de precios. |
+| `negociacion.publicada` · `negociacion.cancelada` | negociacion | administracion | Bitácora de las negociaciones publicadas y canceladas, con quién lo hizo. |
+| `negociacion.invitacion_enviada` | negociacion | administracion | Bitácora y página Correos de cada invitación a negociar (enviada o fallida). |
 
-Colas: `inteligencia.eventos` y `administracion.actividad`, *quorum* con 5 entregas como máximo; lo que falla 5 veces pasa a `<cola>.dlq` (detalle en `docs/superpowers/specs/2026-10-10-servicio-inteligencia-design.md`, §3).
+Colas: `inteligencia.eventos`, `administracion.actividad` y `negociacion.eventos`, *quorum* con 5 entregas como máximo; lo que falla 5 veces pasa a `<cola>.dlq` (detalle en `docs/superpowers/specs/2026-10-10-servicio-inteligencia-design.md`, §3) (N1 en `docs/superpowers/specs/2026-10-13-negociacion-determinista-design.md`, §9).
 
 Cierra el ciclo: una negociación adjudicada genera un contrato, que mejora el benchmark de la siguiente negociación.
 
@@ -254,6 +256,8 @@ Una oferta que viola cualquier límite duro es **inválida** sin importar su uti
 
 **Contraoferta:** se interpola entre la última oferta del proveedor `s` y el ideal del comprador `I`: `o(α) = s + α·(I − s)`. Se busca por bisección el α con `U(o(α)) = U_obj(t)` y luego se ajusta a límites duros y a unidades válidas (centavos, meses enteros). Así la contraoferta queda lo más cerca posible de lo que pidió el proveedor.
 
+> **Precisión de N1** (`docs/superpowers/specs/2026-10-13-negociacion-determinista-design.md`, §6.4): el camino de la contraoferta va de la oferta acotada a los límites (`s′`), a la oferta con la curva propia del agente en los términos que cruzaban un límite (`s̃`; así no contesta con el límite antes de la ronda `T`), y de ahí a `I′`: el ideal, salvo en los términos donde la oferta ya era mejor que el ideal, que se quedan con el valor ofrecido. La curva se redondea hacia el ideal; el resultado, al valor más cercano, salvo que eso suba la utilidad sobre la contraoferta anterior. La regla completa está en ese §6.4.
+
 **Invariantes probadas por tests:**
 - El agente nunca retrocede en sus concesiones: la utilidad de sus contraofertas no aumenta de una ronda a otra.
 - Nunca propone ni acepta nada fuera de los límites.
@@ -329,7 +333,7 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 |---|---|
 | proveedores | Proveedor, ServicioCatalogo, Contrato, LineaContrato, RegistroDesempeno, TipoCambio, Outbox, EventoProcesado |
 | inteligencia | Proveedor, Servicio, TipoCambio, Contrato, LineaContrato y Desempeno (copia local alimentada por eventos), Configuracion, ModeloBenchmark (registro de modelos), Outbox, EventoProcesado; Escenario (más adelante) |
-| negociacion | EventoNegociacion, LineaEvento, Palanca, Sesion, Mensaje, Oferta (origen: formulario / interpretada / agente / comprador; confirmada sí/no), Decision (traza), Adjudicacion, Aprobacion, Bitacora, ProveedorLocal (copia), Outbox, EventoProcesado |
+| negociacion | Evento, Linea, Palanca, Sesion, Mensaje, Oferta (origen: formulario / texto; fuera de límites confirmada sí/no), Bitacora (incluye la traza de cada decisión del motor), Proveedor y Servicio (copias), Outbox, EventoProcesado; Adjudicacion y Aprobacion (incremento 4) |
 | administracion | Actividad (bitácora de solo inserción), CorreoEnviado, CursorEventos |
 
 **Reglas de datos:**
@@ -436,7 +440,7 @@ Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no
 | Reentrenar el modelo de precios y ver el estado de los datos de la inteligencia | ✔ | | | |
 | Importar datos | ✔ | | | |
 | Gestionar usuarios y ver actividad, correos y estado del sistema | ✔ | | | |
-| Crear/editar eventos propios y supervisar sus sesiones | | ✔ | | |
+| Crear, editar, publicar y supervisar negociaciones (todas las del equipo de compras) | | ✔ | | |
 | Ver eventos, proveedores, benchmark y tablero | ✔ | ✔ | ✔ | |
 | Consultar el Centro de ayuda | ✔ | ✔ | ✔ | |
 | Proponer adjudicación | | ✔ | | |

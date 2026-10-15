@@ -12,11 +12,14 @@ services:
       ADMINISTRACION_DUENO_DB_PASSWORD: ${ADMINISTRACION_DUENO_DB_PASSWORD:?Defina ADMINISTRACION_DUENO_DB_PASSWORD en infra/.env}
       INTELIGENCIA_DB_PASSWORD: ${INTELIGENCIA_DB_PASSWORD:?Defina INTELIGENCIA_DB_PASSWORD en infra/.env}
       INTELIGENCIA_DUENO_DB_PASSWORD: ${INTELIGENCIA_DUENO_DB_PASSWORD:?Defina INTELIGENCIA_DUENO_DB_PASSWORD en infra/.env}
+      NEGOCIACION_DB_PASSWORD: ${NEGOCIACION_DB_PASSWORD:?Defina NEGOCIACION_DB_PASSWORD en infra/.env}
+      NEGOCIACION_DUENO_DB_PASSWORD: ${NEGOCIACION_DUENO_DB_PASSWORD:?Defina NEGOCIACION_DUENO_DB_PASSWORD en infra/.env}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sh:/docker-entrypoint-initdb.d/10-bases.sh:ro
       - ./postgres/administracion.sh:/docker-entrypoint-initdb.d/20-administracion.sh:ro
       - ./postgres/inteligencia.sh:/docker-entrypoint-initdb.d/30-inteligencia.sh:ro
+      - ./postgres/negociacion.sh:/docker-entrypoint-initdb.d/40-negociacion.sh:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -141,6 +144,7 @@ services:
       BUZON_URL: http://localhost:8025
       PROVEEDORES_URL: http://proveedores:8000
       INTELIGENCIA_URL: http://inteligencia:8000
+      NEGOCIACION_URL: http://negociacion:8000
       MAILPIT_URL: http://mailpit:8025
       RABBITMQ_API_URL: http://rabbitmq:15672/api
       VERSION_APP: ${VERSION_APP:-desarrollo}
@@ -196,10 +200,46 @@ services:
       retries: 12
       start_period: 20s
 
+  negociacion:
+    build:
+      context: ..
+      dockerfile: services/negociacion/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://negociacion:${NEGOCIACION_DB_PASSWORD}@postgres:5432/negociacion_db
+      DATABASE_URL_MIGRACIONES: postgresql+asyncpg://negociacion_dueno:${NEGOCIACION_DUENO_DB_PASSWORD}@postgres:5432/negociacion_db
+      RABBITMQ_URL: amqp://plataforma:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      OIDC_ISSUER: http://localhost:8080/auth/realms/plataforma
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/plataforma/protocol/openid-connect/certs
+      ROOT_PATH: /api/negociacion
+      INTELIGENCIA_URL: http://inteligencia:8000
+      PROVEEDORES_URL: http://proveedores:8000
+      SMTP_HOST: mailpit
+      SMTP_PUERTO: "1025"
+      URL_PUBLICA: http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      rabbitmq-topologia:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/salud/listo', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   mailpit:
     image: axllent/mailpit:v1.27
-    # Buzón de desarrollo: Keycloak le entrega los correos por SMTP (solo red interna, puerto 1025);
-    # la interfaz web queda solo en este equipo.
+    # Buzón de desarrollo: Keycloak y negociacion le entregan los correos por SMTP (solo red
+    # interna, puerto 1025); la interfaz web queda solo en este equipo.
     ports:
       - "127.0.0.1:8025:8025"
     healthcheck:
@@ -224,6 +264,9 @@ services:
         condition: service_healthy
         restart: true
       inteligencia:
+        condition: service_healthy
+        restart: true
+      negociacion:
         condition: service_healthy
         restart: true
       keycloak:

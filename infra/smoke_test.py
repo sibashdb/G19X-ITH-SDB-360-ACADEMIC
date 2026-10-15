@@ -4,6 +4,7 @@ import json
 import sys
 import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -258,6 +259,85 @@ def verificar_inteligencia(cliente: httpx.Client) -> None:
     verificar(sin_permiso.status_code == 403, "un comprador no debe ver los datos de inteligencia")
 
 
+def verificar_negociacion(cliente: httpx.Client) -> None:
+    """Una compra de humo: se publica, la invitación llega a Mailpit y el agente responde."""
+    comprador = token_de(cliente, "comprador1")
+    servicios = cliente.get("/api/inteligencia/precios/servicios", headers=comprador).json()
+    servicio = next(s for s in servicios if s["observaciones"] > 0)
+    proveedores = cliente.get("/api/proveedores/proveedores", headers=comprador).json()
+    proveedor = next(p for p in proveedores["elementos"] if p["activo"])
+    cuerpo = {
+        "tipo": "compra",
+        "titulo": f"Prueba de humo {uuid.uuid4().hex[:8]}",
+        "fecha_limite": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+        "lineas": [{"codigo_servicio": servicio["codigo"], "cantidad": "10"}],
+        "proveedores": [proveedor["id"]],
+    }
+    # La copia de proveedores de negociacion se llena por eventos: se reintenta mientras llega.
+    limite = time.monotonic() + ESPERA_EVENTOS_S
+    while True:
+        creado = cliente.post("/api/negociacion/eventos", json=cuerpo, headers=comprador)
+        if creado.status_code == 201:
+            break
+        verificar(
+            creado.status_code == 422 and time.monotonic() < limite,
+            f"crear la negociación de humo falló: {creado.text}",
+        )
+        time.sleep(2)
+        comprador = token_de(cliente, "comprador1")
+    evento = creado.json()
+    linea = evento["lineas"][0]
+    verificar(linea["limite"] is not None, f"la línea no trae la referencia de precios: {linea}")
+    publicado = cliente.post(f"/api/negociacion/eventos/{evento['id']}/publicar", headers=comprador)
+    verificar(publicado.status_code == 200, f"publicar la negociación falló: {publicado.text}")
+    [enlace] = publicado.json()["enlaces"]
+    verificar(enlace["correo_estado"] == "enviado", f"la invitación no salió: {enlace}")
+    portal = {"Authorization": f"Invitacion {enlace['enlace'].split('#t=')[1]}"}
+    verificar(
+        cliente.get("/api/negociacion/portal/sesion", headers=portal).status_code == 200,
+        "el portal no abrió la sesión con el enlace de la invitación",
+    )
+    oferta = {"valores": {"precios": {linea["id"]: str(Decimal(linea["limite"]) * 2)}}}
+    respuesta = cliente.post(
+        "/api/negociacion/portal/ofertas",
+        json=oferta,
+        headers=portal | {"Idempotency-Key": uuid.uuid4().hex},
+    )
+    verificar(
+        respuesta.status_code == 200 and respuesta.json()["mensajes"][-1]["autor"] == "agente",
+        f"el agente no respondió en el portal: {respuesta.text}",
+    )
+    correos = httpx.get(
+        f"{BUZON}/api/v1/search", params={"query": f'subject:"{evento["folio"]}"'}, timeout=10
+    ).json()
+    verificar(bool(correos.get("messages")), "la invitación a negociar no llegó a Mailpit")
+    cancelada = cliente.post(
+        f"/api/negociacion/eventos/{evento['id']}/cancelar",
+        json={"motivo": "Prueba de humo"},
+        headers=comprador,
+    )
+    verificar(cancelada.status_code == 200, f"cancelar la negociación falló: {cancelada.text}")
+    # La publicación llega a la Actividad por RabbitMQ.
+    limite = time.monotonic() + ESPERA_EVENTOS_S
+    while True:
+        admin = token_de(cliente, "admin1")
+        actividad = cliente.get(
+            "/api/administracion/actividad",
+            params={"tipo": "negociacion", "tamano": 100},
+            headers=admin,
+        ).json()["elementos"]
+        if any(
+            a["objeto_id"] == evento["folio"] and a["tipo"] == "negociacion.publicada"
+            for a in actividad
+        ):
+            return
+        verificar(
+            time.monotonic() < limite,
+            f"la publicación de la negociación no llegó a la Actividad en {ESPERA_EVENTOS_S} s",
+        )
+        time.sleep(2)
+
+
 def main() -> int:
     with httpx.Client(base_url=BASE, timeout=10) as cliente:
         spa = cliente.get("/")
@@ -334,10 +414,11 @@ def main() -> int:
         verificar_administracion(cliente)
         verificar_operacion(cliente)
         verificar_inteligencia(cliente)
+        verificar_negociacion(cliente)
 
     print(
-        f"OK: SPA, Keycloak, proveedores, administración, operación e inteligencia responden "
-        f"({lista.json()['total']} proveedores)."
+        "OK: SPA, Keycloak, proveedores, administración, operación, inteligencia y "
+        f"negociación responden ({lista.json()['total']} proveedores)."
     )
     return 0
 

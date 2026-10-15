@@ -42,6 +42,12 @@ Los de la inteligencia son:
   (consulta, inserta y actualiza su copia local; nunca borra).
 - `INTELIGENCIA_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
 
+Los de la negociación son:
+
+- `NEGOCIACION_DB_PASSWORD`: contraseña con la que el servicio `negociacion` entra a su base
+  (nunca cambia ni borra la bitácora, los mensajes ni las ofertas).
+- `NEGOCIACION_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
+
 ### Activar la administración en un entorno ya creado
 
 El volumen de PostgreSQL y el realm de Keycloak solo se inicializan la primera vez. Si su entorno
@@ -50,8 +56,9 @@ antes `export MSYS_NO_PATHCONV=1`).
 
 1. Agregue en `infra/.env` las tres variables de la administración (`ADMINISTRACION_DB_PASSWORD`,
    `ADMINISTRACION_DUENO_DB_PASSWORD` y `KEYCLOAK_ADMINISTRACION_SECRET`). Defina también las dos
-   `INTELIGENCIA_*` (el `docker-compose.yml` las exige; vea la sección de la inteligencia, más
-   abajo) y vuelva a crear PostgreSQL y Keycloak para que las reciban:
+   `INTELIGENCIA_*` y las dos `NEGOCIACION_*` (el `docker-compose.yml` las exige; vea las
+   secciones de la inteligencia y de la negociación, más abajo) y vuelva a crear PostgreSQL y
+   Keycloak para que las reciban:
 
    ```bash
    docker compose -f infra/docker-compose.yml up -d --wait postgres keycloak
@@ -123,6 +130,47 @@ Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
    listos (*Ready*) y deje de recibir mensajes nuevos. Después, el modelo de precios se entrena
    solo.
 
+### Activar la negociación en un entorno ya creado
+
+Si su entorno ya existía antes del servicio de negociación, siga estos pasos, en este orden (en
+Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
+
+1. Agregue en `infra/.env` las dos variables de la negociación (cópielas de `infra/.env.example`)
+   y vuelva a crear PostgreSQL para que las reciba:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --wait postgres
+   ```
+
+2. Cree la base de la negociación y sus dos usuarios. El comando es idempotente:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/40-negociacion.sh
+   ```
+
+3. Levante el stack, construyendo la imagen nueva:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --build --wait
+   ```
+
+4. Llene las copias de proveedores y servicios de la negociación con lo que ya estaba importado.
+   Corra los dos comandos en este orden: primero `--todo` y después `--instantanea`. Los demás
+   servicios ignoran lo que ya recibieron, así que repetirlos es seguro:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --todo
+   ```
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --instantanea
+   ```
+
+5. Espere a que termine antes de correr la prueba de humo o de crear una negociación: abra la
+   consola de RabbitMQ (<http://localhost:15672>) y, en *Queues*, espere a que la cola
+   `negociacion.eventos` muestre 0 mensajes listos (*Ready*). La cola `negociacion.eventos.dlq`
+   debe quedar vacía.
+
 ### Tema de inicio de sesión en un realm ya importado
 
 Keycloak importa el realm solo la primera vez. Si su volumen de PostgreSQL ya tenía el realm
@@ -180,8 +228,10 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 | Consola de RabbitMQ | <http://localhost:15672> |
 | Contrato OpenAPI de administración | <http://localhost:8080/api/administracion/docs> |
 | Contrato OpenAPI de inteligencia | <http://localhost:8080/api/inteligencia/docs> |
+| Contrato OpenAPI de negociación | <http://localhost:8080/api/negociacion/docs> |
 | Validación de la inteligencia contra la verdad oculta (escribe `docs/qa/validacion-inteligencia.md`) | `uv run python -m inteligencia.validacion --verdad datos/verdad_oculta.json` |
-| Mailpit, buzón de desarrollo de los correos de Keycloak (solo en este equipo) | <http://localhost:8025> |
+| Simulación con bots (escribe `docs/qa/simulacion-negociacion.md`) | `SIMULACION_REPORTE=docs/qa/simulacion-negociacion.md uv run pytest services/negociacion/tests/test_simulacion.py` |
+| Mailpit, buzón de desarrollo de los correos de Keycloak y de las invitaciones a negociar (solo en este equipo) | <http://localhost:8025> |
 | Versión que muestra el Estado del sistema | variable `VERSION_APP` de `infra/.env` (por defecto `desarrollo`) |
 
 ## Interfaz
@@ -209,7 +259,9 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 | `services/proveedores` | Microservicio de proveedores, contratos, precios y desempeño |
 | `services/administracion` | Microservicio de administración: usuarios, bitácora, correos, estado del sistema y panel (`/api/administracion/`) |
 | `services/inteligencia` | Microservicio de inteligencia: precio justo, puntuación de proveedores, alertas y Tablero (`/api/inteligencia/`) |
+| `services/negociacion` | Microservicio de negociación: eventos, sesiones, motor de concesiones, portal del proveedor y bitácora (`/api/negociacion/`) |
 | `tools/generador` | Datos sintéticos reproducibles del ERP simulado |
+| `tools/simulador` | Bots de proveedor que negocian por el portal y miden al agente |
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |
 
@@ -221,6 +273,11 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.
+- **Negociación sin interfaz todavía.** El servicio y su API están completos, pero las pantallas
+  del comprador y el portal del proveedor llegan con N1b; mientras tanto se usan por la API
+  (`/api/negociacion/docs`).
+- **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
+  interpreta; la IA llega con N2.
 
 ## Convenciones
 
