@@ -309,9 +309,16 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
     onSuccess: (nueva) => {
       claves.olvidar()
       cliente.setQueryData(CLAVE, nueva)
+      setConfirmo(false)
+      // Si el agente pidió aclarar un precio, los mismos valores se confirman y se reenvían.
+      if (nueva.pide_confirmacion) {
+        setAviso(
+          "Revise su oferta: si es correcta, marque «Confirmo estos valores» y envíela de nuevo."
+        )
+        return
+      }
       setValores(valoresVacios(vista.lineas, vista.palancas))
       setNota("")
-      setConfirmo(false)
       setAviso("Se envió su oferta.")
     },
     onError: alFallar,

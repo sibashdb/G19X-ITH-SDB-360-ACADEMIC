@@ -274,6 +274,28 @@ describe("Portal", () => {
     })
   })
 
+  it("si la respuesta pide aclarar un precio, conserva los valores para confirmarlos", async () => {
+    simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(VISTA),
+      [`POST ${OFERTAS}`]: () =>
+        respuestaJson({ ...VISTA, pide_confirmacion: true }),
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Precio de Correo en la nube"),
+      "9"
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.type(screen.getByLabelText(/Nota para el equipo/), "Hola")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    expect(
+      await screen.findByText(/marque «Confirmo estos valores» y envíela/)
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Precio de Correo en la nube")).toHaveValue(9)
+    expect(screen.getByLabelText("Plazo de pago (días)")).toHaveValue(30)
+    expect(screen.getByLabelText(/Nota para el equipo/)).toHaveValue("Hola")
+  })
+
   it("«Hablar con una persona» escala la sesión y avisa que responde una persona", async () => {
     let persona = false
     const api = simularRutas({
