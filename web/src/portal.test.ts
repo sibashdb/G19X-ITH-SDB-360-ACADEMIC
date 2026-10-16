@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { pedirPortal, tomarToken } from "@/portal"
+import { olvidarToken, pedirPortal, tomarToken } from "@/portal"
 import { llamadaA, respuestaJson, simularApi } from "@/pruebas/utilidades"
 
 afterEach(() => {
+  olvidarToken()
   sessionStorage.clear()
   window.history.replaceState(null, "", "/")
   vi.unstubAllGlobals()
@@ -45,6 +46,15 @@ describe("tomarToken", () => {
     window.history.replaceState(null, "", "/portal#t=tok-memoria")
     expect(tomarToken()).toBe("tok-memoria")
     expect(tomarToken()).toBe("tok-memoria")
+  })
+
+  it("si solo falla guardar (leer sigue funcionando), conserva la copia en memoria", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("sin cuota")
+    })
+    window.history.replaceState(null, "", "/portal#t=tok-cuota")
+    expect(tomarToken()).toBe("tok-cuota")
+    expect(tomarToken()).toBe("tok-cuota")
   })
 })
 

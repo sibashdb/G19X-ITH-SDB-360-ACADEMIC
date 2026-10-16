@@ -1,7 +1,17 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Portal } from "@/paginas/Portal"
+import { olvidarToken } from "@/portal"
 import {
   esperarSinViolaciones,
   llamadaA,
@@ -9,10 +19,16 @@ import {
   respuestaJson,
   simularRutas,
 } from "@/pruebas/utilidades"
+import { ProveedorTema } from "@/tema"
 
 const SESION = "/api/negociacion/portal/sesion"
 const OFERTAS = "/api/negociacion/portal/ofertas"
 const ESCALAR = "/api/negociacion/portal/escalar"
+
+const RECHAZADO = {
+  title: "No autorizado",
+  detail: "El enlace no es válido o ya venció.",
+}
 
 const VISTA = {
   folio: "NEG-2026-0001",
@@ -68,6 +84,7 @@ function abrirCon(token = "tok-123") {
 
 afterEach(() => {
   cleanup()
+  olvidarToken()
   sessionStorage.clear()
   window.history.replaceState(null, "", "/")
   vi.unstubAllGlobals()
@@ -106,8 +123,13 @@ describe("Portal", () => {
         ),
     })
     abrirCon()
+    // La consulta reintenta una vez los fallos que no son 401, con 1 s de espera.
     expect(
-      await screen.findByRole("button", { name: "Reintentar" })
+      await screen.findByRole(
+        "button",
+        { name: "Reintentar" },
+        { timeout: 4000 }
+      )
     ).toBeInTheDocument()
   })
 
@@ -424,5 +446,124 @@ describe("Portal", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Revise los campos indicados."
     )
+  })
+
+  it("un enlace nuevo pegado en la misma pestaña reemplaza al anterior sin recargar", async () => {
+    const api = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+      (url, init) => {
+        const sirve =
+          url === SESION &&
+          new Headers(init?.headers).get("Authorization") === "Invitacion nuevo"
+        return Promise.resolve(
+          sirve ? respuestaJson(VISTA) : respuestaJson(RECHAZADO, 401)
+        )
+      }
+    )
+    vi.stubGlobal("fetch", api)
+    abrirCon("viejo")
+    expect(
+      await screen.findByText("El enlace no es válido o ya venció")
+    ).toBeInTheDocument()
+    window.location.hash = "#t=nuevo"
+    expect(
+      await screen.findByRole("heading", { name: "Licencias de correo 2027" })
+    ).toBeInTheDocument()
+    expect(window.location.hash).toBe("")
+    expect(sessionStorage.getItem("portal-negociacion")).toBe("nuevo")
+    expect(
+      new Headers(api.mock.calls.at(-1)?.[1]?.headers).get("Authorization")
+    ).toBe("Invitacion nuevo")
+  })
+
+  it("tras un 401 mientras atiende una persona, deja de consultar con el enlace rechazado", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let consultas = 0
+    const api = simularRutas({
+      [`GET ${SESION}`]: () => {
+        consultas += 1
+        return consultas === 1
+          ? respuestaJson({ ...VISTA, atendido_por: "persona" })
+          : respuestaJson(RECHAZADO, 401)
+      },
+    })
+    abrirCon()
+    await screen.findByText("Le atiende una persona")
+    await vi.advanceTimersByTimeAsync(3100)
+    expect(
+      await screen.findByText("El enlace no es válido o ya venció")
+    ).toBeInTheDocument()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(api.mock.calls.filter(([url]) => url === SESION)).toHaveLength(2)
+  })
+
+  it("si al pedir una persona la negociación ya había terminado, muestra cómo terminó", async () => {
+    let terminada = false
+    simularRutas({
+      [`GET ${SESION}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          estado: terminada ? "sin_acuerdo" : "activa",
+        }),
+      [`POST ${ESCALAR}`]: () => {
+        terminada = true
+        return respuestaJson(
+          { title: "Conflicto", detail: "La negociación ya terminó." },
+          409
+        )
+      },
+    })
+    abrirCon()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Hablar con una persona" })
+    )
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Hablar con una persona",
+      })
+    )
+    expect(
+      await screen.findByText("La negociación terminó sin acuerdo")
+    ).toBeInTheDocument()
+  })
+
+  it("un enlace rechazado (401) no se reintenta", async () => {
+    const api = simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(RECHAZADO, 401),
+    })
+    window.history.replaceState(null, "", "/portal#t=tok-123")
+    // Como main.tsx: un reintento por defecto (sin espera, para no alargar la prueba).
+    const cliente = new QueryClient({
+      defaultOptions: { queries: { retry: 1, retryDelay: 0 } },
+    })
+    render(
+      <ProveedorTema>
+        <QueryClientProvider client={cliente}>
+          <MemoryRouter initialEntries={["/portal"]}>
+            <Portal />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </ProveedorTema>
+    )
+    expect(
+      await screen.findByText("El enlace no es válido o ya venció")
+    ).toBeInTheDocument()
+    expect(api.mock.calls.filter(([url]) => url === SESION)).toHaveLength(1)
+  })
+
+  it("si pasa a atenderle una persona mientras escribe, no le quita el foco", async () => {
+    simularRutas({ [`GET ${SESION}`]: () => respuestaJson(VISTA) })
+    const { cliente } = abrirCon()
+    const nota = await screen.findByLabelText(
+      "Nota para el equipo de compras (opcional)"
+    )
+    await userEvent.click(nota)
+    expect(nota).toHaveFocus()
+    act(() => {
+      cliente.setQueryData(["portal"], { ...VISTA, atendido_por: "persona" })
+    })
+    expect(
+      await screen.findByText("Le atiende una persona")
+    ).toBeInTheDocument()
+    expect(nota).toHaveFocus()
   })
 })

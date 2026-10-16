@@ -43,10 +43,26 @@ const AUTORES: Record<Autor, string> = {
 
 /** El portal del proveedor (spec §10.2): fuera del Layout, sin inicio de sesión. */
 export function Portal() {
-  const [token] = useState(tomarToken)
+  const cliente = useQueryClient()
+  // `version` cambia con cada enlace nuevo: la sesión se monta de cero y no arrastra la del anterior.
+  const [enlace, setEnlace] = useState(() => ({
+    token: tomarToken(),
+    version: 0,
+  }))
   useEffect(() => {
     document.title = "Portal de proveedores · PluriOne"
   }, [])
+  // Pegar en la misma pestaña el enlace reenviado cambia solo el fragmento: no recarga la página.
+  useEffect(() => {
+    function alCambiarFragmento() {
+      const nuevo = tomarToken()
+      if (!nuevo || nuevo === enlace.token) return
+      cliente.removeQueries({ queryKey: CLAVE })
+      setEnlace((anterior) => ({ token: nuevo, version: anterior.version + 1 }))
+    }
+    window.addEventListener("hashchange", alCambiarFragmento)
+    return () => window.removeEventListener("hashchange", alCambiarFragmento)
+  }, [cliente, enlace.token])
   return (
     <div className="min-h-svh bg-background text-foreground">
       <header className="border-b">
@@ -60,7 +76,11 @@ export function Portal() {
         tabIndex={-1}
         className="mx-auto max-w-3xl space-y-6 px-4 py-6 outline-hidden"
       >
-        {token ? <SesionPortal token={token} /> : <EnlaceInvalido />}
+        {enlace.token ? (
+          <SesionPortal key={enlace.version} token={enlace.token} />
+        ) : (
+          <EnlaceInvalido />
+        )}
       </main>
     </div>
   )
@@ -76,22 +96,28 @@ function EnlaceInvalido() {
   )
 }
 
+/** El mismo 401 para un enlace falso, revocado o vencido; también si vence con la página abierta. */
+function enlaceRechazado(error: unknown): boolean {
+  return error instanceof ErrorApi && error.estado === 401
+}
+
 function SesionPortal({ token }: { token: string }) {
   const consulta = useQuery({
     queryKey: CLAVE,
     queryFn: () => pedirPortal<VistaPortal>("/sesion", token),
+    // Un enlace rechazado (401) no se reenvía: no se reintenta ni se sigue consultando con él.
+    retry: (fallos, error) => fallos < 1 && !enlaceRechazado(error),
     // Mientras atiende una persona, su respuesta llega sin que el proveedor envíe nada.
     refetchInterval: (q) => {
       const vista = q.state.data
+      if (enlaceRechazado(q.state.error)) return false
       return vista && vista.atendido_por === "persona" && !esFinal(vista.estado)
         ? 3000
         : false
     },
   })
   if (consulta.isPending) return <EstadoCarga />
-  // El mismo 401 para un enlace falso, revocado o vencido; también si vence con la página abierta.
-  if (consulta.error instanceof ErrorApi && consulta.error.estado === 401)
-    return <EnlaceInvalido />
+  if (enlaceRechazado(consulta.error)) return <EnlaceInvalido />
   if (consulta.isLoadingError) {
     return (
       <EstadoError
@@ -246,14 +272,27 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
   const [confirmo, setConfirmo] = useState(false)
   const [aviso, setAviso] = useState("")
 
-  // Al pasar a «le atiende una persona» desaparece «Hablar con una persona»: el foco va a «Enviar oferta».
+  // Al pasar a «le atiende una persona» desaparece «Hablar con una persona»: si el foco se perdió
+  // con él, va a «Enviar oferta». Si la persona está escribiendo en otro campo, no se le quita.
   const atendidoPor = vista.atendido_por
   const anterior = useRef(atendidoPor)
   useEffect(() => {
-    if (anterior.current !== atendidoPor && atendidoPor === "persona")
-      enviarBoton.current?.focus()
+    if (anterior.current !== atendidoPor && atendidoPor === "persona") {
+      const activo = document.activeElement
+      if (!activo || activo === document.body) enviarBoton.current?.focus()
+    }
     anterior.current = atendidoPor
   }, [atendidoPor])
+
+  // Si el enlace venció o la negociación terminó, la vista nueva lo explica.
+  function alFallar(error: Error) {
+    setAviso("")
+    if (
+      error instanceof ErrorApi &&
+      (error.estado === 401 || error.estado === 409)
+    )
+      void cliente.invalidateQueries({ queryKey: CLAVE })
+  }
 
   const ofertar = useMutation({
     mutationFn: (cuerpo: Oferta) => {
@@ -275,15 +314,7 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
       setConfirmo(false)
       setAviso("Se envió su oferta.")
     },
-    onError: (error) => {
-      setAviso("")
-      // Si el enlace venció o la negociación terminó, la vista nueva lo explica.
-      if (
-        error instanceof ErrorApi &&
-        (error.estado === 401 || error.estado === 409)
-      )
-        void cliente.invalidateQueries({ queryKey: CLAVE })
-    },
+    onError: alFallar,
   })
   const escalar = useMutation({
     mutationFn: () =>
@@ -296,6 +327,7 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
       cliente.setQueryData(CLAVE, nueva)
       setAviso("Avisamos al equipo de compras; una persona le responderá aquí.")
     },
+    onError: alFallar,
   })
   const errores = erroresPorCampo(ofertar.error)
 

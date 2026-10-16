@@ -15,9 +15,20 @@ function guardar(token: string): void {
 
 function leer(): string | null {
   try {
-    return sessionStorage.getItem(CLAVE)
+    // Si solo falló guardar, la copia en memoria sigue valiendo.
+    return sessionStorage.getItem(CLAVE) ?? enMemoria
   } catch {
     return enMemoria
+  }
+}
+
+/** Borra el token de la pestaña y de la memoria; lo usan las pruebas para no arrastrar uno al siguiente caso. */
+export function olvidarToken(): void {
+  enMemoria = null
+  try {
+    sessionStorage.removeItem(CLAVE)
+  } catch {
+    // Bloqueado: no había nada guardado ahí.
   }
 }
 
