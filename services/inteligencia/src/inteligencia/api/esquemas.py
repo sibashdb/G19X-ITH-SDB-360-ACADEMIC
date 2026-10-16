@@ -2,13 +2,15 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Categoria = Literal["licencia_saas", "nube", "consultoria", "soporte"]
 Confianza = Literal["normal", "baja"]
 Peso = Annotated[int, Field(ge=0, le=100)]
+Dinero = Annotated[Decimal, Field(ge=0, max_digits=14, decimal_places=4)]  # como en la base
 
 
 def unitario(valor: float) -> Decimal:
@@ -300,3 +302,92 @@ class DatosSalida(BaseModel):
     modelo: ModeloSalida | None  # el activo (último promovido)
     en_uso: int | None  # el que responde las consultas; None: se usa la línea base
     entrenando: bool
+
+
+class PesosEntrada(BaseModel):
+    """Los pesos de los cuatro criterios de la adjudicación; deben sumar 100."""
+
+    costo: Peso
+    desempeno: Peso
+    riesgo: Peso
+    sla: Peso
+
+
+class LineaEntrada(BaseModel):
+    codigo_servicio: Annotated[str, Field(min_length=1, max_length=30)]
+    unidad: Annotated[str, Field(min_length=1, max_length=20)]
+    cantidad: Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=4)]
+    precio: Dinero
+
+
+class CandidatoEntrada(BaseModel):
+    id: Annotated[str, Field(min_length=1, max_length=64)]  # el de la sesión de negociación
+    proveedor_id: UUID
+    nombre: Annotated[str, Field(min_length=1, max_length=200)]
+    plazo_meses: Annotated[int, Field(ge=1, le=60)]
+    cuota_implementacion: Dinero
+    sla: Annotated[Decimal, Field(ge=0, le=100)] | None = None
+    lineas: Annotated[list[LineaEntrada], Field(min_length=1, max_length=20)]
+
+
+class RecomendacionEntrada(BaseModel):
+    moneda: Literal["MXN", "USD"]
+    pesos: PesosEntrada | None = None  # None: los configurados
+    candidatos: Annotated[list[CandidatoEntrada], Field(min_length=1, max_length=10)]
+
+    @model_validator(mode="after")
+    def _sin_repetidos(self) -> Self:
+        ids = [c.id for c in self.candidatos]
+        if len(set(ids)) != len(ids):
+            raise ValueError("Los candidatos no pueden repetirse.")
+        return self
+
+
+class TipoCambioSalida(BaseModel):
+    periodo: date
+    usd_mxn: Decimal
+
+
+class RiesgoSalida(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    valor: float  # promedio de los tres componentes, de 0 a 1
+    nivel: Literal["bajo", "medio", "alto"]
+    concentracion: float
+    tendencia: float
+    sin_historial: bool
+
+
+class CandidatoSalida(BaseModel):
+    id: str
+    proveedor_id: str
+    nombre: str
+    costo_total: Decimal  # en la moneda del evento
+    costo_total_mxn: Decimal
+    desempeno: float  # puntuación de 0 a 100
+    riesgo: RiesgoSalida
+    sla: Decimal | None
+    normalizados: dict[str, float]  # por criterio, de 0 a 1 (1 es lo mejor)
+    aportes: dict[str, float]  # los puntos que suma cada criterio
+    puntaje: float
+    lugar: int
+
+
+class SensibilidadSalida(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    criterio: str
+    peso_actual: int
+    peso_necesario: int | None  # el más cercano al actual con el que gana otro; None si ninguno
+    ganaria: str | None  # id del candidato que ganaría
+
+
+class RecomendacionSalida(BaseModel):
+    pesos: PesosEntrada
+    umbral_aprobacion: Decimal  # MXN
+    tipo_cambio: TipoCambioSalida | None  # el vigente hoy; None: no hay ninguno registrado
+    candidatos: list[CandidatoSalida]  # en orden de lugar
+    recomendado: str  # id del candidato
+    margen: float  # puntos entre el primero y el segundo; 0 si hay uno solo
+    explicacion: list[str]
+    sensibilidad: list[SensibilidadSalida]

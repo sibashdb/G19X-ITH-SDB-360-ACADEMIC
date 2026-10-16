@@ -7,12 +7,18 @@ from decimal import Decimal
 CENTAVOS = Decimal("0.01")
 
 
-def tipo_cambio_en(tipos: Mapping[date, Decimal], fecha: date) -> Decimal | None:
-    """El tipo de cambio vigente en `fecha` (o el más viejo si `fecha` es anterior a todos)."""
+def periodo_cambio(tipos: Mapping[date, Decimal], fecha: date) -> date | None:
+    """El periodo del tipo de cambio vigente en `fecha` (el más viejo si es anterior a todos)."""
     if not tipos:
         return None
     anteriores = [periodo for periodo in tipos if periodo <= fecha]
-    return tipos[max(anteriores)] if anteriores else tipos[min(tipos)]
+    return max(anteriores) if anteriores else min(tipos)
+
+
+def tipo_cambio_en(tipos: Mapping[date, Decimal], fecha: date) -> Decimal | None:
+    """El tipo de cambio vigente en `fecha` (o el más viejo si `fecha` es anterior a todos)."""
+    periodo = periodo_cambio(tipos, fecha)
+    return None if periodo is None else tipos[periodo]
 
 
 def a_mxn(monto: Decimal, moneda: str, usd_mxn: Decimal | None) -> Decimal:

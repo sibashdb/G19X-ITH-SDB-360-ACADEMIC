@@ -49,7 +49,7 @@ ENTIDADES: dict[str, type[Base]] = {
 }
 
 
-def _pesos_invalidos(campo: str, mensaje: str) -> ErrorDominio:
+def pesos_invalidos(campo: str, mensaje: str) -> ErrorDominio:
     return ErrorDominio(
         422,
         "Solicitud inválida",
@@ -83,13 +83,13 @@ async def guardar_configuracion(
         nuevos["umbral_aprobacion"] = nuevos["umbral_aprobacion"].quantize(DOS_DECIMALES)
     error = validar_pesos({c: v for c, v in nuevos.items() if c.startswith("peso_")})
     if error is not None:
-        raise _pesos_invalidos("body.pesos", error)
+        raise pesos_invalidos("body.pesos", error)
     if any(c in nuevos for c in PESOS_ADJUDICACION):
         if not all(c in nuevos for c in PESOS_ADJUDICACION):
-            raise _pesos_invalidos("body.pesos_adjudicacion", "Envíe los cuatro pesos juntos.")
+            raise pesos_invalidos("body.pesos_adjudicacion", "Envíe los cuatro pesos juntos.")
         error = validar_pesos({c: nuevos[c] for c in PESOS_ADJUDICACION})
         if error is not None:
-            raise _pesos_invalidos("body.pesos_adjudicacion", error)
+            raise pesos_invalidos("body.pesos_adjudicacion", error)
     async with sesion.begin():
         fila = await sesion.get(Configuracion, 1, with_for_update=True)
         if fila is None:

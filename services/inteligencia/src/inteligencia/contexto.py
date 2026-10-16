@@ -95,6 +95,7 @@ class Contexto:
     tipos_cambio: dict[date, Decimal]
     por_categoria: dict[str, list[Observacion]]
     puntuaciones: dict[str, Puntuacion]
+    desempeno: dict[str, list[Mes]]  # mensual de los proveedores puntuados, sin orden garantizado
     historial: dict[str, list[tuple[date, float]]]
     mercado: list[LineaMercado]
     alertas: list[Alerta]  # ordenadas por severidad y fecha
@@ -261,6 +262,7 @@ def construir(datos: Datos, modelo: ModeloPrecios | None, hoy: date) -> Contexto
         tipos_cambio=datos.tipos_cambio,
         por_categoria=dict(por_categoria),
         puntuaciones=puntuaciones,
+        desempeno=desempeno,
         historial=series,
         mercado=mercado,
         alertas=alertas,
