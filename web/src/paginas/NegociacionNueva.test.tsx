@@ -308,6 +308,34 @@ describe("NegociacionNueva", () => {
     expect(screen.queryByText("Elija un servicio.")).not.toBeInTheDocument()
   })
 
+  it("una fila nueva no hereda el aviso «Elija un servicio.» de la que se quitó", async () => {
+    apiDeCompra()
+    renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })
+    await userEvent.type(await screen.findByLabelText("Título"), "Compra mixta")
+    await elegirServicio(1)
+    await userEvent.type(screen.getByLabelText("Cantidad 1"), "5")
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Agregar servicio" })
+    )
+    // La fila 2 queda sin servicio (con cantidad, para pasar la validación nativa del navegador).
+    await userEvent.type(screen.getByLabelText("Cantidad 2"), "250")
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /Nube Norte/ })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Crear borrador" })
+    )
+    expect(await screen.findByText("Elija un servicio.")).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Quitar el servicio 2" })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Agregar servicio" })
+    )
+    expect(screen.getByLabelText("Cantidad 2")).toBeInTheDocument()
+    expect(screen.queryByText("Elija un servicio.")).not.toBeInTheDocument()
+  })
+
   it("Enter en el buscador de proveedores no crea el borrador", async () => {
     const api = apiDeCompra()
     renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })

@@ -23,6 +23,7 @@ describe("Ayuda", () => {
     for (const tema of [
       "Primeros pasos",
       "Proveedores y precios",
+      "Negociación",
       "Datos e importación",
     ])
       expect(screen.getByRole("heading", { name: tema })).toBeInTheDocument()

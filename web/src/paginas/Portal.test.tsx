@@ -714,6 +714,40 @@ describe("Portal", () => {
     expect(nota).toHaveFocus()
   })
 
+  it("si una actualización falla, conserva lo que ya se veía y avisa con los últimos datos", async () => {
+    let consultas = 0
+    simularRutas({
+      [`GET ${SESION}`]: () => {
+        consultas += 1
+        return consultas === 1
+          ? respuestaJson(VISTA)
+          : respuestaJson(
+              {
+                title: "Servicio no disponible",
+                detail: "El servicio no está disponible; intente más tarde.",
+              },
+              503
+            )
+      },
+    })
+    const { cliente } = abrirCon()
+    await screen.findByRole("heading", { name: "Licencias de correo 2027" })
+    act(() => {
+      void cliente.invalidateQueries({ queryKey: ["portal"] })
+    })
+    // La consulta reintenta una vez los fallos que no son 401, con 1 s de espera.
+    expect(
+      await screen.findByText(
+        "No se pudo actualizar; se muestran los últimos datos recibidos.",
+        {},
+        { timeout: 4000 }
+      )
+    ).toHaveAttribute("role", "status")
+    expect(
+      screen.getByRole("heading", { name: "Licencias de correo 2027" })
+    ).toBeInTheDocument()
+  })
+
   it("tras un 401 no vuelve a consultar al volver a la pestaña ni al recuperar la conexión", async () => {
     const api = simularRutas({
       [`GET ${SESION}`]: () => respuestaJson(RECHAZADO, 401),

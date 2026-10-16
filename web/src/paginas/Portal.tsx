@@ -149,7 +149,7 @@ function SesionPortal({ token, clave }: { token: string; clave: QueryKey }) {
   // Esta región siempre está montada, así que anuncia el desenlace aunque el formulario (con su
   // «Se envió su oferta.») desaparezca. El desenlace va oculto: la alerta visible dice lo mismo.
   const aviso = consulta.isRefetchError
-    ? "No se pudo actualizar; se volverá a intentar en unos segundos."
+    ? "No se pudo actualizar; se muestran los últimos datos recibidos."
     : vista.estado === "acuerdo_tentativo"
       ? "La negociación terminó con un acuerdo tentativo."
       : vista.estado === "sin_acuerdo" || vista.estado === "expirada"

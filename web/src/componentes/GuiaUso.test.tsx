@@ -92,6 +92,10 @@ describe("GuiaUso", () => {
     )
     renderizarPagina(<GuiaUso />)
     expect(await screen.findByText("4 de 4 listos")).toBeInTheDocument()
+    expect(paso(4)).toHaveTextContent("Hecho")
+    expect(
+      within(paso(4)).queryByRole("link", { name: "Ver negociaciones" })
+    ).not.toBeInTheDocument()
   })
 
   it("sin datos, el admin ve el enlace a Importación", async () => {

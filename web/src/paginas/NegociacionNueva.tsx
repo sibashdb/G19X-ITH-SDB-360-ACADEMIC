@@ -263,6 +263,8 @@ function Formulario({ renovacion }: { renovacion: Renovacion | null }) {
     if (lineas.length === 1) return
     olvidarErrorDeApi()
     setLineas((previas) => previas.filter((l) => l.clave !== clave))
+    // La clave de la fila quitada se reutiliza para la siguiente fila nueva: su aviso no la sigue.
+    setSinServicio((claves) => claves.filter((c) => c !== clave))
     // El botón «Quitar» desaparece con su fila: el foco pasa a «Agregar servicio».
     agregar.current?.focus()
   }

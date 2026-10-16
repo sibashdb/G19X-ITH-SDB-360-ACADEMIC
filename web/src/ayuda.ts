@@ -174,6 +174,9 @@ export const ARTICULOS: Articulo[] = [
     secciones: [
       {
         titulo: "Crear la negociación",
+        parrafos: [
+          "Solo el rol de compras crea, publica, reenvía, cancela y atiende a mano las negociaciones; quien aprueba o administra las ve sin poder cambiarlas.",
+        ],
         pasos: [
           "En Negociaciones, pulse «Nueva negociación». Para renovar un contrato, use «Renovar» en el Tablero, en una alerta de vencimiento o en los contratos de la ficha del proveedor: la negociación toma del contrato los servicios, el plazo y al proveedor.",
           "Escriba el título, la fecha límite, las rondas y el estilo del agente. En una compra, elija los servicios con su cantidad y a los proveedores que invita (hasta 10).",

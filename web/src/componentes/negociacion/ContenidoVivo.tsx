@@ -29,7 +29,7 @@ export function ContenidoVivo<T>({
         className={consulta.isRefetchError ? "text-sm text-warning" : "sr-only"}
       >
         {consulta.isRefetchError
-          ? "No se pudo actualizar; se volverá a intentar en unos segundos."
+          ? "No se pudo actualizar; se muestran los últimos datos recibidos."
           : ""}
       </p>
       {children(consulta.data)}

@@ -78,6 +78,13 @@ describe("contenido de la ayuda", () => {
     expect(articuloPorSlug("como-negocia-el-agente")?.tema).toBe("negociacion")
   })
 
+  it("dice quién puede crear y atender las negociaciones, antes de los pasos", () => {
+    const primera = articuloPorSlug("negociar-con-proveedores")?.secciones[0]
+    expect(primera?.parrafos?.[0]).toBe(
+      "Solo el rol de compras crea, publica, reenvía, cancela y atiende a mano las negociaciones; quien aprueba o administra las ve sin poder cambiarlas."
+    )
+  })
+
   it("describe cuánto cede el agente según el estilo, sin prometer lo que no hace", () => {
     const seccion = articuloPorSlug("como-negocia-el-agente")?.secciones.find(
       (s) => s.titulo === "Cuánto cede en cada ronda"

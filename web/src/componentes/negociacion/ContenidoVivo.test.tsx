@@ -33,7 +33,7 @@ describe("ContenidoVivo", () => {
     await userEvent.click(screen.getByRole("button", { name: "Actualizar" }))
     expect(
       await screen.findByText(
-        "No se pudo actualizar; se volverá a intentar en unos segundos."
+        "No se pudo actualizar; se muestran los últimos datos recibidos."
       )
     ).toHaveAttribute("role", "status")
     expect(screen.getByText("Hola")).toBeInTheDocument()

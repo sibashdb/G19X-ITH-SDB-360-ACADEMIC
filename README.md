@@ -281,6 +281,9 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
   fuera de un entorno local.
 - **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
   interpreta; la IA llega con N2.
+- **Portal solo con HTTPS o localhost.** El portal del proveedor genera claves de idempotencia
+  con `crypto.randomUUID`, que el navegador solo ofrece en un contexto seguro; publicado por HTTP
+  en otro host, enviar una oferta falla.
 
 ## Convenciones
 
