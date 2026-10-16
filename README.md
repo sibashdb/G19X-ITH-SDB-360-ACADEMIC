@@ -240,7 +240,7 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
   `npm run lint` rechaza colores literales y `src/tokens.node.test.ts` verifica el contraste WCAG).
 - Tema claro, oscuro o del sistema desde la barra superior; la preferencia se guarda en el navegador.
 - Fuentes Fira Sans y Fira Code servidas por la propia aplicación (sin CDN).
-- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md` (Plan A) y `docs/qa/revision-inteligencia-interfaz.md` (inteligencia en la interfaz).
+- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md` (Plan A), `docs/qa/revision-inteligencia-interfaz.md` (inteligencia en la interfaz) y `docs/qa/revision-negociacion.md` (negociación y portal del proveedor).
 - Guía "Cómo usar PluriOne" en el Tablero; se oculta y vuelve desde el menú de usuario, y se recuerda por persona (no por navegador). El menú
   muestra icono y nombre; el propósito de cada opción aparece en la ayuda emergente del menú
   contraído y lo lee el lector de pantalla.
