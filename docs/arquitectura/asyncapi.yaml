@@ -1,0 +1,506 @@
+asyncapi: 3.0.0
+info:
+  title: Eventos de la plataforma de negociación con proveedores
+  version: 1.0.0
+  description: |
+    Eventos que los servicios publican en el exchange topic «eventos» de RabbitMQ. La clave de
+    enrutamiento es el tipo del evento. Fuente de verdad: libs/comun/src/comun/topologia.py.
+    Entrega al menos una vez con outbox transaccional; los consumidores son idempotentes por
+    event_id. Explicación en español: docs/arquitectura/eventos.md.
+defaultContentType: application/json
+
+servers:
+  desarrollo:
+    host: localhost:5672
+    protocol: amqp
+    protocolVersion: 0.9.1
+    description: RabbitMQ del Docker Compose (vhost «/»).
+
+channels:
+  proveedorActualizado:
+    address: proveedor.actualizado
+    messages:
+      proveedorActualizado:
+        $ref: '#/components/messages/proveedorActualizado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  servicioActualizado:
+    address: servicio.actualizado
+    messages:
+      servicioActualizado:
+        $ref: '#/components/messages/servicioActualizado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  contratoRegistrado:
+    address: contrato.registrado
+    messages:
+      contratoRegistrado:
+        $ref: '#/components/messages/contratoRegistrado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  desempenoRegistrado:
+    address: desempeno.registrado
+    messages:
+      desempenoRegistrado:
+        $ref: '#/components/messages/desempenoRegistrado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  tipoCambioRegistrado:
+    address: tipo_cambio.registrado
+    messages:
+      tipoCambioRegistrado:
+        $ref: '#/components/messages/tipoCambioRegistrado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  importacionCompletada:
+    address: importacion.completada
+    messages:
+      importacionCompletada:
+        $ref: '#/components/messages/importacionCompletada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  importacionRechazada:
+    address: importacion.rechazada
+    messages:
+      importacionRechazada:
+        $ref: '#/components/messages/importacionRechazada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  configuracionActualizada:
+    address: configuracion.actualizada
+    messages:
+      configuracionActualizada:
+        $ref: '#/components/messages/configuracionActualizada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  modeloEntrenado:
+    address: modelo.entrenado
+    messages:
+      modeloEntrenado:
+        $ref: '#/components/messages/modeloEntrenado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  negociacionPublicada:
+    address: negociacion.publicada
+    messages:
+      negociacionPublicada:
+        $ref: '#/components/messages/negociacionPublicada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  negociacionCancelada:
+    address: negociacion.cancelada
+    messages:
+      negociacionCancelada:
+        $ref: '#/components/messages/negociacionCancelada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  negociacionInvitacionEnviada:
+    address: negociacion.invitacion_enviada
+    messages:
+      negociacionInvitacionEnviada:
+        $ref: '#/components/messages/negociacionInvitacionEnviada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+
+operations:
+  # Quién publica cada evento.
+  proveedoresPublicaProveedor:
+    action: send
+    channel:
+      $ref: '#/channels/proveedorActualizado'
+    summary: proveedores, al importar o reprocesar proveedores.
+  proveedoresPublicaServicio:
+    action: send
+    channel:
+      $ref: '#/channels/servicioActualizado'
+    summary: proveedores, al importar, editar el catálogo o reprocesar.
+  proveedoresPublicaContrato:
+    action: send
+    channel:
+      $ref: '#/channels/contratoRegistrado'
+    summary: proveedores, al importar contratos nuevos.
+  proveedoresPublicaDesempeno:
+    action: send
+    channel:
+      $ref: '#/channels/desempenoRegistrado'
+    summary: proveedores, al importar desempeño.
+  proveedoresPublicaTipoCambio:
+    action: send
+    channel:
+      $ref: '#/channels/tipoCambioRegistrado'
+    summary: proveedores, al importar o reprocesar el tipo de cambio.
+  proveedoresPublicaImportacionCompletada:
+    action: send
+    channel:
+      $ref: '#/channels/importacionCompletada'
+    summary: proveedores, al terminar una importación.
+  proveedoresPublicaImportacionRechazada:
+    action: send
+    channel:
+      $ref: '#/channels/importacionRechazada'
+    summary: proveedores, cuando una importación se rechaza por errores en el archivo.
+  inteligenciaPublicaConfiguracion:
+    action: send
+    channel:
+      $ref: '#/channels/configuracionActualizada'
+    summary: inteligencia, al cambiar pesos, umbral o inflación.
+  inteligenciaPublicaModelo:
+    action: send
+    channel:
+      $ref: '#/channels/modeloEntrenado'
+    summary: inteligencia, al entrenar el modelo de precios.
+  negociacionPublicaPublicada:
+    action: send
+    channel:
+      $ref: '#/channels/negociacionPublicada'
+    summary: negociacion, al publicar una negociación.
+  negociacionPublicaCancelada:
+    action: send
+    channel:
+      $ref: '#/channels/negociacionCancelada'
+    summary: negociacion, al cancelar una negociación.
+  negociacionPublicaInvitacion:
+    action: send
+    channel:
+      $ref: '#/channels/negociacionInvitacionEnviada'
+    summary: negociacion, al enviar o reenviar cada invitación.
+
+  # Quién los recibe (cola entre paréntesis).
+  inteligenciaRecibeProveedor:
+    action: receive
+    channel:
+      $ref: '#/channels/proveedorActualizado'
+    summary: inteligencia (inteligencia.eventos)
+  inteligenciaRecibeServicio:
+    action: receive
+    channel:
+      $ref: '#/channels/servicioActualizado'
+    summary: inteligencia (inteligencia.eventos)
+  inteligenciaRecibeContrato:
+    action: receive
+    channel:
+      $ref: '#/channels/contratoRegistrado'
+    summary: inteligencia (inteligencia.eventos)
+  inteligenciaRecibeDesempeno:
+    action: receive
+    channel:
+      $ref: '#/channels/desempenoRegistrado'
+    summary: inteligencia (inteligencia.eventos)
+  inteligenciaRecibeTipoCambio:
+    action: receive
+    channel:
+      $ref: '#/channels/tipoCambioRegistrado'
+    summary: inteligencia (inteligencia.eventos)
+  negociacionRecibeProveedor:
+    action: receive
+    channel:
+      $ref: '#/channels/proveedorActualizado'
+    summary: negociacion (negociacion.eventos)
+  negociacionRecibeServicio:
+    action: receive
+    channel:
+      $ref: '#/channels/servicioActualizado'
+    summary: negociacion (negociacion.eventos)
+  administracionRecibeServicio:
+    action: receive
+    channel:
+      $ref: '#/channels/servicioActualizado'
+    summary: administracion (administracion.actividad)
+  administracionRecibeImportacionCompletada:
+    action: receive
+    channel:
+      $ref: '#/channels/importacionCompletada'
+    summary: administracion (administracion.actividad)
+  administracionRecibeImportacionRechazada:
+    action: receive
+    channel:
+      $ref: '#/channels/importacionRechazada'
+    summary: administracion (administracion.actividad)
+  administracionRecibeConfiguracion:
+    action: receive
+    channel:
+      $ref: '#/channels/configuracionActualizada'
+    summary: administracion (administracion.actividad)
+  administracionRecibeModelo:
+    action: receive
+    channel:
+      $ref: '#/channels/modeloEntrenado'
+    summary: administracion (administracion.actividad)
+  administracionRecibeNegociacionPublicada:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionPublicada'
+    summary: administracion (administracion.actividad)
+  administracionRecibeNegociacionCancelada:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionCancelada'
+    summary: administracion (administracion.actividad)
+  administracionRecibeInvitacion:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionInvitacionEnviada'
+    summary: administracion (administracion.actividad)
+
+components:
+  channelBindings:
+    eventos:
+      is: routingKey
+      exchange:
+        name: eventos
+        type: topic
+        durable: true
+        autoDelete: false
+        vhost: /
+
+  schemas:
+    Sobre:
+      type: object
+      required: [event_id, type, version, occurred_at, correlation_id, payload]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Llave de idempotencia.
+        type:
+          type: string
+          description: Igual a la clave de enrutamiento.
+        version:
+          type: integer
+          const: 1
+        occurred_at:
+          type: string
+          format: date-time
+        correlation_id:
+          type: string
+          description: X-Request-ID de la petición que lo originó.
+        payload:
+          type: object
+    Actor:
+      type: object
+      required: [id, nombre]
+      properties:
+        id:
+          type: [string, 'null']
+        nombre:
+          type: string
+    Monto:
+      type: string
+      description: Decimal como texto (nunca punto flotante).
+
+  messages:
+    proveedorActualizado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [id, rfc, nombre, tamano, categorias, contacto_nombre, contacto_email, activo]
+                properties:
+                  id: {type: string, format: uuid}
+                  rfc: {type: string}
+                  nombre: {type: string}
+                  tamano: {type: string, enum: [micro, pequena, mediana, grande]}
+                  categorias: {type: array, items: {type: string}}
+                  contacto_nombre: {type: string}
+                  contacto_email: {type: string}
+                  activo: {type: boolean}
+    servicioActualizado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [id, codigo, nombre, categoria, unidad, moneda, activo]
+                properties:
+                  id: {type: string, format: uuid}
+                  codigo: {type: string}
+                  nombre: {type: string}
+                  categoria: {type: string}
+                  unidad: {type: string}
+                  moneda: {type: string, enum: [MXN, USD]}
+                  activo: {type: boolean}
+                  cambio:
+                    type: string
+                    enum: [creado, actualizado, activado, desactivado]
+                    description: Solo si vino de la edición del catálogo.
+                  campos: {type: array, items: {type: string}}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    contratoRegistrado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [id, proveedor_id, folio, tipo, fecha_inicio, fecha_fin, moneda, lineas]
+                properties:
+                  id: {type: string, format: uuid}
+                  proveedor_id: {type: string, format: uuid}
+                  folio: {type: string}
+                  rfc_proveedor: {type: string}
+                  tipo: {type: string, enum: [nuevo, renovacion]}
+                  fecha_inicio: {type: string, format: date}
+                  fecha_fin: {type: string, format: date}
+                  moneda: {type: string, enum: [MXN, USD]}
+                  plazo_pago_dias: {type: integer}
+                  sla_disponibilidad: {oneOf: [{$ref: '#/components/schemas/Monto'}, {type: 'null'}]}
+                  tope_aumento_pct: {oneOf: [{$ref: '#/components/schemas/Monto'}, {type: 'null'}]}
+                  cuota_implementacion: {$ref: '#/components/schemas/Monto'}
+                  lineas:
+                    type: array
+                    items:
+                      type: object
+                      required: [codigo_servicio, cantidad, precio_unitario]
+                      properties:
+                        codigo_servicio: {type: string}
+                        nombre_servicio: {type: string}
+                        categoria: {type: string}
+                        unidad: {type: string}
+                        cantidad: {$ref: '#/components/schemas/Monto'}
+                        precio_unitario: {$ref: '#/components/schemas/Monto'}
+    desempenoRegistrado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [proveedor_id, periodo]
+                properties:
+                  proveedor_id: {type: string, format: uuid}
+                  periodo: {type: string, format: date, description: Primer día del mes.}
+                  sla_cumplimiento_pct: {$ref: '#/components/schemas/Monto'}
+                  tiempo_resolucion_h: {$ref: '#/components/schemas/Monto'}
+                  incidentes_criticos: {type: integer}
+                  entregas_a_tiempo_pct: {$ref: '#/components/schemas/Monto'}
+                  satisfaccion: {$ref: '#/components/schemas/Monto'}
+    tipoCambioRegistrado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [periodo, usd_mxn]
+                properties:
+                  periodo: {type: string, format: date}
+                  usd_mxn: {$ref: '#/components/schemas/Monto'}
+    importacionCompletada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [entidad, filas, registros, omitidos, actor]
+                properties:
+                  entidad: {type: string}
+                  filas: {type: integer}
+                  registros: {type: integer}
+                  omitidos: {type: integer}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    importacionRechazada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [entidad, errores, actor]
+                properties:
+                  entidad: {type: string}
+                  errores: {type: integer}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    configuracionActualizada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [cambios, actor]
+                properties:
+                  cambios:
+                    type: object
+                    description: Por campo cambiado, su valor anterior y el nuevo.
+                    additionalProperties:
+                      type: object
+                      properties:
+                        anterior: {}
+                        nuevo: {}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    modeloEntrenado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [version, mape, mape_linea_base, cobertura, promovido, origen, actor]
+                properties:
+                  version: {type: integer}
+                  mape: {type: number}
+                  mape_linea_base: {type: number}
+                  cobertura: {type: number}
+                  promovido: {type: boolean}
+                  origen: {type: string}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    negociacionPublicada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [folio, titulo, tipo, proveedores, actor]
+                properties:
+                  folio: {type: string}
+                  titulo: {type: string}
+                  tipo: {type: string, enum: [compra, renovacion]}
+                  proveedores: {type: integer, description: Cuántos proveedores se invitaron.}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    negociacionCancelada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [folio, titulo, motivo, actor]
+                properties:
+                  folio: {type: string}
+                  titulo: {type: string}
+                  motivo: {type: string}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    negociacionInvitacionEnviada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [folio, titulo, proveedor, destinatario, estado, reenvio, actor]
+                properties:
+                  folio: {type: string}
+                  titulo: {type: string}
+                  proveedor: {type: string}
+                  destinatario: {type: string}
+                  estado: {type: string, enum: [enviado, fallido]}
+                  error: {type: [string, 'null']}
+                  reenvio: {type: boolean}
+                  actor: {$ref: '#/components/schemas/Actor'}

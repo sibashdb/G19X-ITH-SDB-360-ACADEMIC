@@ -1,0 +1,2460 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Servicio de inteligencia",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/salud/vivo": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Vivo",
+        "operationId": "vivo_salud_vivo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Vivo Salud Vivo Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/salud/listo": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Listo",
+        "operationId": "listo_salud_listo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Listo Salud Listo Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tablero": {
+      "get": {
+        "tags": [
+          "tablero"
+        ],
+        "summary": "Tablero",
+        "operationId": "tablero_tablero_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableroSalida"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/alertas": {
+      "get": {
+        "tags": [
+          "tablero"
+        ],
+        "summary": "Alertas",
+        "operationId": "alertas_alertas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "vencimiento",
+                    "sobreprecio",
+                    "riesgo"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          },
+          {
+            "name": "severidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "alta",
+                    "media",
+                    "informativa"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severidad"
+            }
+          },
+          {
+            "name": "proveedor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Proveedor"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
+              "default": 1,
+              "title": "Pagina"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limite"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaAlertas"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/precios/servicios": {
+      "get": {
+        "tags": [
+          "precios"
+        ],
+        "summary": "Servicios",
+        "description": "Los servicios activos; un servicio inactivo no se cotiza, aunque sus contratos sigan.",
+        "operationId": "servicios_precios_servicios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServicioPrecios"
+                  },
+                  "type": "array",
+                  "title": "Response Servicios Precios Servicios Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/precios/servicios/{codigo}/referencia": {
+      "get": {
+        "tags": [
+          "precios"
+        ],
+        "summary": "Referencia",
+        "operationId": "referencia_precios_servicios__codigo__referencia_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{3,30}$",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "cantidad",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 10000000.0,
+                  "exclusiveMinimum": 0.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "title": "Cantidad"
+            }
+          },
+          {
+            "name": "plazo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 120,
+              "minimum": 1,
+              "default": 12,
+              "title": "Plazo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenciaSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/precios/servicios/{codigo}/historial": {
+      "get": {
+        "tags": [
+          "precios"
+        ],
+        "summary": "Historial",
+        "operationId": "historial_precios_servicios__codigo__historial_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{3,30}$",
+              "title": "Codigo"
+            }
+          },
+          {
+            "name": "cantidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 10000000.0,
+                  "exclusiveMinimum": 0.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cantidad"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistorialPrecios"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/precios/sobreprecios": {
+      "get": {
+        "tags": [
+          "precios"
+        ],
+        "summary": "Sobreprecios",
+        "description": "Líneas de contratos vigentes sobre P75, de mayor a menor ahorro potencial en MXN.",
+        "operationId": "sobreprecios_precios_sobreprecios_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9-]{3,30}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Codigo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Sobreprecio"
+                  },
+                  "title": "Response Sobreprecios Precios Sobreprecios Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Listar",
+        "operationId": "listar_proveedores_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "busqueda",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Busqueda"
+            }
+          },
+          {
+            "name": "categoria",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "licencia_saas",
+                    "nube",
+                    "consultoria",
+                    "soporte"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categoria"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "activos",
+                    "inactivos"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estado"
+            }
+          },
+          {
+            "name": "en_riesgo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "En Riesgo"
+            }
+          },
+          {
+            "name": "orden",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "nombre",
+                "puntuacion",
+                "gasto_anual",
+                "contratos_vigentes",
+                "alertas"
+              ],
+              "type": "string",
+              "default": "nombre",
+              "title": "Orden"
+            }
+          },
+          {
+            "name": "direccion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "default": "asc",
+              "title": "Direccion"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 1,
+              "title": "Pagina"
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Tamano"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaProveedores"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores/{proveedor_id}/puntuacion": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Puntuacion",
+        "operationId": "puntuacion_proveedores__proveedor_id__puntuacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proveedor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proveedor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PuntuacionSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores/{proveedor_id}/mercado": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Mercado",
+        "description": "Cada línea de sus contratos vigentes frente al precio justo de su servicio.",
+        "operationId": "mercado_proveedores__proveedor_id__mercado_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proveedor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proveedor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MercadoLinea"
+                  },
+                  "title": "Response Mercado Proveedores  Proveedor Id  Mercado Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ranking": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Ranking",
+        "operationId": "ranking_ranking_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "categoria",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "licencia_saas",
+                    "nube",
+                    "consultoria",
+                    "soporte"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categoria"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FilaRanking"
+                  },
+                  "title": "Response Ranking Ranking Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/configuracion": {
+      "get": {
+        "tags": [
+          "configuracion"
+        ],
+        "summary": "Leer Configuracion",
+        "operationId": "leer_configuracion_configuracion_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracionSalida"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "configuracion"
+        ],
+        "summary": "Guardar Configuracion",
+        "operationId": "guardar_configuracion_configuracion_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfiguracionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracionSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/modelos": {
+      "get": {
+        "tags": [
+          "configuracion"
+        ],
+        "summary": "Modelos",
+        "operationId": "modelos_modelos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistroModelos"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/modelos/entrenar": {
+      "post": {
+        "tags": [
+          "configuracion"
+        ],
+        "summary": "Entrenar",
+        "operationId": "entrenar_modelos_entrenar_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntrenamientoIniciado"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/datos": {
+      "get": {
+        "tags": [
+          "configuracion"
+        ],
+        "summary": "Datos",
+        "description": "Lo que llegó a la copia local, para la tarjeta \"Datos y modelo\" del Panel.",
+        "operationId": "datos_datos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosSalida"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AlertaSalida": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "severidad": {
+            "type": "string",
+            "title": "Severidad"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "explicacion": {
+            "type": "string",
+            "title": "Explicacion"
+          },
+          "entidad_tipo": {
+            "type": "string",
+            "title": "Entidad Tipo"
+          },
+          "entidad_id": {
+            "type": "string",
+            "title": "Entidad Id"
+          },
+          "entidad_nombre": {
+            "type": "string",
+            "title": "Entidad Nombre"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "proveedor_nombre": {
+            "type": "string",
+            "title": "Proveedor Nombre"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha"
+          },
+          "ahorro_potencial": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ahorro Potencial"
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "severidad",
+          "titulo",
+          "explicacion",
+          "entidad_tipo",
+          "entidad_id",
+          "entidad_nombre",
+          "proveedor_id",
+          "proveedor_nombre",
+          "fecha",
+          "ahorro_potencial",
+          "moneda"
+        ],
+        "title": "AlertaSalida"
+      },
+      "BandaMes": {
+        "properties": {
+          "mes": {
+            "type": "string",
+            "format": "date",
+            "title": "Mes"
+          },
+          "p25": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P25"
+          },
+          "p50": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P50"
+          },
+          "p75": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P75"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mes",
+          "p25",
+          "p50",
+          "p75"
+        ],
+        "title": "BandaMes"
+      },
+      "Componente": {
+        "properties": {
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "mediana_categoria": {
+            "type": "number",
+            "title": "Mediana Categoria"
+          },
+          "percentil": {
+            "type": "number",
+            "title": "Percentil"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi",
+          "valor",
+          "mediana_categoria",
+          "percentil"
+        ],
+        "title": "Componente"
+      },
+      "ConfiguracionEntrada": {
+        "properties": {
+          "peso_sla": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Peso Sla"
+          },
+          "peso_resolucion": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Peso Resolucion"
+          },
+          "peso_incidentes": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Peso Incidentes"
+          },
+          "peso_entregas": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Peso Entregas"
+          },
+          "peso_satisfaccion": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Peso Satisfaccion"
+          },
+          "umbral_riesgo": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Umbral Riesgo"
+          },
+          "inflacion_anual": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$"
+              }
+            ],
+            "title": "Inflacion Anual"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "peso_sla",
+          "peso_resolucion",
+          "peso_incidentes",
+          "peso_entregas",
+          "peso_satisfaccion",
+          "umbral_riesgo",
+          "inflacion_anual"
+        ],
+        "title": "ConfiguracionEntrada"
+      },
+      "ConfiguracionSalida": {
+        "properties": {
+          "peso_sla": {
+            "type": "integer",
+            "title": "Peso Sla"
+          },
+          "peso_resolucion": {
+            "type": "integer",
+            "title": "Peso Resolucion"
+          },
+          "peso_incidentes": {
+            "type": "integer",
+            "title": "Peso Incidentes"
+          },
+          "peso_entregas": {
+            "type": "integer",
+            "title": "Peso Entregas"
+          },
+          "peso_satisfaccion": {
+            "type": "integer",
+            "title": "Peso Satisfaccion"
+          },
+          "umbral_riesgo": {
+            "type": "integer",
+            "title": "Umbral Riesgo"
+          },
+          "inflacion_anual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Inflacion Anual"
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actualizado En"
+          },
+          "actualizado_por": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actualizado Por"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peso_sla",
+          "peso_resolucion",
+          "peso_incidentes",
+          "peso_entregas",
+          "peso_satisfaccion",
+          "umbral_riesgo",
+          "inflacion_anual",
+          "actualizado_en",
+          "actualizado_por"
+        ],
+        "title": "ConfiguracionSalida"
+      },
+      "DatosSalida": {
+        "properties": {
+          "registros": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Registros"
+          },
+          "ultimo_evento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Evento"
+          },
+          "modelo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModeloSalida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "en_uso": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "En Uso"
+          },
+          "entrenando": {
+            "type": "boolean",
+            "title": "Entrenando"
+          }
+        },
+        "type": "object",
+        "required": [
+          "registros",
+          "ultimo_evento",
+          "modelo",
+          "en_uso",
+          "entrenando"
+        ],
+        "title": "DatosSalida"
+      },
+      "Destacado": {
+        "properties": {
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "puntuacion": {
+            "type": "number",
+            "title": "Puntuacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proveedor_id",
+          "nombre",
+          "puntuacion"
+        ],
+        "title": "Destacado"
+      },
+      "EntrenamientoIniciado": {
+        "properties": {
+          "entrenando": {
+            "type": "boolean",
+            "title": "Entrenando"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entrenando"
+        ],
+        "title": "EntrenamientoIniciado"
+      },
+      "FilaRanking": {
+        "properties": {
+          "posicion": {
+            "type": "integer",
+            "title": "Posicion"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "puntuacion": {
+            "type": "number",
+            "title": "Puntuacion"
+          },
+          "componentes": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Componentes"
+          },
+          "meses": {
+            "type": "integer",
+            "title": "Meses"
+          },
+          "historial_corto": {
+            "type": "boolean",
+            "title": "Historial Corto"
+          },
+          "tendencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tendencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicion",
+          "proveedor_id",
+          "nombre",
+          "categoria",
+          "puntuacion",
+          "componentes",
+          "meses",
+          "historial_corto",
+          "tendencia"
+        ],
+        "title": "FilaRanking"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistorialPrecios": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "puntos": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoPrecio"
+            },
+            "type": "array",
+            "title": "Puntos"
+          },
+          "bandas": {
+            "items": {
+              "$ref": "#/components/schemas/BandaMes"
+            },
+            "type": "array",
+            "title": "Bandas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "moneda",
+          "cantidad",
+          "puntos",
+          "bandas"
+        ],
+        "title": "HistorialPrecios"
+      },
+      "MercadoLinea": {
+        "properties": {
+          "contrato_id": {
+            "type": "string",
+            "title": "Contrato Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "codigo_servicio": {
+            "type": "string",
+            "title": "Codigo Servicio"
+          },
+          "servicio": {
+            "type": "string",
+            "title": "Servicio"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "precio": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio"
+          },
+          "posicion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bajo_p25",
+                  "justo",
+                  "sobre_p75"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion"
+          },
+          "p25": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P25"
+          },
+          "p50": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50"
+          },
+          "p75": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P75"
+          },
+          "metodo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "linea_base",
+                  "modelo"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metodo"
+          },
+          "confianza": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "baja"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confianza"
+          },
+          "ahorro_potencial": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ahorro Potencial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contrato_id",
+          "folio",
+          "codigo_servicio",
+          "servicio",
+          "moneda",
+          "precio",
+          "posicion",
+          "p25",
+          "p50",
+          "p75",
+          "metodo",
+          "confianza",
+          "ahorro_potencial"
+        ],
+        "title": "MercadoLinea"
+      },
+      "ModeloSalida": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "entrenado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Entrenado En"
+          },
+          "origen": {
+            "type": "string",
+            "title": "Origen"
+          },
+          "actor_nombre": {
+            "type": "string",
+            "title": "Actor Nombre"
+          },
+          "observaciones": {
+            "type": "integer",
+            "title": "Observaciones"
+          },
+          "datos_hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Datos Hasta"
+          },
+          "mape": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mape"
+          },
+          "mape_linea_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mape Linea Base"
+          },
+          "cobertura": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cobertura"
+          },
+          "pinball": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pinball"
+          },
+          "promovido": {
+            "type": "boolean",
+            "title": "Promovido"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "entrenado_en",
+          "origen",
+          "actor_nombre",
+          "observaciones",
+          "datos_hasta",
+          "mape",
+          "mape_linea_base",
+          "cobertura",
+          "pinball",
+          "promovido"
+        ],
+        "title": "ModeloSalida"
+      },
+      "MontoCategoria": {
+        "properties": {
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categoria",
+          "monto"
+        ],
+        "title": "MontoCategoria"
+      },
+      "MontoMes": {
+        "properties": {
+          "mes": {
+            "type": "string",
+            "format": "date",
+            "title": "Mes"
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mes",
+          "monto"
+        ],
+        "title": "MontoMes"
+      },
+      "PaginaAlertas": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/AlertaSalida"
+            },
+            "type": "array",
+            "title": "Elementos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "elementos"
+        ],
+        "title": "PaginaAlertas"
+      },
+      "PaginaProveedores": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ProveedorResumen"
+            },
+            "type": "array",
+            "title": "Elementos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "elementos"
+        ],
+        "title": "PaginaProveedores"
+      },
+      "ProveedorResumen": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "rfc": {
+            "type": "string",
+            "title": "Rfc"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tamano": {
+            "type": "string",
+            "title": "Tamano"
+          },
+          "categorias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categorias"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          },
+          "puntuacion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Puntuacion"
+          },
+          "confianza": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "baja"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confianza"
+          },
+          "tendencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tendencia"
+          },
+          "gasto_anual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gasto Anual"
+          },
+          "contratos_vigentes": {
+            "type": "integer",
+            "title": "Contratos Vigentes"
+          },
+          "alertas": {
+            "type": "integer",
+            "title": "Alertas"
+          },
+          "en_riesgo": {
+            "type": "boolean",
+            "title": "En Riesgo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfc",
+          "nombre",
+          "tamano",
+          "categorias",
+          "activo",
+          "puntuacion",
+          "confianza",
+          "tendencia",
+          "gasto_anual",
+          "contratos_vigentes",
+          "alertas",
+          "en_riesgo"
+        ],
+        "title": "ProveedorResumen"
+      },
+      "PuntoPrecio": {
+        "properties": {
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha"
+          },
+          "precio": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "proveedor": {
+            "type": "string",
+            "title": "Proveedor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fecha",
+          "precio",
+          "cantidad",
+          "folio",
+          "proveedor"
+        ],
+        "title": "PuntoPrecio"
+      },
+      "PuntoPuntuacion": {
+        "properties": {
+          "mes": {
+            "type": "string",
+            "format": "date",
+            "title": "Mes"
+          },
+          "puntuacion": {
+            "type": "number",
+            "title": "Puntuacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mes",
+          "puntuacion"
+        ],
+        "title": "PuntoPuntuacion"
+      },
+      "PuntuacionSalida": {
+        "properties": {
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria"
+          },
+          "puntuacion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Puntuacion"
+          },
+          "sin_ajuste": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sin Ajuste"
+          },
+          "meses": {
+            "type": "integer",
+            "title": "Meses"
+          },
+          "historial_corto": {
+            "type": "boolean",
+            "title": "Historial Corto"
+          },
+          "tendencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tendencia"
+          },
+          "componentes": {
+            "items": {
+              "$ref": "#/components/schemas/Componente"
+            },
+            "type": "array",
+            "title": "Componentes"
+          },
+          "historial": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoPuntuacion"
+            },
+            "type": "array",
+            "title": "Historial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proveedor_id",
+          "categoria",
+          "puntuacion",
+          "sin_ajuste",
+          "meses",
+          "historial_corto",
+          "tendencia",
+          "componentes",
+          "historial"
+        ],
+        "title": "PuntuacionSalida"
+      },
+      "RangoPuntuacion": {
+        "properties": {
+          "rango": {
+            "type": "string",
+            "title": "Rango"
+          },
+          "proveedores": {
+            "type": "integer",
+            "title": "Proveedores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rango",
+          "proveedores"
+        ],
+        "title": "RangoPuntuacion"
+      },
+      "ReferenciaSalida": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "plazo": {
+            "type": "integer",
+            "title": "Plazo"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha"
+          },
+          "p25": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P25"
+          },
+          "p50": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P50"
+          },
+          "p75": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P75"
+          },
+          "metodo": {
+            "type": "string",
+            "enum": [
+              "linea_base",
+              "modelo"
+            ],
+            "title": "Metodo"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "confianza": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "baja"
+            ],
+            "title": "Confianza"
+          },
+          "observaciones": {
+            "type": "integer",
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "moneda",
+          "unidad",
+          "cantidad",
+          "plazo",
+          "fecha",
+          "p25",
+          "p50",
+          "p75",
+          "metodo",
+          "version",
+          "confianza",
+          "observaciones"
+        ],
+        "title": "ReferenciaSalida"
+      },
+      "RegistroModelos": {
+        "properties": {
+          "entrenando": {
+            "type": "boolean",
+            "title": "Entrenando"
+          },
+          "activo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo"
+          },
+          "en_uso": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "En Uso"
+          },
+          "ultimo_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Error"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ModeloSalida"
+            },
+            "type": "array",
+            "title": "Elementos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entrenando",
+          "activo",
+          "en_uso",
+          "ultimo_error",
+          "elementos"
+        ],
+        "title": "RegistroModelos"
+      },
+      "ServicioPrecios": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "observaciones": {
+            "type": "integer",
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "categoria",
+          "unidad",
+          "moneda",
+          "observaciones"
+        ],
+        "title": "ServicioPrecios"
+      },
+      "Sobreprecio": {
+        "properties": {
+          "contrato_id": {
+            "type": "string",
+            "title": "Contrato Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "proveedor": {
+            "type": "string",
+            "title": "Proveedor"
+          },
+          "codigo_servicio": {
+            "type": "string",
+            "title": "Codigo Servicio"
+          },
+          "servicio": {
+            "type": "string",
+            "title": "Servicio"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "precio": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio"
+          },
+          "p25": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P25"
+          },
+          "p50": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P50"
+          },
+          "p75": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P75"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "ahorro_potencial": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ahorro Potencial"
+          },
+          "ahorro_potencial_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ahorro Potencial Mxn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contrato_id",
+          "folio",
+          "proveedor_id",
+          "proveedor",
+          "codigo_servicio",
+          "servicio",
+          "moneda",
+          "precio",
+          "p25",
+          "p50",
+          "p75",
+          "fecha_fin",
+          "ahorro_potencial",
+          "ahorro_potencial_mxn"
+        ],
+        "title": "Sobreprecio"
+      },
+      "TableroSalida": {
+        "properties": {
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha"
+          },
+          "moneda": {
+            "type": "string",
+            "const": "MXN",
+            "title": "Moneda",
+            "default": "MXN"
+          },
+          "gasto_anual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gasto Anual"
+          },
+          "variacion_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variacion Pct"
+          },
+          "por_vencer": {
+            "type": "integer",
+            "title": "Por Vencer"
+          },
+          "en_riesgo": {
+            "type": "integer",
+            "title": "En Riesgo"
+          },
+          "total_proveedores": {
+            "type": "integer",
+            "title": "Total Proveedores"
+          },
+          "ahorro_potencial": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ahorro Potencial"
+          },
+          "gasto_por_categoria": {
+            "items": {
+              "$ref": "#/components/schemas/MontoCategoria"
+            },
+            "type": "array",
+            "title": "Gasto Por Categoria"
+          },
+          "gasto_por_mes": {
+            "items": {
+              "$ref": "#/components/schemas/MontoMes"
+            },
+            "type": "array",
+            "title": "Gasto Por Mes"
+          },
+          "proximos_vencimientos": {
+            "items": {
+              "$ref": "#/components/schemas/VencimientoSalida"
+            },
+            "type": "array",
+            "title": "Proximos Vencimientos"
+          },
+          "alertas_principales": {
+            "items": {
+              "$ref": "#/components/schemas/AlertaSalida"
+            },
+            "type": "array",
+            "title": "Alertas Principales"
+          },
+          "mejores": {
+            "items": {
+              "$ref": "#/components/schemas/Destacado"
+            },
+            "type": "array",
+            "title": "Mejores"
+          },
+          "peores": {
+            "items": {
+              "$ref": "#/components/schemas/Destacado"
+            },
+            "type": "array",
+            "title": "Peores"
+          },
+          "distribucion": {
+            "items": {
+              "$ref": "#/components/schemas/RangoPuntuacion"
+            },
+            "type": "array",
+            "title": "Distribucion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fecha",
+          "gasto_anual",
+          "variacion_pct",
+          "por_vencer",
+          "en_riesgo",
+          "total_proveedores",
+          "ahorro_potencial",
+          "gasto_por_categoria",
+          "gasto_por_mes",
+          "proximos_vencimientos",
+          "alertas_principales",
+          "mejores",
+          "peores",
+          "distribucion"
+        ],
+        "title": "TableroSalida"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VencimientoSalida": {
+        "properties": {
+          "contrato_id": {
+            "type": "string",
+            "title": "Contrato Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "proveedor": {
+            "type": "string",
+            "title": "Proveedor"
+          },
+          "servicios": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Servicios"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "dias": {
+            "type": "integer",
+            "title": "Dias"
+          },
+          "monto_mensual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Mensual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contrato_id",
+          "folio",
+          "proveedor_id",
+          "proveedor",
+          "servicios",
+          "fecha_fin",
+          "dias",
+          "monto_mensual"
+        ],
+        "title": "VencimientoSalida"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/inteligencia"
+    }
+  ]
+}

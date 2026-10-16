@@ -1,0 +1,1145 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Servicio de proveedores",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/salud/vivo": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Vivo",
+        "operationId": "vivo_salud_vivo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Vivo Salud Vivo Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/salud/listo": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Listo",
+        "operationId": "listo_salud_listo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Listo Salud Listo Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Listar Proveedores",
+        "operationId": "listar_proveedores_proveedores_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "categoria",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "licencia_saas",
+                    "nube",
+                    "consultoria",
+                    "soporte"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categoria"
+            }
+          },
+          {
+            "name": "activo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activo"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limite"
+            }
+          },
+          {
+            "name": "desplazamiento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Desplazamiento"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaProveedores"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores/{proveedor_id}": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Obtener Proveedor",
+        "operationId": "obtener_proveedor_proveedores__proveedor_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proveedor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proveedor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProveedorDetalle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores/{proveedor_id}/contratos": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Contratos Del Proveedor",
+        "operationId": "contratos_del_proveedor_proveedores__proveedor_id__contratos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proveedor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proveedor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContratoSalida"
+                  },
+                  "title": "Response Contratos Del Proveedor Proveedores  Proveedor Id  Contratos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proveedores/{proveedor_id}/desempeno": {
+      "get": {
+        "tags": [
+          "proveedores"
+        ],
+        "summary": "Desempeno Del Proveedor",
+        "operationId": "desempeno_del_proveedor_proveedores__proveedor_id__desempeno_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proveedor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proveedor Id"
+            }
+          },
+          {
+            "name": "meses",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 60,
+              "minimum": 1,
+              "default": 12,
+              "title": "Meses"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Desempeno"
+                  },
+                  "title": "Response Desempeno Del Proveedor Proveedores  Proveedor Id  Desempeno Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/importaciones/{entidad}": {
+      "post": {
+        "tags": [
+          "importacion"
+        ],
+        "summary": "Importar Archivo",
+        "operationId": "importar_archivo_importaciones__entidad__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entidad",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Entidad"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_importar_archivo_importaciones__entidad__post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumenImportacion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/servicios": {
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Listar Servicios",
+        "operationId": "listar_servicios_servicios_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Incluir Inactivos"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Servicio"
+                  },
+                  "title": "Response Listar Servicios Servicios Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Crear Servicio",
+        "operationId": "crear_servicio_servicios_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServicioNuevo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Servicio"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/servicios/{codigo}": {
+      "patch": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Editar Servicio",
+        "operationId": "editar_servicio_servicios__codigo__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{3,30}$",
+              "title": "Codigo"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambioServicio"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Servicio"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_importar_archivo_importaciones__entidad__post": {
+        "properties": {
+          "archivo": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Archivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "archivo"
+        ],
+        "title": "Body_importar_archivo_importaciones__entidad__post"
+      },
+      "CambioServicio": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "licencia_saas",
+                  "nube",
+                  "consultoria",
+                  "soporte"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "usuario_mes",
+                  "vcpu_mes",
+                  "gb_mes",
+                  "mes",
+                  "hora",
+                  "ticket"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "MXN",
+                  "USD"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda"
+          },
+          "activo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CambioServicio"
+      },
+      "ContratoSalida": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "plazo_pago_dias": {
+            "type": "integer",
+            "title": "Plazo Pago Dias"
+          },
+          "sla_disponibilidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Disponibilidad"
+          },
+          "tope_aumento_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tope Aumento Pct"
+          },
+          "cuota_implementacion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cuota Implementacion"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaContratoSalida"
+            },
+            "type": "array",
+            "title": "Lineas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "folio",
+          "tipo",
+          "fecha_inicio",
+          "fecha_fin",
+          "moneda",
+          "plazo_pago_dias",
+          "sla_disponibilidad",
+          "tope_aumento_pct",
+          "cuota_implementacion",
+          "lineas"
+        ],
+        "title": "ContratoSalida"
+      },
+      "Desempeno": {
+        "properties": {
+          "periodo": {
+            "type": "string",
+            "format": "date",
+            "title": "Periodo"
+          },
+          "sla_cumplimiento_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Sla Cumplimiento Pct"
+          },
+          "tiempo_resolucion_h": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tiempo Resolucion H"
+          },
+          "incidentes_criticos": {
+            "type": "integer",
+            "title": "Incidentes Criticos"
+          },
+          "entregas_a_tiempo_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Entregas A Tiempo Pct"
+          },
+          "satisfaccion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Satisfaccion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "periodo",
+          "sla_cumplimiento_pct",
+          "tiempo_resolucion_h",
+          "incidentes_criticos",
+          "entregas_a_tiempo_pct",
+          "satisfaccion"
+        ],
+        "title": "Desempeno"
+      },
+      "Entidad": {
+        "type": "string",
+        "enum": [
+          "servicios",
+          "proveedores",
+          "tipo_cambio",
+          "contratos",
+          "desempeno"
+        ],
+        "title": "Entidad"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LineaContratoSalida": {
+        "properties": {
+          "codigo_servicio": {
+            "type": "string",
+            "title": "Codigo Servicio"
+          },
+          "nombre_servicio": {
+            "type": "string",
+            "title": "Nombre Servicio"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo_servicio",
+          "nombre_servicio",
+          "unidad",
+          "cantidad",
+          "precio_unitario"
+        ],
+        "title": "LineaContratoSalida"
+      },
+      "PaginaProveedores": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ProveedorResumen"
+            },
+            "type": "array",
+            "title": "Elementos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "elementos"
+        ],
+        "title": "PaginaProveedores"
+      },
+      "ProveedorDetalle": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rfc": {
+            "type": "string",
+            "title": "Rfc"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tamano": {
+            "type": "string",
+            "title": "Tamano"
+          },
+          "categorias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categorias"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          },
+          "contacto_nombre": {
+            "type": "string",
+            "title": "Contacto Nombre"
+          },
+          "contacto_email": {
+            "type": "string",
+            "title": "Contacto Email"
+          },
+          "contratos_vigentes": {
+            "type": "integer",
+            "title": "Contratos Vigentes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfc",
+          "nombre",
+          "tamano",
+          "categorias",
+          "activo",
+          "contacto_nombre",
+          "contacto_email",
+          "contratos_vigentes"
+        ],
+        "title": "ProveedorDetalle"
+      },
+      "ProveedorResumen": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rfc": {
+            "type": "string",
+            "title": "Rfc"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tamano": {
+            "type": "string",
+            "title": "Tamano"
+          },
+          "categorias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categorias"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfc",
+          "nombre",
+          "tamano",
+          "categorias",
+          "activo"
+        ],
+        "title": "ProveedorResumen"
+      },
+      "ResumenImportacion": {
+        "properties": {
+          "entidad": {
+            "type": "string",
+            "title": "Entidad"
+          },
+          "filas": {
+            "type": "integer",
+            "title": "Filas"
+          },
+          "registros": {
+            "type": "integer",
+            "title": "Registros"
+          },
+          "omitidos": {
+            "type": "integer",
+            "title": "Omitidos"
+          },
+          "eventos": {
+            "type": "integer",
+            "title": "Eventos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entidad",
+          "filas",
+          "registros",
+          "omitidos",
+          "eventos"
+        ],
+        "title": "ResumenImportacion",
+        "description": "`filas`: registros del CSV · `registros`: entidades creadas o actualizadas ·\n`omitidos`: contratos que ya existían (los contratos no se modifican) · `eventos`."
+      },
+      "Servicio": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          },
+          "tiene_contratos": {
+            "type": "boolean",
+            "title": "Tiene Contratos",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "nombre",
+          "categoria",
+          "unidad",
+          "moneda",
+          "activo"
+        ],
+        "title": "Servicio"
+      },
+      "ServicioNuevo": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{3,30}$",
+            "title": "Codigo"
+          },
+          "nombre": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "categoria": {
+            "type": "string",
+            "enum": [
+              "licencia_saas",
+              "nube",
+              "consultoria",
+              "soporte"
+            ],
+            "title": "Categoria"
+          },
+          "unidad": {
+            "type": "string",
+            "enum": [
+              "usuario_mes",
+              "vcpu_mes",
+              "gb_mes",
+              "mes",
+              "hora",
+              "ticket"
+            ],
+            "title": "Unidad"
+          },
+          "moneda": {
+            "type": "string",
+            "enum": [
+              "MXN",
+              "USD"
+            ],
+            "title": "Moneda"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "categoria",
+          "unidad",
+          "moneda"
+        ],
+        "title": "ServicioNuevo"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/proveedores"
+    }
+  ]
+}

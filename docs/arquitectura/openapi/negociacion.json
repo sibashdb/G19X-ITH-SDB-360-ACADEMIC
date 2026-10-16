@@ -1,0 +1,2630 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Servicio de negociación",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/salud/vivo": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Vivo",
+        "operationId": "vivo_salud_vivo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Vivo Salud Vivo Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/salud/listo": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Listo",
+        "operationId": "listo_salud_listo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Listo Salud Listo Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos": {
+      "post": {
+        "tags": [
+          "eventos"
+        ],
+        "summary": "Crear Evento",
+        "operationId": "crear_evento_eventos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventoNuevo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "eventos"
+        ],
+        "summary": "Listar Eventos",
+        "operationId": "listar_eventos_eventos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "borrador",
+                    "abierto",
+                    "en_evaluacion",
+                    "cancelado"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estado"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "compra",
+                    "renovacion"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 1,
+              "title": "Pagina"
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Tamano"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaEventos"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}": {
+      "get": {
+        "tags": [
+          "eventos"
+        ],
+        "summary": "Ver Evento",
+        "operationId": "ver_evento_eventos__evento_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "eventos"
+        ],
+        "summary": "Editar Evento",
+        "operationId": "editar_evento_eventos__evento_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventoCambios"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/publicar": {
+      "post": {
+        "tags": [
+          "eventos"
+        ],
+        "summary": "Publicar Evento",
+        "operationId": "publicar_evento_eventos__evento_id__publicar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Publicacion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/cancelar": {
+      "post": {
+        "tags": [
+          "eventos"
+        ],
+        "summary": "Cancelar Evento",
+        "operationId": "cancelar_evento_eventos__evento_id__cancelar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Cancelacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sesiones/{sesion_id}/invitacion": {
+      "post": {
+        "tags": [
+          "sesiones"
+        ],
+        "summary": "Reenviar Invitacion",
+        "operationId": "reenviar_invitacion_sesiones__sesion_id__invitacion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sesion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sesion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlaceSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sesiones/{sesion_id}": {
+      "get": {
+        "tags": [
+          "sesiones"
+        ],
+        "summary": "Ver Sesion",
+        "operationId": "ver_sesion_sesiones__sesion_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sesion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sesion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SesionDetalle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sesiones/{sesion_id}/control": {
+      "post": {
+        "tags": [
+          "sesiones"
+        ],
+        "summary": "Cambiar Control",
+        "operationId": "cambiar_control_sesiones__sesion_id__control_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sesion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sesion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Control"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SesionDetalle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sesiones/{sesion_id}/respuestas": {
+      "post": {
+        "tags": [
+          "sesiones"
+        ],
+        "summary": "Responder",
+        "operationId": "responder_sesiones__sesion_id__respuestas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sesion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sesion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Respuesta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SesionDetalle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/sesion": {
+      "get": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Ver Sesion",
+        "operationId": "ver_sesion_portal_sesion_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VistaPortal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/ofertas": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Ofertar",
+        "operationId": "ofertar_portal_ofertas_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfertaPortal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VistaPortal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/escalar": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Escalar",
+        "operationId": "escalar_portal_escalar_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VistaPortal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Banda": {
+        "properties": {
+          "p25": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P25"
+          },
+          "p50": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P50"
+          },
+          "p75": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P75"
+          },
+          "metodo": {
+            "type": "string",
+            "title": "Metodo"
+          },
+          "confianza": {
+            "type": "string",
+            "title": "Confianza"
+          },
+          "observaciones": {
+            "type": "integer",
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "p25",
+          "p50",
+          "p75",
+          "metodo",
+          "confianza",
+          "observaciones"
+        ],
+        "title": "Banda"
+      },
+      "Cancelacion": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "Cancelacion"
+      },
+      "Control": {
+        "properties": {
+          "accion": {
+            "type": "string",
+            "enum": [
+              "tomar",
+              "devolver"
+            ],
+            "title": "Accion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accion"
+        ],
+        "title": "Control"
+      },
+      "EnlaceSalida": {
+        "properties": {
+          "sesion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sesion Id"
+          },
+          "proveedor_nombre": {
+            "type": "string",
+            "title": "Proveedor Nombre"
+          },
+          "destinatario": {
+            "type": "string",
+            "title": "Destinatario"
+          },
+          "enlace": {
+            "type": "string",
+            "title": "Enlace"
+          },
+          "correo_estado": {
+            "type": "string",
+            "title": "Correo Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sesion_id",
+          "proveedor_nombre",
+          "destinatario",
+          "enlace",
+          "correo_estado"
+        ],
+        "title": "EnlaceSalida"
+      },
+      "EventoCambios": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titulo"
+          },
+          "fecha_limite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Limite"
+          },
+          "rondas_max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 12.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rondas Max"
+          },
+          "estilo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "firme",
+                  "balanceado",
+                  "flexible"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estilo"
+          },
+          "plazo_meses": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 60.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plazo Meses"
+          },
+          "lineas": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LineaCambio"
+                },
+                "type": "array",
+                "maxItems": 20,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lineas"
+          },
+          "proveedores": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 10,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proveedores"
+          },
+          "palancas": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PalancaEntrada"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Palancas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "EventoCambios"
+      },
+      "EventoNuevo": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "compra",
+              "renovacion"
+            ],
+            "title": "Tipo"
+          },
+          "titulo": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Titulo"
+          },
+          "fecha_limite": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Limite"
+          },
+          "rondas_max": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 2.0,
+            "title": "Rondas Max",
+            "default": 6
+          },
+          "estilo": {
+            "type": "string",
+            "enum": [
+              "firme",
+              "balanceado",
+              "flexible"
+            ],
+            "title": "Estilo",
+            "default": "balanceado"
+          },
+          "plazo_meses": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Plazo Meses",
+            "default": 12
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaNueva"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Lineas"
+          },
+          "proveedores": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Proveedores"
+          },
+          "proveedor_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proveedor Id"
+          },
+          "contrato_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrato Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "titulo",
+          "fecha_limite"
+        ],
+        "title": "EventoNuevo"
+      },
+      "EventoResumen": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "fecha_limite": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Limite"
+          },
+          "invitados": {
+            "type": "integer",
+            "title": "Invitados"
+          },
+          "sesiones": {
+            "type": "integer",
+            "title": "Sesiones"
+          },
+          "acuerdos": {
+            "type": "integer",
+            "title": "Acuerdos"
+          },
+          "escaladas": {
+            "type": "integer",
+            "title": "Escaladas"
+          },
+          "creado_por_nombre": {
+            "type": "string",
+            "title": "Creado Por Nombre"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creado En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "folio",
+          "tipo",
+          "titulo",
+          "estado",
+          "fecha_limite",
+          "invitados",
+          "sesiones",
+          "acuerdos",
+          "escaladas",
+          "creado_por_nombre",
+          "creado_en"
+        ],
+        "title": "EventoResumen"
+      },
+      "EventoSalida": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "plazo_meses": {
+            "type": "integer",
+            "title": "Plazo Meses"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "fecha_limite": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Limite"
+          },
+          "rondas_max": {
+            "type": "integer",
+            "title": "Rondas Max"
+          },
+          "estilo": {
+            "type": "string",
+            "title": "Estilo"
+          },
+          "contrato_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrato Origen Id"
+          },
+          "proveedor_vigente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proveedor Vigente Id"
+          },
+          "invitados": {
+            "items": {
+              "$ref": "#/components/schemas/Invitado"
+            },
+            "type": "array",
+            "title": "Invitados"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaSalida"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "palancas": {
+            "items": {
+              "$ref": "#/components/schemas/PalancaSalida"
+            },
+            "type": "array",
+            "title": "Palancas"
+          },
+          "referencia_fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia Fecha"
+          },
+          "creado_por_nombre": {
+            "type": "string",
+            "title": "Creado Por Nombre"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creado En"
+          },
+          "publicado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publicado En"
+          },
+          "cerrado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cerrado En"
+          },
+          "motivo_cancelacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Cancelacion"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "errores": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemaSalida"
+            },
+            "type": "array",
+            "title": "Errores"
+          },
+          "avisos": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemaSalida"
+            },
+            "type": "array",
+            "title": "Avisos"
+          },
+          "sesiones": {
+            "items": {
+              "$ref": "#/components/schemas/SesionResumen"
+            },
+            "type": "array",
+            "title": "Sesiones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "folio",
+          "tipo",
+          "titulo",
+          "moneda",
+          "plazo_meses",
+          "estado",
+          "fecha_limite",
+          "rondas_max",
+          "estilo",
+          "contrato_origen_id",
+          "proveedor_vigente_id",
+          "invitados",
+          "lineas",
+          "palancas",
+          "referencia_fecha",
+          "creado_por_nombre",
+          "creado_en",
+          "publicado_en",
+          "cerrado_en",
+          "motivo_cancelacion",
+          "version",
+          "errores",
+          "avisos",
+          "sesiones"
+        ],
+        "title": "EventoSalida"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Invitado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "title": "Invitado"
+      },
+      "LineaCambio": {
+        "properties": {
+          "codigo_servicio": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{3,30}$",
+            "title": "Codigo Servicio"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ideal"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo_servicio",
+          "cantidad"
+        ],
+        "title": "LineaCambio"
+      },
+      "LineaDetalle": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ideal"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "unidad",
+          "cantidad",
+          "ideal",
+          "limite"
+        ],
+        "title": "LineaDetalle"
+      },
+      "LineaNueva": {
+        "properties": {
+          "codigo_servicio": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{3,30}$",
+            "title": "Codigo Servicio"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$"
+              }
+            ],
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo_servicio",
+          "cantidad"
+        ],
+        "title": "LineaNueva"
+      },
+      "LineaPortal": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "codigo_servicio": {
+            "type": "string",
+            "title": "Codigo Servicio"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo_servicio",
+          "nombre",
+          "unidad",
+          "cantidad"
+        ],
+        "title": "LineaPortal"
+      },
+      "LineaSalida": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          },
+          "codigo_servicio": {
+            "type": "string",
+            "title": "Codigo Servicio"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_vigente": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Vigente"
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ideal"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limite"
+          },
+          "referencia": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Banda"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "orden",
+          "codigo_servicio",
+          "nombre",
+          "unidad",
+          "cantidad",
+          "precio_vigente",
+          "ideal",
+          "limite",
+          "referencia"
+        ],
+        "title": "LineaSalida"
+      },
+      "MensajeDetalle": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "autor": {
+            "type": "string",
+            "title": "Autor"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "ronda": {
+            "type": "integer",
+            "title": "Ronda"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha"
+          },
+          "oferta_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oferta Id"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "autor",
+          "texto",
+          "ronda",
+          "fecha",
+          "oferta_id",
+          "decision"
+        ],
+        "title": "MensajeDetalle"
+      },
+      "MensajePortal": {
+        "properties": {
+          "autor": {
+            "type": "string",
+            "title": "Autor"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "ronda": {
+            "type": "integer",
+            "title": "Ronda"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha"
+          },
+          "oferta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValoresSalida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "autor",
+          "texto",
+          "ronda",
+          "fecha",
+          "oferta"
+        ],
+        "title": "MensajePortal"
+      },
+      "OfertaDetalle": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "autor": {
+            "type": "string",
+            "title": "Autor"
+          },
+          "ronda": {
+            "type": "integer",
+            "title": "Ronda"
+          },
+          "valores": {
+            "$ref": "#/components/schemas/ValoresSalida"
+          },
+          "utilidad": {
+            "type": "number",
+            "title": "Utilidad"
+          },
+          "valida": {
+            "type": "boolean",
+            "title": "Valida"
+          },
+          "fuera_de_limites_confirmada": {
+            "type": "boolean",
+            "title": "Fuera De Limites Confirmada"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "autor",
+          "ronda",
+          "valores",
+          "utilidad",
+          "valida",
+          "fuera_de_limites_confirmada",
+          "fecha"
+        ],
+        "title": "OfertaDetalle"
+      },
+      "OfertaPortal": {
+        "properties": {
+          "valores": {
+            "$ref": "#/components/schemas/ValoresEntrada"
+          },
+          "nota": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Nota",
+            "default": ""
+          },
+          "confirmar_valores": {
+            "type": "boolean",
+            "title": "Confirmar Valores",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "valores"
+        ],
+        "title": "OfertaPortal"
+      },
+      "PaginaEventos": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/EventoResumen"
+            },
+            "type": "array",
+            "title": "Elementos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "elementos"
+        ],
+        "title": "PaginaEventos"
+      },
+      "PalancaDetalle": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "peso": {
+            "type": "integer",
+            "title": "Peso"
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ideal"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "unidad",
+          "peso",
+          "ideal",
+          "limite"
+        ],
+        "title": "PalancaDetalle"
+      },
+      "PalancaEntrada": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "enum": [
+              "precio",
+              "plazo_meses",
+              "plazo_pago_dias",
+              "sla_disponibilidad",
+              "tope_aumento_pct",
+              "cuota_implementacion"
+            ],
+            "title": "Clave"
+          },
+          "peso": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Peso"
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ideal"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "peso"
+        ],
+        "title": "PalancaEntrada"
+      },
+      "PalancaPortal": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "unidad"
+        ],
+        "title": "PalancaPortal"
+      },
+      "PalancaSalida": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "activa": {
+            "type": "boolean",
+            "title": "Activa"
+          },
+          "peso": {
+            "type": "integer",
+            "title": "Peso"
+          },
+          "ideal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ideal"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limite"
+          },
+          "vigente": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "unidad",
+          "activa",
+          "peso",
+          "ideal",
+          "limite",
+          "vigente"
+        ],
+        "title": "PalancaSalida"
+      },
+      "ProblemaSalida": {
+        "properties": {
+          "campo": {
+            "type": "string",
+            "title": "Campo"
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campo",
+          "mensaje"
+        ],
+        "title": "ProblemaSalida"
+      },
+      "Publicacion": {
+        "properties": {
+          "evento": {
+            "$ref": "#/components/schemas/EventoSalida"
+          },
+          "enlaces": {
+            "items": {
+              "$ref": "#/components/schemas/EnlaceSalida"
+            },
+            "type": "array",
+            "title": "Enlaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evento",
+          "enlaces"
+        ],
+        "title": "Publicacion"
+      },
+      "Respuesta": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "mensaje",
+              "aceptar",
+              "cerrar"
+            ],
+            "title": "Tipo"
+          },
+          "texto": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Texto",
+            "default": ""
+          },
+          "contraoferta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValoresEntrada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmar_fuera_de_limites": {
+            "type": "boolean",
+            "title": "Confirmar Fuera De Limites",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo"
+        ],
+        "title": "Respuesta"
+      },
+      "SesionDetalle": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "evento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evento Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Proveedor Id"
+          },
+          "proveedor_nombre": {
+            "type": "string",
+            "title": "Proveedor Nombre"
+          },
+          "destinatario": {
+            "type": "string",
+            "title": "Destinatario"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "modo": {
+            "type": "string",
+            "title": "Modo"
+          },
+          "ronda": {
+            "type": "integer",
+            "title": "Ronda"
+          },
+          "rondas_max": {
+            "type": "integer",
+            "title": "Rondas Max"
+          },
+          "fuera_de_limites": {
+            "type": "boolean",
+            "title": "Fuera De Limites"
+          },
+          "correo_estado": {
+            "type": "string",
+            "title": "Correo Estado"
+          },
+          "correo_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correo Error"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDetalle"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "palancas": {
+            "items": {
+              "$ref": "#/components/schemas/PalancaDetalle"
+            },
+            "type": "array",
+            "title": "Palancas"
+          },
+          "mensajes": {
+            "items": {
+              "$ref": "#/components/schemas/MensajeDetalle"
+            },
+            "type": "array",
+            "title": "Mensajes"
+          },
+          "ofertas": {
+            "items": {
+              "$ref": "#/components/schemas/OfertaDetalle"
+            },
+            "type": "array",
+            "title": "Ofertas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "evento_id",
+          "folio",
+          "titulo",
+          "moneda",
+          "proveedor_id",
+          "proveedor_nombre",
+          "destinatario",
+          "estado",
+          "modo",
+          "ronda",
+          "rondas_max",
+          "fuera_de_limites",
+          "correo_estado",
+          "correo_error",
+          "lineas",
+          "palancas",
+          "mensajes",
+          "ofertas"
+        ],
+        "title": "SesionDetalle"
+      },
+      "SesionResumen": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Proveedor Id"
+          },
+          "proveedor_nombre": {
+            "type": "string",
+            "title": "Proveedor Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "modo": {
+            "type": "string",
+            "title": "Modo"
+          },
+          "ronda": {
+            "type": "integer",
+            "title": "Ronda"
+          },
+          "utilidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utilidad"
+          },
+          "correo_estado": {
+            "type": "string",
+            "title": "Correo Estado"
+          },
+          "correo_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correo Error"
+          },
+          "fuera_de_limites": {
+            "type": "boolean",
+            "title": "Fuera De Limites"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Actualizado En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "proveedor_id",
+          "proveedor_nombre",
+          "estado",
+          "modo",
+          "ronda",
+          "utilidad",
+          "correo_estado",
+          "correo_error",
+          "fuera_de_limites",
+          "actualizado_en"
+        ],
+        "title": "SesionResumen"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValoresEntrada": {
+        "properties": {
+          "precios": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ]
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Precios"
+          },
+          "palancas": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Palancas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "precios"
+        ],
+        "title": "ValoresEntrada"
+      },
+      "ValoresSalida": {
+        "properties": {
+          "precios": {
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+            },
+            "type": "object",
+            "title": "Precios"
+          },
+          "palancas": {
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+            },
+            "type": "object",
+            "title": "Palancas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "precios",
+          "palancas"
+        ],
+        "title": "ValoresSalida"
+      },
+      "VistaPortal": {
+        "properties": {
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "moneda": {
+            "type": "string",
+            "title": "Moneda"
+          },
+          "fecha_limite": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Limite"
+          },
+          "rondas_max": {
+            "type": "integer",
+            "title": "Rondas Max"
+          },
+          "rondas_restantes": {
+            "type": "integer",
+            "title": "Rondas Restantes"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "atendido_por": {
+            "type": "string",
+            "enum": [
+              "agente",
+              "persona"
+            ],
+            "title": "Atendido Por"
+          },
+          "pide_confirmacion": {
+            "type": "boolean",
+            "title": "Pide Confirmacion"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaPortal"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "palancas": {
+            "items": {
+              "$ref": "#/components/schemas/PalancaPortal"
+            },
+            "type": "array",
+            "title": "Palancas"
+          },
+          "mensajes": {
+            "items": {
+              "$ref": "#/components/schemas/MensajePortal"
+            },
+            "type": "array",
+            "title": "Mensajes"
+          },
+          "ultima_propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValoresSalida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "folio",
+          "titulo",
+          "moneda",
+          "fecha_limite",
+          "rondas_max",
+          "rondas_restantes",
+          "estado",
+          "atendido_por",
+          "pide_confirmacion",
+          "lineas",
+          "palancas",
+          "mensajes",
+          "ultima_propuesta"
+        ],
+        "title": "VistaPortal",
+        "description": "Lo que ve el proveedor: nunca ideales, límites, pesos, utilidades ni la referencia."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/negociacion"
+    }
+  ]
+}
