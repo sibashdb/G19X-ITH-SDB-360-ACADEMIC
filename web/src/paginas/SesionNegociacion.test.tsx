@@ -197,6 +197,26 @@ describe("SesionNegociacion", () => {
     await esperarSinViolaciones(container)
   })
 
+  it("un mensaje anterior a la primera oferta no dice «Ronda 0»", async () => {
+    const escalada = {
+      id: "m0",
+      autor: "proveedor",
+      texto: "Pidió hablar con una persona del equipo de compras.",
+      ronda: 0,
+      fecha: "2026-10-14T18:09:00Z",
+      oferta_id: null,
+      decision: null,
+    }
+    simularRutas({
+      [`GET ${RUTA}`]: () =>
+        respuestaJson({ ...SESION, mensajes: [escalada, ...SESION.mensajes] }),
+    })
+    abrir()
+    await screen.findByText(escalada.texto)
+    expect(screen.queryByText("Ronda 0")).not.toBeInTheDocument()
+    expect(screen.getAllByText("Ronda 1")).toHaveLength(2)
+  })
+
   it("toma el control y después lo devuelve", async () => {
     let modo = "agente"
     const api = simularRutas({

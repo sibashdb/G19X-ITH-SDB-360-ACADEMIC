@@ -35,7 +35,8 @@ export function Conversacion({ datos }: { datos: SesionDetalle }) {
               <span className="font-medium text-foreground">
                 {NOMBRES_AUTOR[m.autor]}
               </span>
-              <span>{`Ronda ${m.ronda}`}</span>
+              {/* Ronda 0: lo que pasa antes de la primera oferta (por ejemplo, escalar). */}
+              {m.ronda > 0 && <span>{`Ronda ${m.ronda}`}</span>}
               <span>{formatoFechaHora(m.fecha)}</span>
             </p>
             {m.texto && (
