@@ -15,7 +15,7 @@ import type { EnlaceInvitacion } from "@/negociacion"
 /**
  * Los enlaces de invitación, que la API entrega una sola vez (spec D3). Se abre por estado; al
  * cerrar, el padre los descarta. El foco vuelve a quien abrió el diálogo si sigue en pantalla
- * (p. ej. «Reenviar invitación»); si ya no (el botón «Publicar» desaparece al publicar), pasa al
+ * (p. ej. «Reenviar» en la tabla de sesiones); si ya no (el botón «Publicar» desaparece al publicar), pasa al
  * contenido de la página. Quien lo abre por una petición puede indicar `abridor`: cuando la
  * respuesta llega, el foco puede estar aún en una confirmación que se está cerrando.
  */
