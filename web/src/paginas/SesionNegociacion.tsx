@@ -148,6 +148,9 @@ function Control({ datos }: { datos: SesionDetalle }) {
         enviarJson("POST", { accion })
       ),
     onSuccess: async (respuesta, accion) => {
+      // Al devolverla, el agente puede contestar y terminar la sesión: el botón con el foco desaparece.
+      if (esFinal(respuesta.estado))
+        document.getElementById("contenido")?.focus()
       setAviso(
         accion === "tomar"
           ? "Ahora usted atiende esta sesión: el agente no responderá hasta que la devuelva."

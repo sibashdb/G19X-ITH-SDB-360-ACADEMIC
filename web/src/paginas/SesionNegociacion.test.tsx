@@ -249,6 +249,30 @@ describe("SesionNegociacion", () => {
     })
   })
 
+  it("«Devolver al agente» que termina la sesión deja el foco en el contenido", async () => {
+    // Al devolverla, el agente contesta la respuesta pendiente y acepta: la sesión ya no se controla.
+    let terminada = false
+    const final = { ...SESION, estado: "acuerdo_tentativo", modo: "agente" }
+    simularRutas({
+      [`GET ${RUTA}`]: () =>
+        respuestaJson(terminada ? final : { ...SESION, modo: "comprador" }),
+      [`POST ${RUTA}/control`]: () => {
+        terminada = true
+        return respuestaJson(final)
+      },
+    })
+    abrir(<div id="contenido" tabIndex={-1} />)
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Devolver al agente" })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Devolver al agente" })
+      ).not.toBeInTheDocument()
+    )
+    expect(document.getElementById("contenido")).toHaveFocus()
+  })
+
   it("el aprobador supervisa sin botones de control", async () => {
     sesionDePrueba.roles = ["aprobador"]
     simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(SESION) })

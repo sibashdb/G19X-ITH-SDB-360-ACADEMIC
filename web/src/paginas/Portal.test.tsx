@@ -419,6 +419,88 @@ describe("Portal", () => {
     ).toHaveAttribute("role", "status")
   })
 
+  it("al enviar la oferta que termina la negociación, el foco pasa al contenido", async () => {
+    simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(VISTA),
+      [`POST ${OFERTAS}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          estado: "acuerdo_tentativo",
+          ultima_propuesta: null,
+        }),
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Precio de Correo en la nube"),
+      "100"
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Enviar oferta" })
+      ).not.toBeInTheDocument()
+    )
+    // El botón con el foco desapareció al terminar: el foco queda en un control que sigue en pantalla.
+    expect(document.getElementById("contenido")).toHaveFocus()
+  })
+
+  it("si al enviar la oferta la negociación ya había terminado (409), el foco pasa al contenido", async () => {
+    let terminada = false
+    simularRutas({
+      [`GET ${SESION}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          estado: terminada ? "sin_acuerdo" : "activa",
+        }),
+      [`POST ${OFERTAS}`]: () => {
+        terminada = true
+        return respuestaJson(
+          { title: "Conflicto", detail: "La negociación ya terminó." },
+          409
+        )
+      },
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Precio de Correo en la nube"),
+      "100"
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    expect(
+      await screen.findByText("La negociación terminó sin acuerdo")
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
+  })
+
+  it("si al enviar la oferta el enlace ya no sirve (401), el foco pasa al contenido", async () => {
+    let vencido = false
+    simularRutas({
+      [`GET ${SESION}`]: () =>
+        vencido ? respuestaJson(RECHAZADO, 401) : respuestaJson(VISTA),
+      [`POST ${OFERTAS}`]: () => {
+        vencido = true
+        return respuestaJson(RECHAZADO, 401)
+      },
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Precio de Correo en la nube"),
+      "100"
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    expect(
+      await screen.findByText("El enlace no es válido o ya venció")
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
+  })
+
   it("muestra junto al campo el error del servicio", async () => {
     simularRutas({
       [`GET ${SESION}`]: () => respuestaJson(VISTA),

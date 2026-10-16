@@ -261,6 +261,11 @@ function ConversacionPortal({ vista }: { vista: VistaPortal }) {
   )
 }
 
+/** El contenedor enfocable de la página: adonde va el foco cuando el control que lo tenía desaparece. */
+function enfocarContenido() {
+  document.getElementById("contenido")?.focus()
+}
+
 type Oferta = { valores: Valores; nota: string; confirmar_valores: boolean }
 
 function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
@@ -295,7 +300,12 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
       error instanceof ErrorApi &&
       (error.estado === 401 || error.estado === 409)
     )
-      void cliente.invalidateQueries({ queryKey: CLAVE })
+      void cliente.invalidateQueries({ queryKey: CLAVE }).then(() => {
+        // Si terminó o el enlace venció, el formulario (y el botón que tenía el foco) desaparece.
+        const vista = cliente.getQueryData<VistaPortal>(CLAVE)
+        const rechazado = enlaceRechazado(cliente.getQueryState(CLAVE)?.error)
+        if (rechazado || (vista && esFinal(vista.estado))) enfocarContenido()
+      })
   }
 
   const ofertar = useMutation({
@@ -314,6 +324,8 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
       claves.olvidar()
       cliente.setQueryData(CLAVE, nueva)
       setConfirmo(false)
+      // Si la oferta cerró la negociación, el formulario desaparece con el botón que tenía el foco.
+      if (esFinal(nueva.estado)) enfocarContenido()
       // Si el agente pidió aclarar un precio, los mismos valores se confirman y se reenvían.
       if (nueva.pide_confirmacion) {
         setAviso(
