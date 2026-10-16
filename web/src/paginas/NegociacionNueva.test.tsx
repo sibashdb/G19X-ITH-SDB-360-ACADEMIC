@@ -141,6 +141,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe("NegociacionNueva", () => {
@@ -165,6 +166,29 @@ describe("NegociacionNueva", () => {
       proveedores: [NUBE_NORTE],
     })
     expect((cuerpo as { fecha_limite: string }).fecha_limite).toMatch(/Z$/)
+  })
+
+  it("propone la fecha límite a las 18:00 de la Ciudad de México y la envía como ese instante", async () => {
+    // Solo el reloj: el resto de los temporizadores sigue real para userEvent y waitFor.
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-10-14T16:30:00Z"))
+    const api = apiDeCompra()
+    renderizarPagina(<NegociacionNueva />, { ruta: "/negociaciones/nueva" })
+    await capturarCompra()
+    const campo = screen.getByLabelText("Fecha límite")
+    expect(campo).toHaveValue("2026-10-21T18:00")
+    expect(campo).toHaveAccessibleDescription(
+      "Hora de la Ciudad de México. Al publicar debe quedar entre 1 hora y 60 días en el futuro."
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Crear borrador" })
+    )
+    await waitFor(() =>
+      expect(ubicacionActual()).toBe(`/negociaciones/${CREADO}`)
+    )
+    expect(llamadaA(api, "/api/negociacion/eventos").cuerpo).toMatchObject({
+      fecha_limite: "2026-10-22T00:00:00.000Z",
+    })
   })
 
   it("muestra junto a cada campo el error del servicio, y en el aviso los demás", async () => {

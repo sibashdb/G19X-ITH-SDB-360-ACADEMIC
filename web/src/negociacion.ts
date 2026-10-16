@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query"
 import { pedir } from "@/api"
 import { useToken } from "@/auth"
+import { aEntradaFechaHora, desdeEntradaFechaHora } from "@/fechas"
 import { formatoDecimal } from "@/inteligencia"
 import { formatoMoneda } from "@/tipos"
 
@@ -385,12 +386,10 @@ export function esUuid(valor: string | null): valor is string {
   return valor !== null && UUID.test(valor)
 }
 
-/** Fecha límite sugerida: dentro de una semana, a las 18:00 (hora del navegador). */
+/** Fecha límite sugerida: dentro de una semana, a las 18:00 de la Ciudad de México. */
 export function sugerirFechaLimite(ahora: Date = new Date()): Date {
-  const fecha = new Date(ahora)
-  fecha.setDate(fecha.getDate() + 7)
-  fecha.setHours(18, 0, 0, 0)
-  return fecha
+  const dia = aEntradaFechaHora(new Date(ahora.getTime() + 7 * 86_400_000))
+  return new Date(desdeEntradaFechaHora(`${dia.slice(0, 10)}T18:00`)!)
 }
 
 /**

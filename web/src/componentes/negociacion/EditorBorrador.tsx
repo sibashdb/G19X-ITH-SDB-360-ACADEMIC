@@ -283,7 +283,7 @@ export function EditorBorrador({
           <Campo
             id={`${id}-fecha`}
             etiqueta="Fecha límite"
-            ayuda="Al publicar debe quedar entre 1 hora y 60 días en el futuro."
+            ayuda="Hora de la Ciudad de México. Al publicar debe quedar entre 1 hora y 60 días en el futuro."
             error={errores.fecha_limite}
           >
             {(control) => (

@@ -31,18 +31,26 @@ describe("formatoFechaHora", () => {
 })
 
 describe("campos de fecha y hora", () => {
-  it("da el valor de un datetime-local en la hora del navegador", () => {
-    expect(aEntradaFechaHora(new Date(2026, 9, 21, 18, 5))).toBe(
+  it("da el valor de un datetime-local en la hora de la Ciudad de México", () => {
+    expect(aEntradaFechaHora(new Date("2026-10-22T00:05:00Z"))).toBe(
       "2026-10-21T18:05"
+    )
+    // La medianoche es 00 (no 24).
+    expect(aEntradaFechaHora(new Date("2026-10-22T06:00:00Z"))).toBe(
+      "2026-10-22T00:00"
     )
   })
 
-  it("convierte el valor del campo a un instante ISO, o null si no sirve", () => {
+  it("lee el valor del campo como hora de la Ciudad de México y da el instante ISO, o null si no sirve", () => {
     expect(desdeEntradaFechaHora("2026-10-21T18:00")).toBe(
-      new Date(2026, 9, 21, 18, 0).toISOString()
+      "2026-10-22T00:00:00.000Z"
+    )
+    expect(desdeEntradaFechaHora("2026-10-21T18:00:30")).toBe(
+      "2026-10-22T00:00:30.000Z"
     )
     expect(desdeEntradaFechaHora("")).toBeNull()
     expect(desdeEntradaFechaHora("mañana")).toBeNull()
+    expect(desdeEntradaFechaHora("2026-13-45T25:00")).toBeNull()
   })
 
   it("da la fecha de hoy en la Ciudad de México", () => {

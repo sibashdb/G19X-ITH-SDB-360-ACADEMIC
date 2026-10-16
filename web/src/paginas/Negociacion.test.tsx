@@ -243,6 +243,31 @@ describe("Negociacion en borrador", () => {
     await esperarSinViolaciones(container)
   })
 
+  it("el editor lee la fecha límite en la hora de la Ciudad de México y la guarda como el mismo instante", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(BORRADOR),
+      [`PATCH ${RUTA}`]: () => respuestaJson({ ...BORRADOR, version: 4 }),
+    })
+    abrir()
+    const campo = await screen.findByLabelText("Fecha límite")
+    // 23:00 UTC son las 17:00 en la Ciudad de México, sea cual sea la zona del navegador.
+    expect(campo).toHaveValue("2026-10-21T17:00")
+    expect(campo).toHaveAccessibleDescription(
+      "Hora de la Ciudad de México. Al publicar debe quedar entre 1 hora y 60 días en el futuro."
+    )
+    // Sin tocar la fecha, guardar devuelve el mismo instante.
+    await userEvent.type(screen.getByLabelText("Título"), " bis")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar cambios" })
+    )
+    expect(
+      await screen.findByText("Se guardaron los cambios.")
+    ).toBeInTheDocument()
+    expect(llamadaA(api, RUTA, "PATCH").cuerpo).toMatchObject({
+      fecha_limite: "2026-10-21T23:00:00.000Z",
+    })
+  })
+
   it("activar una palanca muestra sus campos y el total de pesos en vivo", async () => {
     simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(BORRADOR) })
     abrir()

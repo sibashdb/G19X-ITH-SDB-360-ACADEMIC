@@ -161,6 +161,12 @@ describe("Portal", () => {
       await screen.findByRole("heading", { name: "Licencias de correo 2027" })
     ).toBeInTheDocument()
     expect(screen.getByText(/Le quedan 4 rondas/)).toBeInTheDocument()
+    // 23:00 UTC son las 17:00 en la Ciudad de México, y el portal lo dice.
+    expect(
+      screen.getByText(
+        /NEG-2026-0001 · Fecha límite: 21 oct 2026, 5:00 p\.m\. \(hora de la Ciudad de México\) · Le quedan 4 rondas/
+      )
+    ).toBeInTheDocument()
     expect(screen.getByText("Agente de compras")).toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Aceptar esta propuesta" })

@@ -36,17 +36,40 @@ export function haceCuanto(iso: string, ahora: Date = new Date()): string {
   return "hace un momento"
 }
 
-const dosDigitos = (n: number) => String(n).padStart(2, "0")
+// ponytail: la Ciudad de México no cambia de horario desde 2022; si lo retomara, calcular el desfase con Intl.
+const DESFASE = "-06:00"
 
-/** "2026-10-21T18:00" en la hora del navegador, para un <input type="datetime-local">. */
+const FORMA_ENTRADA = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2})?$/
+
+const PARTES = new Intl.DateTimeFormat("en-CA", {
+  timeZone: ZONA,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+})
+
+/** "2026-10-21T18:00" en la hora de la Ciudad de México, para un <input type="datetime-local">. */
 export function aEntradaFechaHora(fecha: Date): string {
-  return `${fecha.getFullYear()}-${dosDigitos(fecha.getMonth() + 1)}-${dosDigitos(fecha.getDate())}T${dosDigitos(fecha.getHours())}:${dosDigitos(fecha.getMinutes())}`
+  const p = Object.fromEntries(
+    PARTES.formatToParts(fecha).map(({ type, value }) => [type, value])
+  )
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`
 }
 
-/** El valor de un <input type="datetime-local"> como instante ISO; null si está vacío o no sirve. */
+/**
+ * El valor de un <input type="datetime-local"> (hora de la Ciudad de México) como instante ISO;
+ * null si está vacío o no sirve.
+ */
 export function desdeEntradaFechaHora(valor: string): string | null {
-  const fecha = new Date(valor)
-  return valor && !Number.isNaN(fecha.getTime()) ? fecha.toISOString() : null
+  const forma = FORMA_ENTRADA.exec(valor)
+  if (!forma) return null
+  const fecha = new Date(
+    `${forma[1]}T${forma[2]}${forma[3] ?? ":00"}${DESFASE}`
+  )
+  return Number.isNaN(fecha.getTime()) ? null : fecha.toISOString()
 }
 
 /** Hoy en la Ciudad de México, "AAAA-MM-DD", para compararlo con las fechas de los contratos. */

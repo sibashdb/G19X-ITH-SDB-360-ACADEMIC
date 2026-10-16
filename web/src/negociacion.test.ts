@@ -107,9 +107,16 @@ describe("utilidades", () => {
     expect(esUuid(null)).toBe(false)
   })
 
-  it("sugiere la fecha límite a una semana, a las 18:00", () => {
-    expect(sugerirFechaLimite(new Date(2026, 9, 14, 10, 30))).toEqual(
-      new Date(2026, 9, 21, 18, 0)
+  it("sugiere la fecha límite a una semana, a las 18:00 de la Ciudad de México", () => {
+    expect(sugerirFechaLimite(new Date("2026-10-14T16:30:00Z"))).toEqual(
+      new Date("2026-10-22T00:00:00Z")
+    )
+  })
+
+  it("toma el día en la Ciudad de México, no en UTC", () => {
+    // 03:00 UTC del 15 sigue siendo el 14 a las 21:00 en la Ciudad de México.
+    expect(sugerirFechaLimite(new Date("2026-10-15T03:00:00Z"))).toEqual(
+      new Date("2026-10-22T00:00:00Z")
     )
   })
 })

@@ -166,7 +166,7 @@ function Resumen({ vista }: { vista: VistaPortal }) {
     <div className="space-y-4">
       <EncabezadoPagina
         titulo={vista.titulo}
-        descripcion={`${vista.folio} · Fecha límite: ${formatoFechaHora(vista.fecha_limite)}${esFinal(vista.estado) ? "" : ` · ${restantes}`}`}
+        descripcion={`${vista.folio} · Fecha límite: ${formatoFechaHora(vista.fecha_limite)} (hora de la Ciudad de México)${esFinal(vista.estado) ? "" : ` · ${restantes}`}`}
       />
       {vista.estado === "acuerdo_tentativo" && (
         <Alert role="status">
