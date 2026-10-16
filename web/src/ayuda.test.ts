@@ -67,4 +67,14 @@ describe("contenido de la ayuda", () => {
     ).toContain("configurar-puntuacion-y-modelo")
     expect(buscarArticulos("reentrenar modelo", false)).toEqual([])
   })
+
+  it("explica cómo negocia el agente y cómo supervisarlo", () => {
+    expect(
+      buscarArticulos("cuándo acepta el agente", false).map((a) => a.slug)
+    ).toContain("como-negocia-el-agente")
+    expect(
+      buscarArticulos("tomar el control", false).map((a) => a.slug)
+    ).toContain("negociar-con-proveedores")
+    expect(articuloPorSlug("como-negocia-el-agente")?.tema).toBe("negociacion")
+  })
 })

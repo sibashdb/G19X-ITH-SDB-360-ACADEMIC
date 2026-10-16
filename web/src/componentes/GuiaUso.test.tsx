@@ -44,13 +44,16 @@ describe("GuiaUso", () => {
     expect(
       await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
     ).toBeInTheDocument()
-    expect(await screen.findByText("1 de 3 listos")).toBeInTheDocument()
+    expect(await screen.findByText("1 de 4 listos")).toBeInTheDocument()
     expect(paso(1)).toHaveTextContent("Hecho")
     expect(paso(2)).toHaveTextContent("Pendiente")
     expect(
       within(paso(2)).getByRole("link", { name: "Ver proveedores" })
     ).toHaveAttribute("href", "/proveedores")
-    expect(paso(4)).toHaveTextContent("Próximamente")
+    expect(paso(4)).toHaveTextContent("Pendiente")
+    expect(
+      within(paso(4)).getByRole("link", { name: "Ver negociaciones" })
+    ).toHaveAttribute("href", "/negociaciones")
     expect(
       screen.getByRole("link", { name: "Centro de ayuda" })
     ).toHaveAttribute("href", "/ayuda")
@@ -75,7 +78,20 @@ describe("GuiaUso", () => {
       })
     )
     renderizarPagina(<GuiaUso />)
-    expect(await screen.findByText("3 de 3 listos")).toBeInTheDocument()
+    expect(await screen.findByText("3 de 4 listos")).toBeInTheDocument()
+  })
+
+  it("la visita a Negociaciones marca el paso 4", async () => {
+    conProveedores(60)
+    localStorage.setItem(
+      claveGuia(USUARIO_DE_PRUEBA),
+      JSON.stringify({
+        oculta: false,
+        visitas: { proveedores: true, precios: true, negociaciones: true },
+      })
+    )
+    renderizarPagina(<GuiaUso />)
+    expect(await screen.findByText("4 de 4 listos")).toBeInTheDocument()
   })
 
   it("sin datos, el admin ve el enlace a Importación", async () => {
@@ -135,7 +151,7 @@ describe("GuiaUso", () => {
     expect(
       screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
     ).not.toBeInTheDocument()
-    expect(screen.queryByText("0 de 3 listos")).not.toBeInTheDocument()
+    expect(screen.queryByText("0 de 4 listos")).not.toBeInTheDocument()
     expect(
       screen.queryByRole("link", { name: "Ir a Importación" })
     ).not.toBeInTheDocument()
@@ -152,7 +168,7 @@ describe("GuiaUso", () => {
     expect(
       screen.queryByRole("heading", { name: "Cómo usar PluriOne" })
     ).not.toBeInTheDocument()
-    expect(screen.queryByText("0 de 3 listos")).not.toBeInTheDocument()
+    expect(screen.queryByText("0 de 4 listos")).not.toBeInTheDocument()
     expect(
       screen.queryByRole("link", { name: "Ir a Importación" })
     ).not.toBeInTheDocument()
@@ -180,7 +196,7 @@ describe("GuiaUso", () => {
     })
     conProveedores(60)
     renderizarPagina(<GuiaUso />)
-    expect(await screen.findByText("1 de 3 listos")).toBeInTheDocument()
+    expect(await screen.findByText("1 de 4 listos")).toBeInTheDocument()
     expect(paso(2)).toHaveTextContent("Pendiente")
     expect(paso(3)).toHaveTextContent("Pendiente")
   })
@@ -199,7 +215,7 @@ describe("GuiaUso", () => {
   it("no tiene violaciones de accesibilidad", async () => {
     conProveedores(60)
     const { container } = renderizarPagina(<GuiaUso />)
-    await screen.findByText("1 de 3 listos")
+    await screen.findByText("1 de 4 listos")
     await esperarSinViolaciones(container)
   })
 })

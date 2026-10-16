@@ -250,6 +250,12 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 - Área **Soporte**: Centro de ayuda con guías, preguntas frecuentes y glosario (`web/src/ayuda.ts`); se abre también con el botón "?" de la barra superior.
 - **Inteligencia**: el Tablero, Proveedores (lista y ficha), Precios, Ranking, Alertas, la campana de la barra superior y Configuración muestran los datos del servicio `inteligencia` (`web/src/inteligencia.ts`); el Panel resume sus datos y su modelo en "Datos y modelo".
 - Cada página se descarga la primera vez que se visita (rutas diferidas en `web/src/rutas.tsx`).
+- **Negociación** (`web/src/negociacion.ts`):
+  - Negociaciones: lista, creación de compras y de renovaciones, y editor de límites con la referencia de precios;
+  - publicación, con enlaces que se muestran una sola vez;
+  - supervisión de cada sesión, que se actualiza cada 3 s, e intervención manual;
+  - «Renovar» en el Tablero, en las Alertas y en la ficha del proveedor.
+- **Portal del proveedor** (`/portal`): el proveedor entra con el enlace de su invitación, sin cuenta. Ve qué se negocia, la conversación y la última propuesta del agente, y puede enviar ofertas o pedir hablar con una persona.
 
 ## Estructura
 
@@ -273,9 +279,6 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.
-- **Negociación sin interfaz todavía.** El servicio y su API están completos, pero las pantallas
-  del comprador y el portal del proveedor llegan con N1b; mientras tanto se usan por la API
-  (`/api/negociacion/docs`).
 - **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
   interpreta; la IA llega con N2.
 

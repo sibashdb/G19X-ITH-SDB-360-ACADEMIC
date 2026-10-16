@@ -10,12 +10,12 @@ export function claveGuia(usuario: string): string {
 
 export type EstadoGuia = {
   oculta: boolean
-  visitas: { proveedores: boolean; precios: boolean }
+  visitas: { proveedores: boolean; precios: boolean; negociaciones: boolean }
 }
 
 const INICIAL: EstadoGuia = {
   oculta: false,
-  visitas: { proveedores: false, precios: false },
+  visitas: { proveedores: false, precios: false, negociaciones: false },
 }
 
 function interpretar(crudo: string | null): EstadoGuia {
@@ -26,6 +26,7 @@ function interpretar(crudo: string | null): EstadoGuia {
       visitas: {
         proveedores: valor?.visitas?.proveedores === true,
         precios: valor?.visitas?.precios === true,
+        negociaciones: valor?.visitas?.negociaciones === true,
       },
     }
   } catch {
@@ -80,7 +81,7 @@ function guardar(usuario: string, cambiar: (estado: EstadoGuia) => EstadoGuia) {
 
 export function marcarVisita(
   usuario: string,
-  seccion: "proveedores" | "precios"
+  seccion: "proveedores" | "precios" | "negociaciones"
 ): void {
   if (instantanea(usuario).visitas[seccion]) return
   guardar(usuario, (estado) => ({

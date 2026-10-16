@@ -38,13 +38,15 @@ export function Layout() {
     document.title = `${migas[migas.length - 1].titulo} · PluriOne`
   }, [pathname])
 
-  // La guía del Tablero marca como vistos Proveedores y Precios cuando se visitan.
+  // La guía del Tablero marca como vistos Proveedores, Precios y Negociaciones cuando se visitan.
   const usuario = auth.user?.profile.sub ?? ""
   useEffect(() => {
     if (!usuario) return
     if (estaActiva("/proveedores", pathname))
       marcarVisita(usuario, "proveedores")
     if (estaActiva("/precios", pathname)) marcarVisita(usuario, "precios")
+    if (estaActiva("/negociaciones", pathname))
+      marcarVisita(usuario, "negociaciones")
   }, [pathname, usuario])
 
   async function volverAIniciarSesion() {

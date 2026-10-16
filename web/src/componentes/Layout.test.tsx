@@ -412,6 +412,14 @@ describe("Layout con sesión iniciada", () => {
     ).toBe(true)
   })
 
+  it("visitar Negociaciones lo marca como visto en la guía", () => {
+    renderizar("/negociaciones")
+    expect(
+      JSON.parse(localStorage.getItem(claveGuia(USUARIO_DE_PRUEBA)) ?? "{}")
+        .visitas.negociaciones
+    ).toBe(true)
+  })
+
   it("si la guía está oculta, el menú de usuario permite mostrarla y lleva al tablero", async () => {
     localStorage.setItem(
       claveGuia(USUARIO_DE_PRUEBA),

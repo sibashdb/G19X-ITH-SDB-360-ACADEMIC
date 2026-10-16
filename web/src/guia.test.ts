@@ -21,7 +21,7 @@ describe("guía de uso", () => {
     const { result } = renderHook(() => useGuia(ANA))
     expect(result.current).toEqual({
       oculta: false,
-      visitas: { proveedores: false, precios: false },
+      visitas: { proveedores: false, precios: false, negociaciones: false },
     })
   })
 
@@ -33,6 +33,12 @@ describe("guía de uso", () => {
       JSON.parse(localStorage.getItem(claveGuia(ANA)) ?? "{}").visitas
         .proveedores
     ).toBe(true)
+  })
+
+  it("registra la visita a Negociaciones", () => {
+    const { result } = renderHook(() => useGuia(ANA))
+    act(() => marcarVisita(ANA, "negociaciones"))
+    expect(result.current.visitas.negociaciones).toBe(true)
   })
 
   it("cada persona tiene su propia guía en el mismo navegador", () => {
@@ -59,7 +65,7 @@ describe("guía de uso", () => {
     const { result } = renderHook(() => useGuia(ANA))
     expect(result.current).toEqual({
       oculta: false,
-      visitas: { proveedores: false, precios: false },
+      visitas: { proveedores: false, precios: false, negociaciones: false },
     })
   })
 

@@ -1,7 +1,11 @@
 import { normalizarTexto } from "@/tipos"
 
 export type TemaAyuda =
-  "primeros-pasos" | "proveedores-precios" | "datos" | "administracion"
+  | "primeros-pasos"
+  | "proveedores-precios"
+  | "negociacion"
+  | "datos"
+  | "administracion"
 
 export const TEMAS: {
   clave: TemaAyuda
@@ -18,6 +22,12 @@ export const TEMAS: {
     clave: "proveedores-precios",
     titulo: "Proveedores y precios",
     descripcion: "Consultar proveedores, su desempeño y el precio justo.",
+  },
+  {
+    clave: "negociacion",
+    titulo: "Negociación",
+    descripcion:
+      "Crear negociaciones, fijar sus límites y supervisar al agente.",
   },
   {
     clave: "datos",
@@ -61,7 +71,7 @@ export const ARTICULOS: Articulo[] = [
           "Administración importa del ERP el catálogo, los proveedores, los contratos y el desempeño.",
           "Usted revisa en Proveedores quién le vende, sus contratos y cómo rinde.",
           "En Precios compara lo que paga con el precio de referencia del mercado.",
-          "La negociación asistida por IA, dentro de los límites que usted fije, llegará en una próxima versión; usted aprobará cada cierre.",
+          "En Negociaciones crea una negociación y fija sus límites; un agente negocia por usted con cada proveedor, y usted supervisa y puede intervenir. La aprobación de cada cierre llegará en una próxima versión.",
         ],
       },
       {
@@ -88,7 +98,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "El menú",
         parrafos: [
-          "El menú de la izquierda agrupa las pantallas por área: Resumen, Proveedores, Inteligencia, Sistema (solo administración) y Soporte. El botón de la esquina superior izquierda lo contrae a solo iconos; al pasar el ratón por cada uno verá su nombre y para qué sirve. En pantallas pequeñas ese mismo botón abre el menú.",
+          "El menú de la izquierda agrupa las pantallas por área: Resumen, Proveedores, Inteligencia, Negociación, Sistema (solo administración) y Soporte. El botón de la esquina superior izquierda lo contrae a solo iconos; al pasar el ratón por cada uno verá su nombre y para qué sirve. En pantallas pequeñas ese mismo botón abre el menú.",
         ],
       },
       {
@@ -155,6 +165,82 @@ export const ARTICULOS: Articulo[] = [
       },
     ],
     enlaces: [{ texto: "Ir a Precios", ruta: "/precios" }],
+  },
+  {
+    slug: "negociar-con-proveedores",
+    tema: "negociacion",
+    titulo: "Crear y supervisar una negociación",
+    resumen: "Del borrador a la publicación, y cómo intervenir en una sesión.",
+    secciones: [
+      {
+        titulo: "Crear la negociación",
+        pasos: [
+          "En Negociaciones, pulse «Nueva negociación». Para renovar un contrato, use «Renovar» en el Tablero, en una alerta de vencimiento o en los contratos de la ficha del proveedor: la negociación toma del contrato los servicios, el plazo y al proveedor.",
+          "Escriba el título, la fecha límite, las rondas y el estilo del agente. En una compra, elija los servicios con su cantidad y a los proveedores que invita (hasta 10).",
+          "Al crear el borrador se guarda la referencia de precios de ese momento; con ella se sugieren el ideal y el límite de cada servicio.",
+        ],
+      },
+      {
+        titulo: "Fijar los límites",
+        parrafos: [
+          "En el borrador revise el ideal y el límite del precio de cada servicio, junto a la banda P25 · P50 · P75. Si el límite queda arriba del P75, verá un aviso: puede publicar, pero pagaría más que en tres de cada cuatro contratos.",
+          "Active las demás palancas que le importen (plazo, plazo de pago, SLA, tope de aumento o cuota de implementación) y reparta 100 puntos de peso entre ellas y el precio. El total se ve mientras escribe.",
+          "Guarde los cambios y pulse «Publicar». Si otra persona cambió el borrador al mismo tiempo, la plataforma se lo dice y le ofrece recargar.",
+        ],
+      },
+      {
+        titulo: "Publicar y compartir los enlaces",
+        parrafos: [
+          "Al publicar, cada proveedor recibe por correo su enlace personal, y usted lo ve una sola vez para copiarlo. Si un correo no sale o un proveedor pierde su enlace, use «Reenviar invitación»: el enlace anterior deja de servir.",
+        ],
+      },
+      {
+        titulo: "Supervisar e intervenir",
+        parrafos: [
+          "La negociación muestra una sesión por proveedor, con su estado, quién la atiende, la ronda y qué tan buena es su última oferta para usted. La pantalla se actualiza sola cada pocos segundos.",
+          "En una sesión verá la conversación, las ofertas y, en cada respuesta del agente, «¿Por qué respondió esto?». Con «Tomar el control» usted responde a mano: un mensaje, una contraoferta, aceptar la última oferta o cerrar sin acuerdo. Si lo que acepta o propone sale de sus límites, la plataforma le pide confirmarlo y lo marca para el aprobador. «Devolver al agente» le regresa la sesión.",
+          "Si un proveedor pide hablar con una persona, su sesión aparece como «Escalada» hasta que usted la atienda y la devuelva.",
+        ],
+      },
+    ],
+    enlaces: [{ texto: "Ir a Negociaciones", ruta: "/negociaciones" }],
+  },
+  {
+    slug: "como-negocia-el-agente",
+    tema: "negociacion",
+    titulo: "Cómo negocia el agente",
+    resumen:
+      "Qué tan buena es una oferta para usted, cuánto cede el agente y cuándo acepta.",
+    secciones: [
+      {
+        titulo: "Qué tan buena es una oferta para usted",
+        parrafos: [
+          "El agente califica cada oferta de 0 % a 100 %: 100 % es conseguir su ideal en todo y 0 % es quedar exactamente en su límite. Cada término cuenta según el peso que usted le dio.",
+        ],
+      },
+      {
+        titulo: "Cuánto cede en cada ronda",
+        parrafos: [
+          "El agente empieza pidiendo su ideal y, ronda tras ronda, se conforma con un poco menos, hasta llegar a su límite en la última. El estilo decide el ritmo: firme cede poco y tarde, balanceado cede de forma pareja y flexible cede pronto.",
+          "Nunca pide algo peor para usted que lo que el proveedor ya ofreció, no revela su límite antes de la última ronda y no retrocede de una ronda a otra, salvo por un paso mínimo de redondeo que evita revelar el límite.",
+        ],
+      },
+      {
+        titulo: "Cuándo acepta",
+        parrafos: [
+          "Acepta cuando la oferta respeta todos sus límites y vale para usted al menos lo que el agente pediría en esa ronda. En la última ronda acepta cualquier oferta dentro de sus límites; si la oferta cruza alguno, cierra sin acuerdo.",
+          "El acuerdo es tentativo: no es vinculante hasta que se adjudique y se apruebe.",
+        ],
+      },
+      {
+        titulo: "Lo que nunca hace",
+        parrafos: [
+          "No acepta nada fuera de sus límites, y nunca muestra al proveedor sus límites, sus pesos ni las ofertas de otros proveedores. Si otro proveedor ofreció algo mejor, solo dice que hay propuestas más competitivas.",
+          "Si un precio parece un error de captura (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, su límite), le pide al proveedor confirmarlo antes de responder, y esa respuesta no cuenta como ronda.",
+        ],
+      },
+    ],
+    enlaces: [{ texto: "Ir a Negociaciones", ruta: "/negociaciones" }],
   },
   {
     slug: "importar-datos",

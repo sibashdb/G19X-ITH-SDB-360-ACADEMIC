@@ -14,14 +14,13 @@ import type { PaginaProveedores } from "@/tipos"
 type Paso = {
   titulo: string
   descripcion: ReactNode
-  estado: "hecho" | "pendiente" | "proximamente"
+  estado: "hecho" | "pendiente"
   accion?: ReactNode
 }
 
 const NOMBRE_ESTADO = {
   hecho: "Hecho",
   pendiente: "Pendiente",
-  proximamente: "Próximamente",
 } as const
 
 function enlace(texto: string, ruta: string) {
@@ -94,10 +93,13 @@ export function GuiaUso() {
         : enlace("Ver precios", "/precios"),
     },
     {
-      titulo: "Negociar y aprobar",
+      titulo: "Negociar",
       descripcion:
-        "La IA negocia dentro de sus límites y usted aprueba el cierre.",
-      estado: "proximamente",
+        "Un agente negocia por usted dentro de sus límites; usted supervisa y puede intervenir.",
+      estado: guia.visitas.negociaciones ? "hecho" : "pendiente",
+      accion: guia.visitas.negociaciones
+        ? undefined
+        : enlace("Ver negociaciones", "/negociaciones"),
     },
   ]
   const listos = pasos.filter((p) => p.estado === "hecho").length
@@ -112,7 +114,9 @@ export function GuiaUso() {
           <h2 id={idTitulo} className="text-base font-semibold">
             Cómo usar PluriOne
           </h2>
-          <p className="text-sm text-muted-foreground">{listos} de 3 listos</p>
+          <p className="text-sm text-muted-foreground">
+            {listos} de {pasos.length} listos
+          </p>
         </div>
         <Button
           variant="ghost"
@@ -150,13 +154,7 @@ export function GuiaUso() {
             <p className="text-sm text-muted-foreground">{paso.descripcion}</p>
             <div className="flex flex-wrap items-center gap-2">
               <Badge
-                variant={
-                  paso.estado === "hecho"
-                    ? "success"
-                    : paso.estado === "proximamente"
-                      ? "outline"
-                      : "secondary"
-                }
+                variant={paso.estado === "hecho" ? "success" : "secondary"}
               >
                 {NOMBRE_ESTADO[paso.estado]}
               </Badge>
