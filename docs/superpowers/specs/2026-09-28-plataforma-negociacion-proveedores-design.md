@@ -587,6 +587,40 @@ El dominio se desarrolla con **TDD** (prueba primero).
 
 Cada incremento de desarrollo tendrá **su propio plan de implementación**, empezando por el incremento 1. La interfaz se construye dentro de cada incremento (rebanadas verticales), no al final.
 
+#### 6.6.1 Replanificación tras la retroalimentación del asesor (15/10/2026)
+
+**Retroalimentación.** El asesor revisó el código hasta el commit `1cfd7b5` y señaló:
+- La negociación, que da nombre al proyecto, todavía no existía.
+- Los últimos commits eran pulido de pantallas.
+- El plan de 16 a 18 semanas no cabe en el tiempo que queda.
+
+**Su recomendación:**
+- Congelar la inteligencia y la interfaz.
+- Recortar el incremento 3 a un MVP determinista.
+- Llevar la negociación al centro.
+
+**Lo ya hecho al replanificar.** El incremento 3 se partió en dos:
+- **N1, negociación determinista** (sin LLM), ya integrado. Comprende:
+  - el servicio `negociacion`, con su motor de concesiones hecho con TDD y pruebas de propiedades;
+  - la referencia de `inteligencia`, que propone el ideal y el límite;
+  - las pantallas, el portal del proveedor y la simulación con bots (81.1 % de acuerdos, 16.5 % de ahorro y 0 acuerdos fuera de límites).
+- **N2, la IA en la negociación**, pospuesto.
+
+**Calendario que queda.** El desarrollo termina el 11/11/2026, y del 12/11 al 07/12 van los entregables 6 a 10. El orden, elegido por el residente (opción A):
+
+| Fechas | Trabajo | Capacidades |
+|---|---|---|
+| 21/10 – 11/11 | **4′. Adjudicación y aprobación** (recortado): recomendación multicriterio determinista con explicación en plantillas (sin LLM), propuesta del comprador con justificación si se aparta, aprobación del aprobador y aviso a los proveedores en el portal | 7 y 9 |
+| Solo si sobra tiempo antes del 11/11 | N2 (el LLM) recortado, propuestas de negociación y simulador determinista | 5 (IA), 6 y 8 |
+| 12/11 – 07/12 | QA, manuales, plan de mantenimiento, capacitación e informe final | Entregables 6 a 10 |
+
+**Ajustes a la priorización de 6.7:**
+- La capacidad 5 se cumple como **Must** con el agente determinista y el portal. El LLM pasa a **Should**.
+- La explicación de la adjudicación se redacta con plantillas; la redacción con `ia` pasa a **Could**.
+- Mientras no exista el flujo completo (evento → negociación → recomendación → aprobación), no se pule la interfaz ni la inteligencia.
+
+El avance frente a las capacidades se mantiene en el README, en «Qué está hecho y qué falta».
+
 ### 6.7 Priorización MoSCoW (qué se recorta si hay retrasos)
 
 - **Must:** capacidades 1, 2 (línea base), 3, 4, 5, 7 y 9; seguridad (5.1–5.3); pruebas unitarias, de integración y E2E; métricas de 1.6.
