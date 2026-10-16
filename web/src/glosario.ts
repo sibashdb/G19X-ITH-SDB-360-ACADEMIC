@@ -67,7 +67,7 @@ export const GLOSARIO = {
   ideal: {
     termino: "Ideal",
     definicion:
-      "El valor que a usted le gustaría conseguir. El agente empieza pidiéndolo y cede poco a poco hacia el límite.",
+      "El valor que a usted le gustaría conseguir. El agente empieza pidiendo casi ese valor y cede poco a poco hacia el límite.",
   },
   limite: {
     termino: "Límite",
@@ -82,7 +82,7 @@ export const GLOSARIO = {
   acuerdoTentativo: {
     termino: "Acuerdo tentativo",
     definicion:
-      "El proveedor y el agente coincidieron dentro de sus límites. No es vinculante hasta que se adjudique y se apruebe.",
+      "El proveedor aceptó o propuso una oferta que se registró como acuerdo. No es vinculante hasta que se adjudique y se apruebe; si sale de sus límites, se marca para el aprobador.",
   },
 } as const satisfies Record<string, { termino: string; definicion: string }>
 

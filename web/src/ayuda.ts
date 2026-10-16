@@ -191,7 +191,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Publicar y compartir los enlaces",
         parrafos: [
-          "Al publicar, cada proveedor recibe por correo su enlace personal, y usted lo ve una sola vez para copiarlo. Si un correo no sale o un proveedor pierde su enlace, use «Reenviar invitación»: el enlace anterior deja de servir.",
+          "Al publicar, cada proveedor recibe por correo su enlace personal, y usted lo ve una sola vez para copiarlo. Si un correo no sale o un proveedor pierde su enlace, use «Reenviar» en la tabla de sesiones: el enlace anterior deja de servir.",
         ],
       },
       {
@@ -221,8 +221,8 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Cuánto cede en cada ronda",
         parrafos: [
-          "El agente empieza pidiendo su ideal y, ronda tras ronda, se conforma con un poco menos, hasta llegar a su límite en la última. El estilo decide el ritmo: firme cede poco y tarde, balanceado cede de forma pareja y flexible cede pronto.",
-          "Nunca pide algo peor para usted que lo que el proveedor ya ofreció, no revela su límite antes de la última ronda y no retrocede de una ronda a otra, salvo por un paso mínimo de redondeo que evita revelar el límite.",
+          "El agente empieza pidiendo casi su ideal y, ronda tras ronda, se conforma con un poco menos, hasta llegar a su límite en la última. El estilo decide el ritmo: firme cede muy poco hasta las últimas rondas, balanceado cede poco al principio y más hacia el final, y flexible cede de forma pareja desde la primera ronda.",
+          "Nunca pide algo peor para usted que lo que el proveedor ya ofreció, no revela su límite antes de la última ronda y casi nunca vuelve a pedir más de lo que pidió en la ronda anterior.",
         ],
       },
       {

@@ -83,6 +83,13 @@ describe("DialogoEnlaces", () => {
     expect(document.getElementById("contenido")).toHaveFocus()
   })
 
+  it("explica que el enlace solo se muestra ahora y manda a «Reenviar» en la tabla de sesiones", async () => {
+    const { dialogo } = await abrir()
+    expect(dialogo).toHaveAccessibleDescription(
+      "Solo se muestran ahora. Si pierde uno, use «Reenviar» en la tabla de sesiones: el enlace anterior deja de servir."
+    )
+  })
+
   it("el aviso de copia está en el árbol aunque esté vacío y se ve al copiar", async () => {
     const { dialogo } = await abrir()
     const aviso = dialogo.querySelector("p[aria-live=polite]")

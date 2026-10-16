@@ -77,4 +77,23 @@ describe("contenido de la ayuda", () => {
     ).toContain("negociar-con-proveedores")
     expect(articuloPorSlug("como-negocia-el-agente")?.tema).toBe("negociacion")
   })
+
+  it("describe cuánto cede el agente según el estilo, sin prometer lo que no hace", () => {
+    const seccion = articuloPorSlug("como-negocia-el-agente")?.secciones.find(
+      (s) => s.titulo === "Cuánto cede en cada ronda"
+    )
+    expect(seccion?.parrafos).toEqual([
+      "El agente empieza pidiendo casi su ideal y, ronda tras ronda, se conforma con un poco menos, hasta llegar a su límite en la última. El estilo decide el ritmo: firme cede muy poco hasta las últimas rondas, balanceado cede poco al principio y más hacia el final, y flexible cede de forma pareja desde la primera ronda.",
+      "Nunca pide algo peor para usted que lo que el proveedor ya ofreció, no revela su límite antes de la última ronda y casi nunca vuelve a pedir más de lo que pidió en la ronda anterior.",
+    ])
+  })
+
+  it("para reenviar una invitación manda al botón «Reenviar» de la tabla de sesiones", () => {
+    const seccion = articuloPorSlug("negociar-con-proveedores")?.secciones.find(
+      (s) => s.titulo === "Publicar y compartir los enlaces"
+    )
+    const texto = seccion?.parrafos?.join(" ")
+    expect(texto).toContain("use «Reenviar» en la tabla de sesiones")
+    expect(texto).not.toContain("Reenviar invitación")
+  })
 })

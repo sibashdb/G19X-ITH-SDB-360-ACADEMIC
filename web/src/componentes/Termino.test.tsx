@@ -51,6 +51,15 @@ describe("Termino", () => {
     }
   })
 
+  it("el ideal y el acuerdo tentativo dicen lo que hace el agente, no más", () => {
+    expect(GLOSARIO.ideal.definicion).toBe(
+      "El valor que a usted le gustaría conseguir. El agente empieza pidiendo casi ese valor y cede poco a poco hacia el límite."
+    )
+    expect(GLOSARIO.acuerdoTentativo.definicion).toBe(
+      "El proveedor aceptó o propuso una oferta que se registró como acuerdo. No es vinculante hasta que se adjudique y se apruebe; si sale de sus límites, se marca para el aprobador."
+    )
+  })
+
   it("no tiene violaciones de accesibilidad abierto ni cerrado", async () => {
     const { container } = renderizarPagina(<Termino clave="ahorroPotencial" />)
     await esperarSinViolaciones(container)

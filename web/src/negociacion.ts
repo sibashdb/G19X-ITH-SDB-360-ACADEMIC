@@ -271,17 +271,19 @@ export const ESTILOS: { clave: Estilo; nombre: string; descripcion: string }[] =
       clave: "firme",
       nombre: "Firme",
       descripcion:
-        "Cede poco y tarde: busca el mejor valor aunque tome más rondas.",
+        "Cede muy poco hasta las últimas rondas: busca el mejor valor aunque tome más rondas.",
     },
     {
       clave: "balanceado",
       nombre: "Balanceado",
-      descripcion: "Cede de forma pareja a lo largo de las rondas.",
+      descripcion:
+        "Un punto medio: cede poco al principio y más hacia el final.",
     },
     {
       clave: "flexible",
       nombre: "Flexible",
-      descripcion: "Cede pronto: prioriza llegar a un acuerdo.",
+      descripcion:
+        "Cede de forma pareja desde la primera ronda: prioriza llegar a un acuerdo.",
     },
   ]
 

@@ -85,8 +85,8 @@ export function DialogoEnlaces({
               : "Enlaces de invitación"}
           </DialogTitle>
           <DialogDescription>
-            Solo se muestran ahora. Si pierde uno, use «Reenviar invitación»: el
-            enlace anterior deja de servir.
+            Solo se muestran ahora. Si pierde uno, use «Reenviar» en la tabla de
+            sesiones: el enlace anterior deja de servir.
           </DialogDescription>
         </DialogHeader>
         <ul className="max-h-[60svh] space-y-3 overflow-y-auto">

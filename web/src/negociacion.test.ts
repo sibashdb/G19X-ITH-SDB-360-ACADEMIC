@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   crearClaves,
+  ESTILOS,
   esFinal,
   esUuid,
   explicarDecision,
@@ -118,6 +119,21 @@ describe("utilidades", () => {
     expect(sugerirFechaLimite(new Date("2026-10-15T03:00:00Z"))).toEqual(
       new Date("2026-10-22T00:00:00Z")
     )
+  })
+})
+
+describe("ESTILOS", () => {
+  it("describe el ritmo de cesión de cada estilo", () => {
+    expect(
+      Object.fromEntries(ESTILOS.map((e) => [e.clave, e.descripcion]))
+    ).toEqual({
+      firme:
+        "Cede muy poco hasta las últimas rondas: busca el mejor valor aunque tome más rondas.",
+      balanceado:
+        "Un punto medio: cede poco al principio y más hacia el final.",
+      flexible:
+        "Cede de forma pareja desde la primera ronda: prioriza llegar a un acuerdo.",
+    })
   })
 })
 
