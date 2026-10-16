@@ -4,6 +4,7 @@ import statistics
 from collections import defaultdict
 from decimal import Decimal
 
+from comun.errores import ErrorDominio
 from fastapi import APIRouter
 
 from inteligencia import consultas
@@ -23,6 +24,7 @@ from inteligencia.dominio.adjudicacion import (
     tendencia_incidentes,
 )
 from inteligencia.dominio.monedas import CENTAVOS, a_mxn, periodo_cambio, tipo_cambio_en
+from inteligencia.dominio.precios import meses_entre
 from inteligencia.dominio.puntuacion import validar_pesos
 
 router = APIRouter(tags=["adjudicacion"])
@@ -84,7 +86,15 @@ def _entrada(
         (costo - candidato.cuota) / candidato.plazo_meses * MESES_ANIO, moneda, usd_mxn
     )
     puntuacion = contexto.puntuaciones.get(pid)
-    meses = sorted(contexto.desempeno.get(pid, []), key=lambda mes: mes.periodo)
+    # Hasta el mes de hoy, como la puntuación: un mes posterior no cuenta en el historial ni aquí.
+    meses = sorted(
+        (
+            mes
+            for mes in contexto.desempeno.get(pid, [])
+            if meses_entre(mes.periodo, contexto.hoy) >= 0
+        ),
+        key=lambda mes: mes.periodo,
+    )
     return Entrada(
         candidato,
         costo,
@@ -116,6 +126,14 @@ async def recomendacion(
             raise pesos_invalidos("body.pesos", error)
         pesos = PesosAdjudicacion(**datos.pesos.model_dump())
     usd_mxn = tipo_cambio_en(contexto.tipos_cambio, contexto.hoy)
+    if datos.moneda == "USD" and usd_mxn is None:
+        # Sin tipo de cambio el costo en MXN valdría 0 y el umbral de aprobación no se aplicaría.
+        raise ErrorDominio(
+            409,
+            "Conflicto",
+            "No hay tipo de cambio registrado para convertir los montos en USD a MXN.",
+            {"codigo": "tipo_cambio_no_disponible"},
+        )
     periodo = periodo_cambio(contexto.tipos_cambio, contexto.hoy)
     gasto = _gasto_anual(contexto, usd_mxn)
     gasto_total = sum(gasto.values(), Decimal(0))

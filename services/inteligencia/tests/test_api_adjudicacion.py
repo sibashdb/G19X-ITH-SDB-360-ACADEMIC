@@ -246,7 +246,9 @@ async def test_el_riesgo_usa_el_gasto_vigente_y_los_incidentes(
     gasto_total = sum(Decimal(p["gasto_anual"]) for p in proveedores)
     r = await cliente.post(RUTA, json=cuerpo(datos, 10, id_estable), headers=comprador)
     assert r.status_code == 200
-    for x in r.json()["candidatos"]:
+    candidatos = r.json()["candidatos"]
+    assert any(x["riesgo"]["tendencia"] > 0 for x in candidatos)  # que no compare solo ceros
+    for x in candidatos:
         proveedor = por_id[x["proveedor_id"]]
         # costo anual del candidato: (costo total - cuota) / plazo * 12, en pesos
         anual = (Decimal(x["costo_total_mxn"]) - CUOTA) / PLAZO * 12
@@ -266,6 +268,45 @@ async def test_el_riesgo_usa_el_gasto_vigente_y_los_incidentes(
             (x["riesgo"]["concentracion"] + x["riesgo"]["tendencia"] + x["riesgo"]["sin_historial"])
             / 3
         )
+
+
+async def test_usd_sin_tipo_de_cambio_es_409(
+    cliente: httpx.AsyncClient, comprador: Cabeceras, id_estable: IdDe
+) -> None:
+    # Sin tipo de cambio el costo en MXN valdría 0 y un evento grande no pasaría por el aprobador.
+    candidatos = [candidato(i, str(uuid.uuid4()), id_estable) for i in range(2)]
+    r = await cliente.post(
+        RUTA, json={"moneda": "USD", "candidatos": candidatos}, headers=comprador
+    )
+    assert r.status_code == 409
+    assert r.json()["codigo"] == "tipo_cambio_no_disponible"
+    pesos = await cliente.post(
+        RUTA, json={"moneda": "MXN", "candidatos": candidatos}, headers=comprador
+    )
+    assert pesos.status_code == 200  # en pesos no hace falta el tipo de cambio
+
+
+async def test_sin_pesos_en_el_cuerpo_usa_la_configuracion_guardada(
+    cliente: httpx.AsyncClient,
+    comprador: Cabeceras,
+    admin: Cabeceras,
+    datos: DatosSinteticos,
+    id_estable: IdDe,
+) -> None:
+    actual = (await cliente.get("/configuracion", headers=comprador)).json()
+    nueva = {k: v for k, v in actual.items() if k not in {"actualizado_en", "actualizado_por"}} | {
+        "adjudicacion_costo": 10,
+        "adjudicacion_desempeno": 20,
+        "adjudicacion_riesgo": 30,
+        "adjudicacion_sla": 40,
+        "umbral_aprobacion": "250000.00",
+    }
+    guardada = await cliente.put("/configuracion", json=nueva, headers=admin)
+    assert guardada.status_code == 200, guardada.text
+    r = await cliente.post(RUTA, json=cuerpo(datos, 3, id_estable), headers=comprador)
+    assert r.status_code == 200
+    assert r.json()["pesos"] == {"costo": 10, "desempeno": 20, "riesgo": 30, "sla": 40}
+    assert r.json()["umbral_aprobacion"] == "250000.00"
 
 
 async def test_sin_token_401_y_proveedor_externo_no_entra(
