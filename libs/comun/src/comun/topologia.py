@@ -39,7 +39,8 @@ COLA_ADMINISTRACION = Cola(
 )
 # Copias locales de negociacion: el contacto del proveedor y el catálogo de servicios.
 COLA_NEGOCIACION = Cola("negociacion.eventos", ("proveedor.*", "servicio.*"))
-COLAS = (COLA_INTELIGENCIA, COLA_ADMINISTRACION, COLA_NEGOCIACION)
+COLA_PROVEEDORES = Cola("proveedores.eventos", ("negociacion.adjudicada",))
+COLAS = (COLA_INTELIGENCIA, COLA_ADMINISTRACION, COLA_NEGOCIACION, COLA_PROVEEDORES)
 
 TIPOS_EVENTO = frozenset(
     {
@@ -55,6 +56,9 @@ TIPOS_EVENTO = frozenset(
         "negociacion.publicada",
         "negociacion.cancelada",
         "negociacion.invitacion_enviada",
+        "negociacion.adjudicada",
+        "negociacion.desierta",
+        "negociacion.resultado_enviado",
     }
 )
 

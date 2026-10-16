@@ -58,6 +58,12 @@ def test_negociacion_recibe_proveedores_y_catalogo_y_publica_a_administracion() 
         assert colas_de(tipo) == [COLA_ADMINISTRACION.nombre]
 
 
+def test_la_adjudicacion_llega_a_proveedores_y_a_la_actividad() -> None:
+    assert colas_de("negociacion.adjudicada") == ["administracion.actividad", "proveedores.eventos"]
+    assert colas_de("negociacion.desierta") == ["administracion.actividad"]
+    assert colas_de("negociacion.resultado_enviado") == ["administracion.actividad"]
+
+
 def _tipos_publicados() -> set[str]:
     tipos: set[str] = set()
     for ruta in RAIZ.glob("services/*/src/**/*.py"):

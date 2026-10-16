@@ -76,6 +76,25 @@
       "arguments": {
         "x-queue-type": "quorum"
       }
+    },
+    {
+      "name": "proveedores.eventos",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5
+      }
+    },
+    {
+      "name": "proveedores.eventos.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
     }
   ],
   "bindings": [
@@ -198,6 +217,22 @@
       "destination_type": "queue",
       "routing_key": "negociacion.eventos",
       "arguments": {}
+    },
+    {
+      "source": "eventos",
+      "vhost": "/",
+      "destination": "proveedores.eventos",
+      "destination_type": "queue",
+      "routing_key": "negociacion.adjudicada",
+      "arguments": {}
+    },
+    {
+      "source": "eventos.dlx",
+      "vhost": "/",
+      "destination": "proveedores.eventos.dlq",
+      "destination_type": "queue",
+      "routing_key": "proveedores.eventos",
+      "arguments": {}
     }
   ],
   "policies": [
@@ -232,6 +267,17 @@
       "definition": {
         "dead-letter-exchange": "eventos.dlx",
         "dead-letter-routing-key": "negociacion.eventos"
+      }
+    },
+    {
+      "vhost": "/",
+      "name": "fallidos-proveedores.eventos",
+      "pattern": "^proveedores\\.eventos$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "dead-letter-exchange": "eventos.dlx",
+        "dead-letter-routing-key": "proveedores.eventos"
       }
     }
   ]
