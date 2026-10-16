@@ -29,6 +29,13 @@ INICIAL: dict[str, Any] = {
     "umbral_riesgo": 40,
     "inflacion_anual": "4.50",
 }
+ADJUDICACION: dict[str, Any] = {
+    "adjudicacion_costo": 40,
+    "adjudicacion_desempeno": 30,
+    "adjudicacion_riesgo": 15,
+    "adjudicacion_sla": 15,
+    "umbral_aprobacion": "500000.00",
+}
 
 
 async def _eventos(fabrica: Fabrica, tipo: str) -> list[dict[str, Any]]:
@@ -39,7 +46,25 @@ async def _eventos(fabrica: Fabrica, tipo: str) -> list[dict[str, Any]]:
 
 async def test_leer_la_configuracion(cliente: httpx.AsyncClient, comprador: Cabeceras) -> None:
     respuesta = await cliente.get("/configuracion", headers=comprador)
-    assert respuesta.json() == {**INICIAL, "actualizado_en": None, "actualizado_por": None}
+    assert respuesta.json() == {
+        **INICIAL,
+        **ADJUDICACION,
+        "actualizado_en": None,
+        "actualizado_por": None,
+    }
+
+
+async def test_la_configuracion_trae_los_pesos_de_adjudicacion(
+    cliente: httpx.AsyncClient, comprador: Cabeceras
+) -> None:
+    datos = (await cliente.get("/configuracion", headers=comprador)).json()
+    assert (
+        datos["adjudicacion_costo"],
+        datos["adjudicacion_desempeno"],
+        datos["adjudicacion_riesgo"],
+        datos["adjudicacion_sla"],
+    ) == (40, 30, 15, 15)
+    assert datos["umbral_aprobacion"] == "500000.00"
 
 
 async def test_guardar_publica_los_campos_cambiados(
@@ -89,6 +114,70 @@ async def test_pesos_que_no_suman_100(
     assert await _eventos(fabrica, "configuracion.actualizada") == []
 
 
+async def test_guardar_sin_los_campos_de_adjudicacion_los_conserva(
+    cliente: httpx.AsyncClient, admin: Cabeceras, fabrica: Fabrica
+) -> None:
+    propios = {
+        "adjudicacion_costo": 25,
+        "adjudicacion_desempeno": 25,
+        "adjudicacion_riesgo": 25,
+        "adjudicacion_sla": 25,
+        "umbral_aprobacion": "750000",
+    }
+    assert (
+        await cliente.put("/configuracion", json={**INICIAL, **propios}, headers=admin)
+    ).status_code == 200
+    respuesta = await cliente.put(
+        "/configuracion", json={**INICIAL, "peso_sla": 40, "peso_satisfaccion": 5}, headers=admin
+    )
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert {campo: cuerpo[campo] for campo in ADJUDICACION} == {
+        **propios,
+        "umbral_aprobacion": "750000.00",
+    }
+    ultimo = (await _eventos(fabrica, "configuracion.actualizada"))[-1]
+    assert [cambio["campo"] for cambio in ultimo["cambios"]] == ["peso_sla", "peso_satisfaccion"]
+
+
+@pytest.mark.parametrize(
+    "pesos",
+    [
+        {
+            "adjudicacion_costo": 50,
+            "adjudicacion_desempeno": 30,
+            "adjudicacion_riesgo": 15,
+            "adjudicacion_sla": 15,
+        },
+        {"adjudicacion_costo": 50},
+    ],
+    ids=["no_suman_100", "faltan_pesos"],
+)
+async def test_los_pesos_de_adjudicacion_deben_ser_los_cuatro_y_sumar_100(
+    cliente: httpx.AsyncClient, admin: Cabeceras, fabrica: Fabrica, pesos: dict[str, int]
+) -> None:
+    respuesta = await cliente.put("/configuracion", json={**INICIAL, **pesos}, headers=admin)
+    assert respuesta.status_code == 422
+    cuerpo = respuesta.json()
+    assert cuerpo["codigo"] == "pesos_invalidos"
+    assert [e["campo"] for e in cuerpo["errores"]] == ["body.pesos_adjudicacion"]
+    assert (await cliente.get("/configuracion", headers=admin)).json()["adjudicacion_costo"] == 40
+    assert await _eventos(fabrica, "configuracion.actualizada") == []
+
+
+async def test_cambiar_el_umbral_publica_el_cambio(
+    cliente: httpx.AsyncClient, admin: Cabeceras, fabrica: Fabrica
+) -> None:
+    respuesta = await cliente.put(
+        "/configuracion", json={**INICIAL, "umbral_aprobacion": "750000.5"}, headers=admin
+    )
+    assert (respuesta.status_code, respuesta.json()["umbral_aprobacion"]) == (200, "750000.50")
+    [evento] = await _eventos(fabrica, "configuracion.actualizada")
+    assert evento["cambios"] == [
+        {"campo": "umbral_aprobacion", "anterior": "500000.00", "nuevo": "750000.50"}
+    ]
+
+
 @pytest.mark.parametrize(
     ("cambio", "campo"),
     [
@@ -96,6 +185,9 @@ async def test_pesos_que_no_suman_100(
         ({"umbral_riesgo": 101}, "body.umbral_riesgo"),
         ({"inflacion_anual": "50.01"}, "body.inflacion_anual"),
         ({"inflacion_anual": "4.555"}, "body.inflacion_anual"),
+        ({"umbral_aprobacion": "-1"}, "body.umbral_aprobacion"),
+        ({"umbral_aprobacion": "1000.555"}, "body.umbral_aprobacion"),
+        ({"adjudicacion_sla": 101}, "body.adjudicacion_sla"),
         ({"otro": 1}, "body.otro"),
     ],
 )

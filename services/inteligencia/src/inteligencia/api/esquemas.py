@@ -237,6 +237,11 @@ class ConfiguracionSalida(BaseModel):
     peso_satisfaccion: int
     umbral_riesgo: int
     inflacion_anual: Decimal
+    adjudicacion_costo: int
+    adjudicacion_desempeno: int
+    adjudicacion_riesgo: int
+    adjudicacion_sla: int
+    umbral_aprobacion: Decimal
     actualizado_en: datetime | None
     actualizado_por: str | None
 
@@ -251,6 +256,14 @@ class ConfiguracionEntrada(BaseModel):
     peso_satisfaccion: Peso
     umbral_riesgo: Annotated[int, Field(ge=0, le=100)]
     inflacion_anual: Annotated[Decimal, Field(ge=0, le=50, decimal_places=2)]
+    # Opcionales: None = sin cambio (la pantalla de Configuración aún no los envía).
+    adjudicacion_costo: Peso | None = None
+    adjudicacion_desempeno: Peso | None = None
+    adjudicacion_riesgo: Peso | None = None
+    adjudicacion_sla: Peso | None = None
+    umbral_aprobacion: Annotated[Decimal, Field(ge=0, max_digits=14, decimal_places=2)] | None = (
+        None
+    )
 
 
 class ModeloSalida(BaseModel):

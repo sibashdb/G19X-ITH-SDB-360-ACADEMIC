@@ -39,6 +39,21 @@ async def test_la_configuracion_inicial_tiene_los_valores_por_defecto(
     assert tuple(fila) == (30, 20, 20, 15, 15, 40, 4.5)
 
 
+async def test_la_configuracion_inicial_tiene_la_adjudicacion_por_defecto(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    async with fabrica() as sesion:
+        fila = (
+            await sesion.execute(
+                text(
+                    "SELECT adjudicacion_costo, adjudicacion_desempeno, adjudicacion_riesgo, "
+                    "adjudicacion_sla, umbral_aprobacion FROM configuracion"
+                )
+            )
+        ).one()
+    assert tuple(fila) == (40, 30, 15, 15, 500000)
+
+
 async def test_la_aplicacion_escribe_la_copia_local(
     fabrica: async_sessionmaker[AsyncSession],
 ) -> None:

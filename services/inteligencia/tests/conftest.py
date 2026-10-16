@@ -35,6 +35,8 @@ AplicarEvento = Callable[[str, dict[str, Any]], Awaitable[None]]
 CONFIGURACION_INICIAL = (
     "UPDATE configuracion SET peso_sla = 30, peso_resolucion = 20, peso_incidentes = 20, "
     "peso_entregas = 15, peso_satisfaccion = 15, umbral_riesgo = 40, inflacion_anual = 4.50, "
+    "adjudicacion_costo = 40, adjudicacion_desempeno = 30, adjudicacion_riesgo = 15, "
+    "adjudicacion_sla = 15, umbral_aprobacion = 500000.00, "
     "actualizado_en = NULL, actualizado_por = NULL"
 )
 

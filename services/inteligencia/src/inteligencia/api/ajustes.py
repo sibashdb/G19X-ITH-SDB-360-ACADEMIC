@@ -33,6 +33,12 @@ router = APIRouter(tags=["configuracion"])
 
 MAX_MODELOS = 50
 DOS_DECIMALES = Decimal("0.01")
+PESOS_ADJUDICACION = (
+    "adjudicacion_costo",
+    "adjudicacion_desempeno",
+    "adjudicacion_riesgo",
+    "adjudicacion_sla",
+)
 ENTIDADES: dict[str, type[Base]] = {
     "proveedores": Proveedor,
     "servicios": Servicio,
@@ -41,6 +47,15 @@ ENTIDADES: dict[str, type[Base]] = {
     "desempeno": Desempeno,
     "tipo_cambio": TipoCambio,
 }
+
+
+def _pesos_invalidos(campo: str, mensaje: str) -> ErrorDominio:
+    return ErrorDominio(
+        422,
+        "Solicitud inválida",
+        "Revise los campos indicados.",
+        {"codigo": "pesos_invalidos", "errores": [{"campo": campo, "mensaje": mensaje}]},
+    )
 
 
 def _para_evento(valor: Any) -> Any:
@@ -62,16 +77,19 @@ async def leer_configuracion(sesion: Sesion, _: Interno) -> esquemas.Configuraci
 async def guardar_configuracion(
     datos: esquemas.ConfiguracionEntrada, sesion: Sesion, usuario: Admin
 ) -> esquemas.ConfiguracionSalida:
-    nuevos = datos.model_dump()
+    nuevos = datos.model_dump(exclude_none=True)  # None = sin cambio
     nuevos["inflacion_anual"] = nuevos["inflacion_anual"].quantize(DOS_DECIMALES)
+    if "umbral_aprobacion" in nuevos:
+        nuevos["umbral_aprobacion"] = nuevos["umbral_aprobacion"].quantize(DOS_DECIMALES)
     error = validar_pesos({c: v for c, v in nuevos.items() if c.startswith("peso_")})
     if error is not None:
-        raise ErrorDominio(
-            422,
-            "Solicitud inválida",
-            "Revise los campos indicados.",
-            {"codigo": "pesos_invalidos", "errores": [{"campo": "body.pesos", "mensaje": error}]},
-        )
+        raise _pesos_invalidos("body.pesos", error)
+    if any(c in nuevos for c in PESOS_ADJUDICACION):
+        if not all(c in nuevos for c in PESOS_ADJUDICACION):
+            raise _pesos_invalidos("body.pesos_adjudicacion", "Envíe los cuatro pesos juntos.")
+        error = validar_pesos({c: nuevos[c] for c in PESOS_ADJUDICACION})
+        if error is not None:
+            raise _pesos_invalidos("body.pesos_adjudicacion", error)
     async with sesion.begin():
         fila = await sesion.get(Configuracion, 1, with_for_update=True)
         if fila is None:

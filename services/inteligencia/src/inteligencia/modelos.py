@@ -127,6 +127,13 @@ class Configuracion(Base):
     peso_satisfaccion: Mapped[int]
     umbral_riesgo: Mapped[int]
     inflacion_anual: Mapped[Decimal] = mapped_column(PORCENTAJE)
+    adjudicacion_costo: Mapped[int] = mapped_column(server_default=text("40"))
+    adjudicacion_desempeno: Mapped[int] = mapped_column(server_default=text("30"))
+    adjudicacion_riesgo: Mapped[int] = mapped_column(server_default=text("15"))
+    adjudicacion_sla: Mapped[int] = mapped_column(server_default=text("15"))
+    umbral_aprobacion: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), server_default=text("500000.00")
+    )
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     actualizado_por: Mapped[str | None] = mapped_column(String(200))
 
