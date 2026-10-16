@@ -186,12 +186,10 @@ function AnuncioDeCompras({ mensajes }: { mensajes: MensajePortal[] }) {
     total > alAbrir
       ? `Le respondió el equipo de compras (mensaje ${total}).`
       : ""
+  // Solo para lectores de pantalla, como en la supervisión del comprador: el mensaje ya se ve en la
+  // conversación.
   return (
-    <p
-      role="status"
-      aria-atomic="true"
-      className={texto ? "text-sm text-muted-foreground" : "sr-only"}
-    >
+    <p role="status" aria-atomic="true" className="sr-only">
       {texto}
     </p>
   )
