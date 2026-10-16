@@ -5,8 +5,10 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { Link } from "react-router"
+import { useRoles } from "@/auth"
 import { Badge } from "@/components/ui/badge"
 import { rutaDeAlerta, type Alerta } from "@/inteligencia"
+import { rutaRenovacion } from "@/negociacion"
 import {
   NOMBRES_SEVERIDAD,
   NOMBRES_TIPO_ALERTA,
@@ -28,6 +30,11 @@ const VARIANTES: Record<Severidad, "destructive" | "warning" | "secondary"> = {
 
 /** Una alerta: tipo con icono, severidad con texto, título enlazado, explicación y fecha. */
 export function ElementoAlerta({ alerta }: { alerta: Alerta }) {
+  // Renovar es del rol de compras (spec §10.1) y solo aplica a un contrato por vencer.
+  const puedeRenovar =
+    useRoles().includes("comprador") &&
+    alerta.tipo === "vencimiento" &&
+    alerta.entidad_tipo === "contrato"
   const Icono = ICONOS[alerta.tipo]
   const fecha =
     alerta.tipo === "vencimiento"
@@ -58,6 +65,15 @@ export function ElementoAlerta({ alerta }: { alerta: Alerta }) {
         <p className="text-sm break-words text-muted-foreground">
           {alerta.explicacion}
         </p>
+        {puedeRenovar && (
+          <Link
+            to={rutaRenovacion(alerta.proveedor_id, alerta.entidad_id)}
+            aria-label={`Renovar el contrato ${alerta.entidad_nombre}`}
+            className="inline-block text-sm font-medium text-accent hover:underline"
+          >
+            Renovar
+          </Link>
+        )}
       </div>
     </article>
   )

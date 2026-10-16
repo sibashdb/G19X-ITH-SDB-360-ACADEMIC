@@ -1,12 +1,17 @@
 import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { BarraPuntuacion } from "@/componentes/BarraPuntuacion"
 import { ElementoAlerta } from "@/componentes/ElementoAlerta"
 import { PosicionMercado } from "@/componentes/PosicionMercado"
 import { Tendencia } from "@/componentes/Tendencia"
 import type { Alerta, MercadoLinea } from "@/inteligencia"
 import { esperarSinViolaciones, renderizarPagina } from "@/pruebas/utilidades"
+
+// ElementoAlerta lee los roles de la sesión para ofrecer «Renovar».
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
 
 afterEach(cleanup)
 

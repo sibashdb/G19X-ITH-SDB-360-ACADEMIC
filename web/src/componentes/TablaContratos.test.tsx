@@ -1,8 +1,19 @@
 import { render, screen, within } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { TablaContratos } from "@/componentes/TablaContratos"
 import type { MercadoLinea } from "@/inteligencia"
+import { rutaRenovacion } from "@/negociacion"
+import { sesionDePrueba } from "@/pruebas/sesion"
+import { renderizarPagina } from "@/pruebas/utilidades"
 import type { Contrato } from "@/tipos"
+
+vi.mock("react-oidc-context", async () =>
+  (await import("@/pruebas/sesion")).oidcSimulado()
+)
+
+afterEach(() => {
+  sesionDePrueba.roles = ["admin"]
+})
 
 const linea = (precio_unitario: string) => ({
   codigo_servicio: "NUBE-01",
@@ -64,5 +75,29 @@ describe("TablaContratos", () => {
     expect(
       within(distinta).getByText("Sin comparación con el mercado")
     ).toBeInTheDocument()
+  })
+
+  it("ofrece «Renovar» solo al comprador y solo en contratos vigentes", () => {
+    sesionDePrueba.roles = ["comprador"]
+    const vigente = {
+      ...CONTRATO_CON_SERVICIO_REPETIDO,
+      fecha_inicio: "2000-01-01",
+      fecha_fin: "2999-12-31",
+    }
+    const vencido = {
+      ...vigente,
+      id: "c2",
+      folio: "CT-0002",
+      fecha_fin: "2000-12-31",
+    }
+    renderizarPagina(
+      <TablaContratos contratos={[vigente, vencido]} proveedorId="p1" />
+    )
+    expect(
+      screen.getByRole("link", { name: "Renovar el contrato CT-0001" })
+    ).toHaveAttribute("href", rutaRenovacion("p1", "c1"))
+    expect(
+      screen.queryByRole("link", { name: "Renovar el contrato CT-0002" })
+    ).not.toBeInTheDocument()
   })
 })

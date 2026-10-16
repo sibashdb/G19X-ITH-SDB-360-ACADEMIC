@@ -1,4 +1,6 @@
 import { FileText } from "lucide-react"
+import { Link } from "react-router"
+import { useRoles } from "@/auth"
 import { EstadoVacio } from "@/componentes/Estados"
 import { PosicionMercado } from "@/componentes/PosicionMercado"
 import {
@@ -9,17 +11,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { hoyEnMexico } from "@/fechas"
 import type { MercadoLinea } from "@/inteligencia"
+import { rutaRenovacion } from "@/negociacion"
 import { formatoFecha, formatoMoneda, type Contrato } from "@/tipos"
 
 /** Contratos con sus líneas; con `mercado`, cada línea vigente se compara con el mercado. */
 export function TablaContratos({
   contratos,
   mercado,
+  proveedorId,
 }: {
   contratos: Contrato[]
   mercado?: MercadoLinea[]
+  /** Con él, el comprador ve «Renovar» en los contratos vigentes. */
+  proveedorId?: string
 }) {
+  const puedeRenovar = useRoles().includes("comprador") && Boolean(proveedorId)
+  const hoy = hoyEnMexico()
+  // Fechas "AAAA-MM-DD": compararlas como texto respeta el orden del calendario.
+  const vigente = (c: Contrato) => c.fecha_inicio <= hoy && hoy <= c.fecha_fin
   if (contratos.length === 0) {
     return (
       <EstadoVacio
@@ -61,7 +72,20 @@ export function TablaContratos({
               // El índice evita claves repetidas: la API permite el mismo servicio en varias líneas.
               <TableRow key={`${c.id}-${i}`}>
                 <TableCell className="font-mono">
-                  {i === 0 ? c.folio : ""}
+                  {i === 0 && (
+                    <div className="space-y-1">
+                      <div>{c.folio}</div>
+                      {puedeRenovar && proveedorId && vigente(c) && (
+                        <Link
+                          to={rutaRenovacion(proveedorId, c.id)}
+                          aria-label={`Renovar el contrato ${c.folio}`}
+                          className="font-sans text-sm font-medium text-accent hover:underline"
+                        >
+                          Renovar
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell>
                   {i === 0 ? (c.tipo === "nuevo" ? "Nuevo" : "Renovación") : ""}

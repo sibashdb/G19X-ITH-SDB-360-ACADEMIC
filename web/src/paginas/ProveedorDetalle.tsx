@@ -474,7 +474,11 @@ export function ProveedorDetalle() {
                 ))}
               <ContenidoConsulta consulta={contratos}>
                 {(datos) => (
-                  <TablaContratos contratos={datos} mercado={mercado.data} />
+                  <TablaContratos
+                    contratos={datos}
+                    mercado={mercado.data}
+                    proveedorId={id}
+                  />
                 )}
               </ContenidoConsulta>
             </div>

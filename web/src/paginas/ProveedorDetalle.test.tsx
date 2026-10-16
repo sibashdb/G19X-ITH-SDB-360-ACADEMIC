@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { formatearValorTooltip } from "@/componentes/DesempenoProveedor"
 import { ProveedorDetalle } from "@/paginas/ProveedorDetalle"
+import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   renderizarPagina,
@@ -152,6 +153,7 @@ const renderizar = (ruta = "/proveedores/p1") =>
 
 afterEach(() => {
   cleanup()
+  sesionDePrueba.roles = ["admin"]
   vi.unstubAllGlobals()
 })
 
@@ -262,6 +264,20 @@ describe("ProveedorDetalle", () => {
     expect(
       await screen.findByText("Sin contratos registrados")
     ).toBeInTheDocument()
+  })
+
+  it("en Contratos, el comprador puede renovar un contrato vigente", async () => {
+    sesionDePrueba.roles = ["comprador"]
+    api({
+      [`${RUTA}/contratos`]: () =>
+        respuestaJson([
+          { ...CONTRATO, fecha_inicio: "2000-01-01", fecha_fin: "2999-12-31" },
+        ]),
+    })
+    renderizar("/proveedores/p1?pestana=contratos")
+    expect(
+      await screen.findByRole("link", { name: "Renovar el contrato CT-0001" })
+    ).toHaveAttribute("href", "/negociaciones/nueva?proveedor=p1&contrato=c1")
   })
 
   it("muestra que no hay datos cuando el desempeño llega vacío", async () => {

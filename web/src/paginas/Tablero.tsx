@@ -11,6 +11,7 @@ import {
 import { useAuth } from "react-oidc-context"
 import { Link } from "react-router"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+import { useRoles } from "@/auth"
 import { BarraPuntuacion } from "@/componentes/BarraPuntuacion"
 import { ElementoAlerta } from "@/componentes/ElementoAlerta"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
@@ -42,6 +43,7 @@ import {
   type Destacado,
   type TableroDatos,
 } from "@/inteligencia"
+import { rutaRenovacion } from "@/negociacion"
 import {
   NOMBRES_CATEGORIA,
   formatoFecha,
@@ -357,6 +359,7 @@ function Vencimientos({
 }: {
   filas: TableroDatos["proximos_vencimientos"]
 }) {
+  const puedeRenovar = useRoles().includes("comprador")
   if (filas.length === 0) {
     return (
       <EstadoVacio
@@ -374,6 +377,11 @@ function Vencimientos({
           <TableHead>Proveedor</TableHead>
           <TableHead>Vence</TableHead>
           <TableHead className="text-right">Monto mensual (MXN)</TableHead>
+          {puedeRenovar && (
+            <TableHead>
+              <span className="sr-only">Acción</span>
+            </TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -402,6 +410,17 @@ function Vencimientos({
             <TableCell className="text-right tabular-nums">
               {formatoMoneda(v.monto_mensual, "MXN")}
             </TableCell>
+            {puedeRenovar && (
+              <TableCell>
+                <Link
+                  to={rutaRenovacion(v.proveedor_id, v.contrato_id)}
+                  aria-label={`Renovar el contrato ${v.folio}`}
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  Renovar
+                </Link>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

@@ -230,6 +230,23 @@ describe("Tablero", () => {
     ).toBeInTheDocument()
   })
 
+  it("el comprador puede renovar desde los próximos vencimientos; otros roles no", async () => {
+    sesionDePrueba.roles = ["comprador"]
+    api()
+    renderizarPagina(<Tablero />)
+    expect(
+      await screen.findByRole("link", { name: "Renovar el contrato CT-0001" })
+    ).toHaveAttribute("href", "/negociaciones/nueva?proveedor=p1&contrato=c1")
+    cleanup()
+    sesionDePrueba.roles = ["admin"]
+    api()
+    renderizarPagina(<Tablero />)
+    await screen.findByText("CT-0001")
+    expect(
+      screen.queryByRole("link", { name: /^Renovar/ })
+    ).not.toBeInTheDocument()
+  })
+
   it("sin datos, cada sección explica qué falta", async () => {
     api(() => respuestaJson(VACIO))
     renderizarPagina(<Tablero />)
