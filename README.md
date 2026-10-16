@@ -5,6 +5,8 @@ de servicios de TI: inteligencia de precios, desempeño de proveedores, negociac
 IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
 - Requerimientos y diseño: [`docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md`](docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md)
+- Propuesta técnica: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md)
+- Arquitectura (C4, modelo de datos, eventos, contratos y ADR): [`docs/arquitectura/`](docs/arquitectura/README.md)
 - Planes de implementación: [`docs/superpowers/plans/`](docs/superpowers/plans/)
 
 ## Qué está hecho y qué falta
@@ -41,8 +43,8 @@ determinista ya funciona de punta a punta; lo siguiente es la adjudicación con 
 | # | Entregable | Estado |
 |---|---|---|
 | 1 | Documento de requerimientos | Hecho: el PRD |
-| 2 | Propuesta técnica | Falta (`docs/propuesta-tecnica.md`) |
-| 3 | Documento de arquitectura | Falta (`docs/arquitectura/`: C4 y ADRs) |
+| 2 | Propuesta técnica | Hecho: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md) |
+| 3 | Documento de arquitectura | Hecho: [`docs/arquitectura/`](docs/arquitectura/README.md) (C4, modelo de datos, eventos, OpenAPI, AsyncAPI y ADR) |
 | 4 | Plan del proyecto | Parcial: planes por incremento y plan del PRD (§6.6) |
 | 5 | Sistema funcional | En curso: este repositorio; falta publicar las imágenes en GHCR |
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
@@ -125,6 +127,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 | Contrato OpenAPI de administración | <http://localhost:8080/api/administracion/docs> |
 | Contrato OpenAPI de inteligencia | <http://localhost:8080/api/inteligencia/docs> |
 | Contrato OpenAPI de negociación | <http://localhost:8080/api/negociacion/docs> |
+| Exportar los contratos OpenAPI a `docs/arquitectura/openapi/` (con el stack levantado) | `uv run python infra/exportar_contratos.py` |
 | Validación de la inteligencia contra la verdad oculta (escribe `docs/qa/validacion-inteligencia.md`) | `uv run python -m inteligencia.validacion --verdad datos/verdad_oculta.json` |
 | Simulación con bots (escribe `docs/qa/simulacion-negociacion.md`) | `SIMULACION_REPORTE=docs/qa/simulacion-negociacion.md uv run pytest services/negociacion/tests/test_simulacion.py` |
 | Mailpit, buzón de desarrollo de los correos de Keycloak y de las invitaciones a negociar (solo en este equipo) | <http://localhost:8025> |
