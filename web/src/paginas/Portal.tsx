@@ -88,11 +88,15 @@ export function Portal() {
 
 function EnlaceInvalido() {
   return (
-    <EstadoVacio
-      icono={Link2Off}
-      titulo="El enlace no es válido o ya venció"
-      descripcion="Pida al equipo de compras que le reenvíe la invitación. Cada enlace es personal y deja de servir al llegar la fecha límite, al reenviarse o si se cancela la negociación."
-    />
+    <>
+      {/* Sin sesión no hay título de la negociación: la página conserva su encabezado principal. */}
+      <h1 className="sr-only">Portal de proveedores</h1>
+      <EstadoVacio
+        icono={Link2Off}
+        titulo="El enlace no es válido o ya venció"
+        descripcion="Pida al equipo de compras que le reenvíe la invitación. Cada enlace es personal y deja de servir al llegar la fecha límite, al reenviarse o si se cancela la negociación."
+      />
+    </>
   )
 }
 

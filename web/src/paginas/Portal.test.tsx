@@ -148,6 +148,10 @@ describe("Portal", () => {
     expect(
       await screen.findByText("El enlace no es válido o ya venció")
     ).toBeInTheDocument()
+    // La página sigue teniendo su encabezado principal para los lectores de pantalla.
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Portal de proveedores" })
+    ).toBeInTheDocument()
   })
 
   it("muestra qué se negocia, la conversación y la última propuesta", async () => {
