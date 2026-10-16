@@ -30,6 +30,7 @@ export function Negociacion() {
   const [aviso, setAviso] = useState("")
   // Los enlaces viven aquí y no en el editor: al publicar, el editor se desmonta.
   const [enlaces, setEnlaces] = useState<EnlaceInvitacion[] | null>(null)
+  const [abridor, setAbridor] = useState<HTMLElement | null>(null)
 
   return (
     <div className="space-y-6">
@@ -51,7 +52,10 @@ export function Negociacion() {
                 key={evento.version}
                 evento={evento}
                 alAvisar={setAviso}
-                alPublicar={setEnlaces}
+                alPublicar={(nuevos) => {
+                  setAbridor(null)
+                  setEnlaces(nuevos)
+                }}
               />
             ) : (
               <>
@@ -68,7 +72,10 @@ export function Negociacion() {
                   <TablaSesiones
                     evento={evento}
                     esComprador={esComprador}
-                    alReenviar={(enlace) => setEnlaces([enlace])}
+                    alReenviar={(enlace, boton) => {
+                      setAbridor(boton)
+                      setEnlaces([enlace])
+                    }}
                   />
                 )}
                 <ResumenConfiguracion evento={evento} />
@@ -80,7 +87,11 @@ export function Negociacion() {
       <p role="status" className={aviso ? "text-sm text-success" : "sr-only"}>
         {aviso}
       </p>
-      <DialogoEnlaces enlaces={enlaces} alCerrar={() => setEnlaces(null)} />
+      <DialogoEnlaces
+        enlaces={enlaces}
+        abridor={abridor}
+        alCerrar={() => setEnlaces(null)}
+      />
     </div>
   )
 }

@@ -16,13 +16,16 @@ import type { EnlaceInvitacion } from "@/negociacion"
  * Los enlaces de invitación, que la API entrega una sola vez (spec D3). Se abre por estado; al
  * cerrar, el padre los descarta. El foco vuelve a quien abrió el diálogo si sigue en pantalla
  * (p. ej. «Reenviar invitación»); si ya no (el botón «Publicar» desaparece al publicar), pasa al
- * contenido de la página.
+ * contenido de la página. Quien lo abre por una petición puede indicar `abridor`: cuando la
+ * respuesta llega, el foco puede estar aún en una confirmación que se está cerrando.
  */
 export function DialogoEnlaces({
   enlaces,
+  abridor = null,
   alCerrar,
 }: {
   enlaces: EnlaceInvitacion[] | null
+  abridor?: HTMLElement | null
   alCerrar: () => void
 }) {
   const [copia, setCopia] = useState<{ id: string; ok: boolean } | null>(null)
@@ -58,7 +61,7 @@ export function DialogoEnlaces({
         // Un clic fuera no los cierra: se pierden y no se pueden volver a ver. Escape y «Listo» sí.
         onInteractOutside={(evento) => evento.preventDefault()}
         onOpenAutoFocus={() => {
-          abrio.current = document.activeElement
+          abrio.current = abridor ?? document.activeElement
         }}
         onCloseAutoFocus={(evento) => {
           // Radix solo devuelve el foco a un DialogTrigger y este diálogo se abre por estado, así

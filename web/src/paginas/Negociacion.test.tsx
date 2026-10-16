@@ -686,6 +686,43 @@ describe("Negociacion abierta", () => {
     ).toBeTruthy()
   })
 
+  it("al cerrar el enlace reenviado, el foco vuelve a «Reenviar» aunque se haya movido mientras llegaba", async () => {
+    const respuesta = respuestaDiferida()
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(ABIERTA),
+      "POST /api/negociacion/sesiones/s2/invitacion": () => respuesta.promesa,
+    })
+    abrir()
+    const boton = await screen.findByRole("button", {
+      name: "Reenviar la invitación a Datos del Sur",
+    })
+    await userEvent.click(boton)
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Reenviar",
+      })
+    )
+    // En el navegador, la respuesta puede llegar mientras la confirmación aún se cierra (con su
+    // animación) y el foco sigue en su botón, que luego desaparece.
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    respuesta.resolver(
+      respuestaJson({
+        sesion_id: "s2",
+        proveedor_nombre: "Datos del Sur",
+        destinatario: "ana@datossur.example",
+        enlace: "http://localhost:8080/portal#t=nuevo-789",
+        correo_estado: "enviado",
+      })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Enlace de invitación",
+    })
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Listo" })
+    )
+    await waitFor(() => expect(boton).toHaveFocus())
+  })
+
   it("solo el comprador puede cancelar y reenviar", async () => {
     sesionDePrueba.roles = ["aprobador"]
     simularRutas({ [`GET ${RUTA}`]: () => respuestaJson(ABIERTA) })

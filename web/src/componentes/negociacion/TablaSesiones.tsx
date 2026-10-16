@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Bot, TriangleAlert, UserRound } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Link } from "react-router"
 import { pedir } from "@/api"
 import { useToken } from "@/auth"
@@ -43,11 +43,13 @@ export function TablaSesiones({
 }: {
   evento: Evento
   esComprador: boolean
-  alReenviar: (enlace: EnlaceInvitacion) => void
+  /** `abridor`: el botón «Reenviar» de la fila, para devolverle el foco al cerrar el enlace. */
+  alReenviar: (enlace: EnlaceInvitacion, abridor: HTMLElement | null) => void
 }) {
   const token = useToken()
   const cliente = useQueryClient()
   const [aviso, setAviso] = useState("")
+  const boton = useRef<HTMLElement | null>(null)
   const reenviar = useMutation({
     mutationFn: (s: SesionResumen) =>
       pedir<EnlaceInvitacion>(
@@ -60,7 +62,7 @@ export function TablaSesiones({
     gcTime: 0,
     onSuccess: async (enlace) => {
       setAviso("")
-      alReenviar(enlace)
+      alReenviar(enlace, boton.current)
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
     onError: (error) => setAviso(error.message),
@@ -181,7 +183,13 @@ export function TablaSesiones({
                               })
                           }}
                         >
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              boton.current = e.currentTarget
+                            }}
+                          >
                             {/* El espacio va fuera del sr-only: dentro, el nombre sale «Reenviarla…». */}
                             Reenviar{" "}
                             <span className="sr-only">
