@@ -7,12 +7,98 @@ IA con límites fijados por el comprador y adjudicación con aprobación humana.
 - Requerimientos y diseño: [`docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md`](docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md)
 - Planes de implementación: [`docs/superpowers/plans/`](docs/superpowers/plans/)
 
+## Qué está hecho y qué falta
+
+Estado al 15/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
+determinista ya funciona de punta a punta; lo siguiente es la adjudicación con aprobación.
+
+| # | Capacidad del PRD | Estado | Dónde | Qué falta |
+|---|---|---|---|---|
+| 1 | Proveedores, contratos e historial | Hecho | `services/proveedores`: importación por CSV (CLI y `POST /importaciones/{entidad}`); pantallas Proveedores e Importación | — |
+| 2 | Inteligencia de precios | Hecho | `services/inteligencia`: precio justo P25 · P50 · P75 (línea base y modelo), sobreprecios y vencimientos; pantallas Precios y Alertas | — |
+| 3 | Desempeño del proveedor | Hecho | Puntuación de 0 a 100 con pesos configurables; Ranking y ficha del proveedor | — |
+| 4 | Eventos de negociación | Hecho | `services/negociacion`: compra o renovación, líneas, invitados, ideal y límite por término, palancas con peso y fecha límite; pantalla Negociaciones | — |
+| 5 | Negociación con agente en el portal | Parcial | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual | Los mensajes del agente son plantillas y la nota del proveedor no se interpreta (el LLM llega con N2). Los acuerdos quedan tentativos hasta que exista la aprobación (9) |
+| 6 | Propuestas de negociación | Falta | — | Documento de estrategia y argumentos para negociar a mano |
+| 7 | Recomendación de adjudicación | Falta | — | Siguiente incremento |
+| 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
+| 9 | Aprobaciones y bitácora | Parcial | Bitácora inmutable en `administracion` (pantalla Actividad) y en `negociacion` | La aprobación de la adjudicación (siguiente incremento) |
+| 10 | Tablero | Parcial | Gasto, contratos por vencer, proveedores en riesgo y ahorro potencial | Estado de las negociaciones y ahorro logrado |
+
+**Métricas medidas** (PRD §1.6):
+
+- Precio justo: MAPE del P50 de 8.3 % (meta ≤ 15 %). Puntuación: correlación de Spearman de
+  0.923 con la calidad oculta de los proveedores (meta ≥ 0.8). Ambas en
+  [`docs/qa/validacion-inteligencia.md`](docs/qa/validacion-inteligencia.md).
+- Negociación contra los bots, 74 sesiones: 81.1 % de acuerdos (meta ≥ 70 %), 16.5 % de ahorro
+  frente a la primera oferta (meta ≥ 8 %) y 0 acuerdos fuera de los límites del comprador
+  (meta 0), en [`docs/qa/simulacion-negociacion.md`](docs/qa/simulacion-negociacion.md).
+- Faltan el acierto de la adjudicación (meta ≥ 85 %) y las métricas del LLM (interpretación,
+  filtraciones y latencia), que dependen de N2.
+
+**Entregables del cronograma** (PRD §6.5):
+
+| # | Entregable | Estado |
+|---|---|---|
+| 1 | Documento de requerimientos | Hecho: el PRD |
+| 2 | Propuesta técnica | Falta (`docs/propuesta-tecnica.md`) |
+| 3 | Documento de arquitectura | Falta (`docs/arquitectura/`: C4 y ADRs) |
+| 4 | Plan del proyecto | Parcial: planes por incremento y plan del PRD (§6.6) |
+| 5 | Sistema funcional | En curso: este repositorio; falta publicar las imágenes en GHCR |
+| 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
+| 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
+
+**Lo siguiente** (replanificación del 15/10/2026, PRD §6.6.1): adjudicación y aprobación
+(capacidades 7 y 9) del 21/10 al 11/11. Después, solo si hay tiempo: el LLM (N2), las propuestas
+(6) y el simulador de escenarios (8).
+
 ## Requisitos
 
 - Docker Desktop (WSL 2 en Windows)
-- [uv](https://docs.astral.sh/uv/) y Node 24
+- [uv](https://docs.astral.sh/uv/)
+- Node 24, solo para desarrollar la SPA (la imagen del gateway la construye por su cuenta)
+
+Si `uv` no encuentra su Python administrado, indíquele la versión con `export UV_PYTHON=3.13`.
 
 ## Arranque rápido
+
+```bash
+uv run python infra/arrancar.py
+```
+
+El script se puede repetir sin dañar nada:
+
+1. copia `infra/.env` desde `infra/.env.example` si falta;
+2. genera los datos sintéticos en `datos/` si faltan;
+3. levanta el stack y espera a que esté sano;
+4. importa los datos;
+5. corre la prueba de humo (`infra/smoke_test.py`).
+
+Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
+`aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
+con usuario y contraseña. La prueba de humo deja un usuario `humo.prueba` desactivado, que
+reutiliza en cada corrida, y un servicio `HUMO-SERV` en el catálogo, que reactiva en cada corrida.
+
+Si su entorno ya existía antes de alguno de los servicios, siga
+[`docs/actualizar-entorno.md`](docs/actualizar-entorno.md).
+
+### Secretos de `infra/.env`
+
+Los valores de `infra/.env.example` solo sirven para desarrollo. Cada servicio con base propia usa
+dos contraseñas: la de la aplicación, con los permisos mínimos, y la del dueño de la base, que solo
+crea y migra tablas.
+
+| Variable | Para qué |
+|---|---|
+| `ADMINISTRACION_DB_PASSWORD` | El servicio `administracion` entra a su base: solo consulta e inserta en la bitácora |
+| `ADMINISTRACION_DUENO_DB_PASSWORD` | Dueño de la base de la administración |
+| `KEYCLOAK_ADMINISTRACION_SECRET` | Cliente de Keycloak con el que `administracion` gestiona usuarios y lee los inicios de sesión |
+| `INTELIGENCIA_DB_PASSWORD` | El servicio `inteligencia` entra a su base: consulta, inserta y actualiza su copia local; nunca borra |
+| `INTELIGENCIA_DUENO_DB_PASSWORD` | Dueño de la base de la inteligencia |
+| `NEGOCIACION_DB_PASSWORD` | El servicio `negociacion` entra a su base: nunca cambia ni borra la bitácora, los mensajes ni las ofertas |
+| `NEGOCIACION_DUENO_DB_PASSWORD` | Dueño de la base de la negociación |
+
+### Sin el script
 
 ```bash
 cp infra/.env.example infra/.env
@@ -22,198 +108,8 @@ docker compose -f infra/docker-compose.yml up -d --build --wait
 docker compose -f infra/docker-compose.yml exec proveedores python -m proveedores.importacion.cli /datos
 ```
 
-Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
-`aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
-con usuario y contraseña. Verificación automática: `uv run python infra/smoke_test.py`.
-La prueba de humo deja un usuario `humo.prueba` desactivado. Lo reutiliza en cada corrida.
-También deja un servicio `HUMO-SERV` en el catálogo, que reactiva en cada corrida.
-
-Los secretos van en `infra/.env` (cópielo desde `infra/.env.example`). Los de la administración son:
-
-- `ADMINISTRACION_DB_PASSWORD`: contraseña con la que el servicio `administracion` entra a su base
-  (solo puede consultar e insertar en la bitácora).
-- `ADMINISTRACION_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
-- `KEYCLOAK_ADMINISTRACION_SECRET`: secreto del cliente de Keycloak con el que `administracion`
-  gestiona usuarios y lee los inicios de sesión.
-
-Los de la inteligencia son:
-
-- `INTELIGENCIA_DB_PASSWORD`: contraseña con la que el servicio `inteligencia` entra a su base
-  (consulta, inserta y actualiza su copia local; nunca borra).
-- `INTELIGENCIA_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
-
-Los de la negociación son:
-
-- `NEGOCIACION_DB_PASSWORD`: contraseña con la que el servicio `negociacion` entra a su base
-  (nunca cambia ni borra la bitácora, los mensajes ni las ofertas).
-- `NEGOCIACION_DUENO_DB_PASSWORD`: contraseña del dueño de esa base, que solo crea y migra tablas.
-
-### Activar la administración en un entorno ya creado
-
-El volumen de PostgreSQL y el realm de Keycloak solo se inicializan la primera vez. Si su entorno
-ya existía antes de la administración, siga estos tres pasos, en este orden (en Git Bash, ejecute
-antes `export MSYS_NO_PATHCONV=1`).
-
-1. Agregue en `infra/.env` las tres variables de la administración (`ADMINISTRACION_DB_PASSWORD`,
-   `ADMINISTRACION_DUENO_DB_PASSWORD` y `KEYCLOAK_ADMINISTRACION_SECRET`). Defina también las dos
-   `INTELIGENCIA_*` y las dos `NEGOCIACION_*` (el `docker-compose.yml` las exige; vea las
-   secciones de la inteligencia y de la negociación, más abajo) y vuelva a crear PostgreSQL y
-   Keycloak para que las reciban:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d --wait postgres keycloak
-   ```
-
-2. Cree la base y configure Keycloak. Ambos comandos son idempotentes: puede repetirlos sin riesgo.
-   El primero crea la base y sus dos usuarios. El segundo configura en Keycloak el cliente, los
-   eventos, el correo y el tema.
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/20-administracion.sh
-   ```
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/configurar-administracion.sh
-   ```
-
-3. Levante el resto del stack. Antes del paso 2, este comando falla porque la base de
-   administración todavía no existe:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d --build --wait
-   ```
-
-### Activar la inteligencia en un entorno ya creado
-
-Si su entorno ya existía antes del servicio de inteligencia, siga estos pasos, en este orden (en
-Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
-
-1. Agregue en `infra/.env` las dos variables de la inteligencia (cópielas de `infra/.env.example`)
-   y vuelva a crear PostgreSQL para que las reciba:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d --wait postgres
-   ```
-
-2. Cree la base de la inteligencia y sus dos usuarios. El comando es idempotente:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/30-inteligencia.sh
-   ```
-
-3. Levante el resto del stack. El contenedor `rabbitmq-topologia` declara las colas y termina:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d --build --wait
-   ```
-
-4. Llene la copia local de la inteligencia con lo que ya estaba importado. Corra los dos comandos
-   en este orden: el primero vuelve a publicar todos los eventos guardados y el segundo publica el
-   estado actual del catálogo y del tipo de cambio. La instantánea va al final porque la copia se
-   queda con lo último que recibe: si fuera antes, los eventos viejos que repite `--todo` (por
-   ejemplo, el nombre de un servicio anterior a su última edición) la dejarían con datos
-   desactualizados. Los servicios ignoran lo que ya recibieron (la Actividad no se duplica), así
-   que repetirlos es seguro:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --todo
-   ```
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --instantanea
-   ```
-
-   Con el dataset por defecto, la copia tarda de uno a dos minutos en llenarse, según el equipo.
-   Espere a que termine antes de correr la prueba de humo o de usar la plataforma: abra la consola
-   de RabbitMQ (<http://localhost:15672>, usuario `plataforma` y la contraseña `RABBITMQ_PASSWORD`
-   de `infra/.env`) y, en *Queues*, espere a que la cola `inteligencia.eventos` muestre 0 mensajes
-   listos (*Ready*) y deje de recibir mensajes nuevos. Después, el modelo de precios se entrena
-   solo.
-
-### Activar la negociación en un entorno ya creado
-
-Si su entorno ya existía antes del servicio de negociación, siga estos pasos, en este orden (en
-Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
-
-1. Agregue en `infra/.env` las dos variables de la negociación (cópielas de `infra/.env.example`)
-   y vuelva a crear PostgreSQL para que las reciba:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d --wait postgres
-   ```
-
-2. Cree la base de la negociación y sus dos usuarios. El comando es idempotente:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T postgres bash /docker-entrypoint-initdb.d/40-negociacion.sh
-   ```
-
-3. Levante el stack, construyendo la imagen nueva:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d --build --wait
-   ```
-
-4. Llene las copias de proveedores y servicios de la negociación con lo que ya estaba importado.
-   Corra los dos comandos en este orden: primero `--todo` y después `--instantanea`. Los demás
-   servicios ignoran lo que ya recibieron, así que repetirlos es seguro:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --todo
-   ```
-
-   ```bash
-   docker compose -f infra/docker-compose.yml exec -T proveedores python -m proveedores.reproceso --instantanea
-   ```
-
-5. Espere a que termine antes de correr la prueba de humo o de crear una negociación: abra la
-   consola de RabbitMQ (<http://localhost:15672>) y, en *Queues*, espere a que la cola
-   `negociacion.eventos` muestre 0 mensajes listos (*Ready*). La cola `negociacion.eventos.dlq`
-   debe quedar vacía.
-
-### Tema de inicio de sesión en un realm ya importado
-
-Keycloak importa el realm solo la primera vez. Si su volumen de PostgreSQL ya tenía el realm
-`plataforma`, aplique el tema de inicio de sesión una sola vez (no borra datos). Primero, en
-cualquier terminal:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d --wait keycloak
-```
-
-Después, este comando. Sirve igual en Git Bash y en PowerShell porque no lleva comillas dobles, y
-la contraseña viaja en la variable `KC_CLI_PASSWORD` dentro del contenedor: no aparece en la línea
-de comandos ni en la lista de procesos. En **Git Bash**, ejecute antes `export MSYS_NO_PATHCONV=1`;
-sin eso, Git Bash convierte `/opt/…` y `/tmp/…` en rutas de Windows y el comando falla.
-
-```bash
-docker compose -f infra/docker-compose.yml exec keycloak bash -c 'KC_CLI_PASSWORD=$KC_BOOTSTRAP_ADMIN_PASSWORD /opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8080/auth --realm master --user admin && /opt/keycloak/bin/kcadm.sh update realms/plataforma --config /tmp/kcadm.config -s loginTheme=plataforma'
-```
-
-**Sin línea de comandos**: abra <http://localhost:8080/auth/admin/>, entre como `admin` (contraseña
-`KEYCLOAK_ADMIN_PASSWORD` de `infra/.env`), elija el realm `plataforma` y vaya a
-*Realm settings → Themes → Login theme*, seleccione `plataforma` y guarde.
-
-### Quitar el OTP en un realm ya importado
-
-Las versiones anteriores pedían OTP a `admin1` y `aprobador1`. Si su realm se importó entonces,
-quíteselo una sola vez (solo retira la acción pendiente y la credencial OTP; no toca contraseñas
-ni otros datos). El comando funciona igual en PowerShell y en Git Bash (en Git Bash, ejecute antes
-`export MSYS_NO_PATHCONV=1`):
-
-```bash
-docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/data/import/quitar-otp.sh
-```
-
-**Sin línea de comandos**: en <http://localhost:8080/auth/admin/>, realm `plataforma` →
-*Users* → `admin1` → deje vacío *Required user actions* y, en *Credentials*, borre la de tipo
-`otp`; repita con `aprobador1`.
-
-### Notas para Windows (Git Bash)
-
-- Antes del último comando (`docker compose … exec … /datos`), ejecute `export MSYS_NO_PATHCONV=1`:
-  Git Bash convierte `/datos` en una ruta de Windows y la importación no encuentra la carpeta.
-- Si `uv` no encuentra su Python administrado, indíquele la versión con `export UV_PYTHON=3.13`.
+En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git Bash convierte
+`/datos` en una ruta de Windows y la importación no encuentra la carpeta.
 
 ## Desarrollo
 
@@ -271,7 +167,7 @@ docker compose -f infra/docker-compose.yml exec -T keycloak bash /opt/keycloak/d
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |
 
-## Limitaciones conocidas (Incremento 1)
+## Limitaciones conocidas
 
 - **Mensajes fallidos sin pantalla propia.** Un evento que falla 5 veces queda en la cola
   `<cola>.dlq` y el Estado del sistema lo avisa, pero todavía no hay una pantalla para revisarlo
