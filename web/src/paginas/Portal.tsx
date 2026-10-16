@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryKey,
+} from "@tanstack/react-query"
 import { CircleOff, Handshake, Link2Off, Send, UserRound } from "lucide-react"
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
 import { ErrorApi, erroresPorCampo } from "@/api"
@@ -26,11 +31,14 @@ import {
   crearClaves,
   esFinal,
   type Autor,
+  type MensajePortal,
   type Valores,
   type VistaPortal,
 } from "@/negociacion"
 import { pedirPortal, tomarToken } from "@/portal"
 
+// Cada enlace tiene su vista: con `["portal", version]` una oferta que sigue en vuelo del enlace
+// anterior no puede escribir en la del nuevo. `["portal"]` es el prefijo común para borrarlas todas.
 const CLAVE = ["portal"]
 
 /** Cómo se llama a cada autor en la conversación que ve el proveedor. */
@@ -77,7 +85,11 @@ export function Portal() {
         className="mx-auto max-w-3xl space-y-6 px-4 py-6 outline-hidden"
       >
         {enlace.token ? (
-          <SesionPortal key={enlace.version} token={enlace.token} />
+          <SesionPortal
+            key={enlace.version}
+            token={enlace.token}
+            clave={[...CLAVE, enlace.version]}
+          />
         ) : (
           <EnlaceInvalido />
         )}
@@ -105,12 +117,15 @@ function enlaceRechazado(error: unknown): boolean {
   return error instanceof ErrorApi && error.estado === 401
 }
 
-function SesionPortal({ token }: { token: string }) {
+function SesionPortal({ token, clave }: { token: string; clave: QueryKey }) {
   const consulta = useQuery({
-    queryKey: CLAVE,
+    queryKey: clave,
     queryFn: () => pedirPortal<VistaPortal>("/sesion", token),
     // Un enlace rechazado (401) no se reenvía: no se reintenta ni se sigue consultando con él.
     retry: (fallos, error) => fallos < 1 && !enlaceRechazado(error),
+    // Ni al volver a la pestaña ni al recuperar la red: el enlace rechazado no se vuelve a probar.
+    refetchOnWindowFocus: (q) => !enlaceRechazado(q.state.error),
+    refetchOnReconnect: (q) => !enlaceRechazado(q.state.error),
     // Mientras atiende una persona, su respuesta llega sin que el proveedor envíe nada.
     refetchInterval: (q) => {
       const vista = q.state.data
@@ -148,12 +163,37 @@ function SesionPortal({ token }: { token: string }) {
       >
         {aviso}
       </p>
+      <AnuncioDeCompras mensajes={vista.mensajes} />
       <Resumen vista={vista} />
       <Seccion titulo="Conversación">
         <ConversacionPortal vista={vista} />
       </Seccion>
-      {!esFinal(vista.estado) && <Ofertar token={token} vista={vista} />}
+      {!esFinal(vista.estado) && (
+        <Ofertar token={token} clave={clave} vista={vista} />
+      )}
     </>
+  )
+}
+
+/**
+ * Anuncia la respuesta de una persona del equipo de compras que llega mientras la página está
+ * abierta (la página se actualiza sola); lo que ya estaba al abrirla no se anuncia.
+ */
+function AnuncioDeCompras({ mensajes }: { mensajes: MensajePortal[] }) {
+  const total = mensajes.filter((m) => m.autor === "comprador").length
+  const [alAbrir] = useState(total)
+  const texto =
+    total > alAbrir
+      ? `Le respondió el equipo de compras (mensaje ${total}).`
+      : ""
+  return (
+    <p
+      role="status"
+      aria-atomic="true"
+      className={texto ? "text-sm text-muted-foreground" : "sr-only"}
+    >
+      {texto}
+    </p>
   )
 }
 
@@ -268,7 +308,15 @@ function enfocarContenido() {
 
 type Oferta = { valores: Valores; nota: string; confirmar_valores: boolean }
 
-function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
+function Ofertar({
+  token,
+  clave,
+  vista,
+}: {
+  token: string
+  clave: QueryKey
+  vista: VistaPortal
+}) {
   const cliente = useQueryClient()
   const id = useId()
   const enviarBoton = useRef<HTMLButtonElement>(null)
@@ -300,10 +348,10 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
       error instanceof ErrorApi &&
       (error.estado === 401 || error.estado === 409)
     )
-      void cliente.invalidateQueries({ queryKey: CLAVE }).then(() => {
+      void cliente.invalidateQueries({ queryKey: clave }).then(() => {
         // Si terminó o el enlace venció, el formulario (y el botón que tenía el foco) desaparece.
-        const vista = cliente.getQueryData<VistaPortal>(CLAVE)
-        const rechazado = enlaceRechazado(cliente.getQueryState(CLAVE)?.error)
+        const vista = cliente.getQueryData<VistaPortal>(clave)
+        const rechazado = enlaceRechazado(cliente.getQueryState(clave)?.error)
         if (rechazado || (vista && esFinal(vista.estado))) enfocarContenido()
       })
   }
@@ -322,7 +370,7 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
     },
     onSuccess: (nueva) => {
       claves.olvidar()
-      cliente.setQueryData(CLAVE, nueva)
+      cliente.setQueryData(clave, nueva)
       setConfirmo(false)
       // Si la oferta cerró la negociación, el formulario desaparece con el botón que tenía el foco.
       if (esFinal(nueva.estado)) enfocarContenido()
@@ -347,18 +395,33 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
       }),
     onSuccess: (nueva) => {
       clavesEscalar.olvidar()
-      cliente.setQueryData(CLAVE, nueva)
+      cliente.setQueryData(clave, nueva)
       setAviso("Avisamos al equipo de compras; una persona le responderá aquí.")
     },
     onError: alFallar,
   })
   const errores = erroresPorCampo(ofertar.error)
+  // Los errores de campo que ningún control muestra van en el aviso de abajo.
+  const mostrados = new Set([
+    "nota",
+    ...vista.lineas.map((l) => `valores.precios.${l.id}`),
+    ...vista.palancas.map((p) => `valores.palancas.${p.clave}`),
+  ])
+  const generales = Object.entries(errores).filter(
+    ([campo]) => !mostrados.has(campo)
+  )
+  // `ultima_propuesta` puede venir del agente o de una persona del equipo de compras.
+  const autorPropuesta =
+    vista.mensajes.findLast((m) => m.oferta && m.autor !== "proveedor")
+      ?.autor === "comprador"
+      ? "equipo de compras"
+      : "agente"
 
   function aceptarPropuesta() {
     if (!vista.ultima_propuesta) return
     setValores(vista.ultima_propuesta)
     setAviso(
-      "Llenamos el formulario con la propuesta del agente. Revísela y pulse «Enviar oferta» para aceptarla."
+      `Llenamos el formulario con la propuesta del ${autorPropuesta}. Revísela y pulse «Enviar oferta» para aceptarla.`
     )
     enviarBoton.current?.focus()
   }
@@ -376,7 +439,7 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
   return (
     <>
       {vista.ultima_propuesta && (
-        <Seccion titulo="Última propuesta del agente">
+        <Seccion titulo={`Última propuesta del ${autorPropuesta}`}>
           <div className="space-y-3">
             <ValoresOferta
               valores={vista.ultima_propuesta}
@@ -466,9 +529,16 @@ function Ofertar({ token, vista }: { token: string; vista: VistaPortal }) {
             {aviso}
           </p>
           {ofertar.isError && (
-            <p role="alert" className="text-sm text-destructive">
-              {ofertar.error.message}
-            </p>
+            <div role="alert" className="text-sm text-destructive">
+              <p>{ofertar.error.message}</p>
+              {generales.length > 0 && (
+                <ul className="list-disc pl-5">
+                  {generales.map(([campo, mensaje]) => (
+                    <li key={campo}>{mensaje}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
           {escalar.isError && (
             <p role="alert" className="text-sm text-destructive">

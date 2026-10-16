@@ -104,6 +104,19 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
     },
   })
   const errores = erroresPorCampo(responder.error)
+  // Los errores de campo que ningún control muestra van en el aviso de abajo.
+  const mostrados = new Set([
+    "texto",
+    ...(conContraoferta
+      ? [
+          ...datos.lineas.map((l) => `contraoferta.precios.${l.id}`),
+          ...palancas.map((p) => `contraoferta.palancas.${p.clave}`),
+        ]
+      : []),
+  ])
+  const generales = Object.entries(errores).filter(
+    ([campo]) => !mostrados.has(campo)
+  )
   const fueraDeLimites =
     responder.error instanceof ErrorApi &&
     responder.error.codigo === "fuera_de_limites"
@@ -208,9 +221,16 @@ export function RespuestaManual({ datos }: { datos: SesionDetalle }) {
           {aviso}
         </p>
         {responder.isError && !fueraDeLimites && (
-          <p role="alert" className="text-sm text-destructive">
-            {responder.error.message}
-          </p>
+          <div role="alert" className="text-sm text-destructive">
+            <p>{responder.error.message}</p>
+            {generales.length > 0 && (
+              <ul className="list-disc pl-5">
+                {generales.map(([campo, mensaje]) => (
+                  <li key={campo}>{mensaje}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </form>
       <AlertDialog

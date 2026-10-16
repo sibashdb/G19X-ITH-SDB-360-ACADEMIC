@@ -563,9 +563,10 @@ describe("respuesta manual", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Enviar respuesta" })
     )
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Revise los campos indicados."
-    )
+    const alerta = await screen.findByRole("alert")
+    expect(alerta).toHaveTextContent("Revise los campos indicados.")
+    // El mensaje del campo que ningún control muestra no se pierde.
+    expect(alerta).toHaveTextContent("Escriba el mensaje para el proveedor.")
   })
 
   it("al enviar un mensaje con Enter desde un precio el foco vuelve al mensaje", async () => {

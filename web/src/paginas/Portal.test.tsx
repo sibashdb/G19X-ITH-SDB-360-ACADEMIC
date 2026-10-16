@@ -1,4 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  focusManager,
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query"
 import {
   act,
   cleanup,
@@ -16,6 +21,7 @@ import {
   esperarSinViolaciones,
   llamadaA,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularRutas,
 } from "@/pruebas/utilidades"
@@ -75,6 +81,22 @@ const VISTA = {
     precios: { l1: "98.00" },
     palancas: { plazo_pago_dias: "45" },
   },
+}
+
+const DE_COMPRAS = {
+  autor: "comprador",
+  texto: "Le proponemos esto.",
+  ronda: 1,
+  fecha: "2026-10-14T18:20:00Z",
+  oferta: { precios: { l1: "95.00" }, palancas: { plazo_pago_dias: "30" } },
+}
+
+/** Una persona del equipo de compras ya respondió con una contraoferta. */
+const ATENDIDA_POR_PERSONA = {
+  ...VISTA,
+  atendido_por: "persona",
+  mensajes: [...VISTA.mensajes, DE_COMPRAS],
+  ultima_propuesta: DE_COMPRAS.oferta,
 }
 
 function abrirCon(token = "tok-123") {
@@ -249,14 +271,21 @@ describe("Portal", () => {
   it("«Aceptar esta propuesta» llena el formulario y deja el foco en «Enviar oferta»", async () => {
     simularRutas({ [`GET ${SESION}`]: () => respuestaJson(VISTA) })
     abrirCon()
+    expect(
+      await screen.findByRole("heading", {
+        name: "Última propuesta del agente",
+      })
+    ).toBeInTheDocument()
     await userEvent.click(
-      await screen.findByRole("button", { name: "Aceptar esta propuesta" })
+      screen.getByRole("button", { name: "Aceptar esta propuesta" })
     )
     expect(screen.getByLabelText("Precio de Correo en la nube")).toHaveValue(98)
     expect(screen.getByLabelText("Plazo de pago (días)")).toHaveValue(45)
     expect(screen.getByRole("button", { name: "Enviar oferta" })).toHaveFocus()
     expect(
-      screen.getByText(/Revísela y pulse «Enviar oferta» para aceptarla/)
+      screen.getByText(
+        "Llenamos el formulario con la propuesta del agente. Revísela y pulse «Enviar oferta» para aceptarla."
+      )
     ).toBeInTheDocument()
   })
 
@@ -557,9 +586,10 @@ describe("Portal", () => {
     )
     await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
     await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Revise los campos indicados."
-    )
+    const alerta = await screen.findByRole("alert")
+    expect(alerta).toHaveTextContent("Revise los campos indicados.")
+    // El mensaje del campo que ningún control muestra no se pierde.
+    expect(alerta).toHaveTextContent("La nota no puede ir en blanco.")
   })
 
   it("un enlace nuevo pegado en la misma pestaña reemplaza al anterior sin recargar", async () => {
@@ -673,11 +703,151 @@ describe("Portal", () => {
     await userEvent.click(nota)
     expect(nota).toHaveFocus()
     act(() => {
-      cliente.setQueryData(["portal"], { ...VISTA, atendido_por: "persona" })
+      cliente.setQueryData(["portal", 0], {
+        ...VISTA,
+        atendido_por: "persona",
+      })
     })
     expect(
       await screen.findByText("Le atiende una persona")
     ).toBeInTheDocument()
     expect(nota).toHaveFocus()
+  })
+
+  it("tras un 401 no vuelve a consultar al volver a la pestaña ni al recuperar la conexión", async () => {
+    const api = simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(RECHAZADO, 401),
+    })
+    abrirCon()
+    expect(
+      await screen.findByText("El enlace no es válido o ya venció")
+    ).toBeInTheDocument()
+    try {
+      await act(async () => {
+        focusManager.setFocused(false)
+        focusManager.setFocused(true)
+        onlineManager.setOnline(false)
+        onlineManager.setOnline(true)
+        await new Promise((resolver) => setTimeout(resolver, 50))
+      })
+    } finally {
+      focusManager.setFocused(undefined)
+    }
+    expect(api.mock.calls.filter(([url]) => url === SESION)).toHaveLength(1)
+  })
+
+  it("la respuesta tardía de una oferta del enlace anterior no pisa la vista del enlace nuevo", async () => {
+    const NUEVA = {
+      ...VISTA,
+      titulo: "Servidores 2027",
+      folio: "NEG-2026-0002",
+    }
+    const oferta = respuestaDiferida()
+    const api = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+      (url, init) => {
+        if (url === OFERTAS) return oferta.promesa
+        const nuevo =
+          new Headers(init?.headers).get("Authorization") === "Invitacion nuevo"
+        return Promise.resolve(
+          url === SESION
+            ? respuestaJson(nuevo ? NUEVA : VISTA)
+            : new Response("", { status: 404 })
+        )
+      }
+    )
+    vi.stubGlobal("fetch", api)
+    abrirCon("viejo")
+    await userEvent.type(
+      await screen.findByLabelText("Precio de Correo en la nube"),
+      "100"
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    await waitFor(() =>
+      expect(api.mock.calls.some(([url]) => url === OFERTAS)).toBe(true)
+    )
+    window.location.hash = "#t=nuevo"
+    expect(
+      await screen.findByRole("heading", { name: "Servidores 2027" })
+    ).toBeInTheDocument()
+    // La oferta del enlace anterior termina cuando ya se ve el nuevo.
+    await act(async () => {
+      oferta.resolver(respuestaJson(VISTA))
+      await new Promise((resolver) => setTimeout(resolver, 50))
+    })
+    expect(
+      screen.getByRole("heading", { name: "Servidores 2027" })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Licencias de correo 2027" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("no anuncia las respuestas del equipo de compras que ya estaban al abrir la página", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const api = simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(ATENDIDA_POR_PERSONA),
+    })
+    abrirCon()
+    await screen.findByText("Le atiende una persona")
+    await vi.advanceTimersByTimeAsync(3100)
+    await waitFor(() =>
+      expect(api.mock.calls.filter(([url]) => url === SESION)).toHaveLength(2)
+    )
+    expect(
+      screen.queryByText(/Le respondió el equipo de compras/)
+    ).not.toBeInTheDocument()
+  })
+
+  it("anuncia la respuesta del equipo de compras que llega mientras la página está abierta", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let consultas = 0
+    simularRutas({
+      [`GET ${SESION}`]: () => {
+        consultas += 1
+        return respuestaJson(
+          consultas === 1
+            ? ATENDIDA_POR_PERSONA
+            : {
+                ...ATENDIDA_POR_PERSONA,
+                mensajes: [
+                  ...ATENDIDA_POR_PERSONA.mensajes,
+                  { ...DE_COMPRAS, texto: "Una segunda respuesta." },
+                ],
+              }
+        )
+      },
+    })
+    abrirCon()
+    await screen.findByText("Le atiende una persona")
+    await vi.advanceTimersByTimeAsync(3100)
+    const anuncio = await screen.findByText(
+      "Le respondió el equipo de compras (mensaje 2)."
+    )
+    expect(anuncio).toHaveAttribute("role", "status")
+    expect(anuncio).toHaveAttribute("aria-atomic", "true")
+  })
+
+  it("la propuesta de una persona del equipo de compras se presenta como tal", async () => {
+    simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(ATENDIDA_POR_PERSONA),
+    })
+    abrirCon()
+    expect(
+      await screen.findByRole("heading", {
+        name: "Última propuesta del equipo de compras",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Última propuesta del agente" })
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Aceptar esta propuesta" })
+    )
+    expect(
+      screen.getByText(
+        "Llenamos el formulario con la propuesta del equipo de compras. Revísela y pulse «Enviar oferta» para aceptarla."
+      )
+    ).toBeInTheDocument()
   })
 })
