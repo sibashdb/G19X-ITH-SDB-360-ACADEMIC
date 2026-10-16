@@ -371,7 +371,7 @@ export function EditorBorrador({
             <Termino clave="limite">límite</Termino> del precio unitario. La
             banda <Termino clave="percentiles" /> es la referencia del mercado
             {evento.referencia_fecha
-              ? ` del ${formatoFechaHora(evento.referencia_fecha)}`
+              ? ` (consultada el ${formatoFechaHora(evento.referencia_fecha)})`
               : ""}
             .
           </>

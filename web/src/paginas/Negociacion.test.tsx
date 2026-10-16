@@ -236,6 +236,10 @@ describe("Negociacion en borrador", () => {
     expect(
       screen.getByText(formatoMoneda("104.0000", "MXN"))
     ).toBeInTheDocument()
+    // La hora termina en «p.m.»: entre paréntesis no queda un punto doble.
+    expect(container.textContent).toMatch(
+      /referencia del mercado \(consultada el [^)]+\)\./
+    )
     await esperarSinViolaciones(container)
   })
 
