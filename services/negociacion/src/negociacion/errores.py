@@ -13,6 +13,10 @@ def invalido(campo: str, mensaje: str, codigo: str) -> ErrorDominio:
     return invalidos([{"campo": campo, "mensaje": mensaje}], codigo)
 
 
+def prohibido(detalle: str, codigo: str) -> ErrorDominio:
+    return ErrorDominio(403, "Sin permiso", detalle, {"codigo": codigo})
+
+
 def no_existe(detalle: str) -> ErrorDominio:
     return ErrorDominio(404, "No encontrado", detalle)
 

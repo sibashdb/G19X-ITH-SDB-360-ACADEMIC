@@ -36,7 +36,15 @@ Titulo = Annotated[
 Cantidad = Annotated[Decimal, Field(gt=0, le=10_000_000, decimal_places=4)]
 Estilo = Literal["firme", "balanceado", "flexible"]
 TipoEvento = Literal["compra", "renovacion"]
-EstadoEvento = Literal["borrador", "abierto", "en_evaluacion", "cancelado"]
+EstadoEvento = Literal[
+    "borrador",
+    "abierto",
+    "en_evaluacion",
+    "pendiente_aprobacion",
+    "adjudicado",
+    "desierto",
+    "cancelado",
+]
 
 
 class LineaNueva(BaseModel):
@@ -225,8 +233,17 @@ class PaginaEventos(BaseModel):
     elementos: list[EventoResumen]
 
 
+Motivo = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+
 class Cancelacion(BaseModel):
-    motivo: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    motivo: Motivo
+
+
+class MotivoDecision(BaseModel):
+    """El motivo de rechazar una propuesta o de declarar desierta la negociación."""
+
+    motivo: Motivo
 
 
 class EnlaceSalida(BaseModel):
@@ -404,6 +421,14 @@ class AdjudicacionSalida(BaseModel):
     decidida_en: datetime | None
     motivo_rechazo: str | None
     contrato_folio: str | None
+
+
+class Propuesta(BaseModel):
+    """Lo que manda el comprador al proponer una adjudicación."""
+
+    sesion_id: uuid.UUID  # la elegida
+    pesos: str | None = None  # "40,30,15,15", como en la consulta de la evaluación
+    justificacion: str | None = None  # obligatoria si no es la recomendada (10 a 1,000 caracteres)
 
 
 class Evaluacion(BaseModel):

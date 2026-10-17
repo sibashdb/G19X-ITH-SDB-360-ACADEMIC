@@ -48,6 +48,7 @@ def _config(request: Request) -> Configuracion:
 Bd = Annotated[AsyncSession, Depends(obtener_sesion)]
 Lector = Annotated[Usuario, Depends(requiere_rol(*ROLES_INTERNOS))]
 Comprador = Annotated[Usuario, Depends(requiere_rol("comprador"))]
+Aprobador = Annotated[Usuario, Depends(requiere_rol("aprobador"))]
 TokenUsuario = Annotated[str, Depends(_token)]
 Reloj = Annotated[Callable[[], datetime], Depends(_reloj)]
 Integ = Annotated[Integraciones, Depends(_integraciones)]

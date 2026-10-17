@@ -16,10 +16,19 @@ ESPERADAS = {
     ("PATCH", "/eventos/{evento_id}"),
     ("POST", "/eventos/{evento_id}/publicar"),
     ("POST", "/eventos/{evento_id}/cancelar"),
+    ("POST", "/eventos/{evento_id}/adjudicacion"),
+    ("POST", "/eventos/{evento_id}/adjudicacion/aprobar"),
+    ("POST", "/eventos/{evento_id}/adjudicacion/rechazar"),
+    ("POST", "/eventos/{evento_id}/desierta"),
     ("POST", "/sesiones/{sesion_id}/invitacion"),
     ("GET", "/sesiones/{sesion_id}"),
     ("POST", "/sesiones/{sesion_id}/control"),
     ("POST", "/sesiones/{sesion_id}/respuestas"),
+}
+# Las únicas rutas que decide el aprobador; el comprador y el administrador no entran.
+DEL_APROBADOR = {
+    ("POST", "/eventos/{evento_id}/adjudicacion/aprobar"),
+    ("POST", "/eventos/{evento_id}/adjudicacion/rechazar"),
 }
 
 
@@ -28,6 +37,8 @@ async def test_las_rutas_del_comprador_exigen_su_rol(
 ) -> None:
     externo = {"Authorization": f"Bearer {claves.token('proveedor')}"}
     aprobador = {"Authorization": f"Bearer {claves.token('aprobador')}"}
+    comprador = {"Authorization": f"Bearer {claves.token('comprador')}"}
+    admin = {"Authorization": f"Bearer {claves.token('admin')}"}
     # app.routes no aplana los routers incluidos: se recorre el esquema OpenAPI.
     rutas = [
         (metodo.upper(), ruta)
@@ -42,7 +53,13 @@ async def test_las_rutas_del_comprador_exigen_su_rol(
         assert sin_token.status_code == 401, (metodo, plantilla)
         de_externo = await cliente.request(metodo, ruta, headers=externo)
         assert de_externo.status_code == 403, (metodo, plantilla)
-        if metodo != "GET":  # aprobador y admin solo consultan
+        if (metodo, plantilla) in DEL_APROBADOR:  # solo el aprobador decide
+            for otro in (comprador, admin):
+                de_otro = await cliente.request(metodo, ruta, headers=otro)
+                assert de_otro.status_code == 403, (metodo, plantilla)
+            de_aprobador = await cliente.request(metodo, ruta, headers=aprobador)
+            assert de_aprobador.status_code not in (401, 403), (metodo, plantilla)
+        elif metodo != "GET":  # aprobador y admin solo consultan
             de_aprobador = await cliente.request(metodo, ruta, headers=aprobador)
             assert de_aprobador.status_code == 403, (metodo, plantilla)
 
