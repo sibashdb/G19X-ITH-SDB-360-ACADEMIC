@@ -10,6 +10,7 @@ from pydantic import (
     AfterValidator,
     AwareDatetime,
     BaseModel,
+    ConfigDict,
     Field,
     StringConstraints,
     model_validator,
@@ -378,3 +379,36 @@ class SesionDetalle(BaseModel):
     palancas: list[PalancaDetalle]
     mensajes: list[MensajeDetalle]
     ofertas: list[OfertaDetalle]
+
+
+class AdjudicacionSalida(BaseModel):
+    """Una propuesta de adjudicación; `recomendacion` es la foto de inteligencia al proponer."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    sesion_id: uuid.UUID  # la elegida
+    propuesta_por_id: str
+    propuesta_por_nombre: str
+    propuesta_en: datetime
+    recomendada_sesion_id: uuid.UUID
+    se_aparta: bool
+    justificacion: str | None
+    costo_total: Decimal  # en la moneda del evento
+    costo_total_mxn: Decimal
+    requiere_aprobacion: bool
+    motivo_aprobacion: list[str]
+    recomendacion: dict[str, Any]
+    estado: str
+    decidida_por_nombre: str | None
+    decidida_en: datetime | None
+    motivo_rechazo: str | None
+    contrato_folio: str | None
+
+
+class Evaluacion(BaseModel):
+    """Los acuerdos evaluados: la recomendación de hoy, la propuesta vigente y las rechazadas."""
+
+    recomendacion: dict[str, Any] | None  # la respuesta de inteligencia; None sin acuerdos
+    vigente: AdjudicacionSalida | None  # pendiente, aprobada o directa
+    historial: list[AdjudicacionSalida]  # las rechazadas, de la más reciente a la más antigua

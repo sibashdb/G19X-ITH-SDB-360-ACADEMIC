@@ -1,7 +1,7 @@
 """Consultas a inteligencia y a proveedores con el token del comprador (spec D5).
 
-Solo se usan al crear o editar un borrador; los turnos nunca llaman a otros servicios, así que una
-negociación se reproduce aunque cambie el benchmark.
+Se usan al crear o editar un borrador y al evaluar los acuerdos para adjudicar; los turnos nunca
+llaman a otros servicios, así que una negociación se reproduce aunque cambie el benchmark.
 """
 
 import logging
@@ -115,6 +115,24 @@ def _falla(respuesta: httpx.Response) -> ErrorDominio:
     return no_disponible()
 
 
+def _revisar_recomendacion(datos: Any, pedidos: list[str]) -> None:
+    """Lanza ValueError (o KeyError/TypeError) si la respuesta no es la recomendación de esos
+    candidatos: los mismos ids, un recomendado entre ellos y montos finitos y positivos."""
+    candidatos = datos["candidatos"]
+    if sorted(c["id"] for c in candidatos) != sorted(pedidos):
+        raise ValueError("los candidatos no son los pedidos")
+    if datos["recomendado"] not in pedidos:
+        raise ValueError("el recomendado no es un candidato")
+    for candidato in candidatos:
+        for campo in ("costo_total", "costo_total_mxn"):
+            monto = Decimal(str(candidato[campo]))
+            if not monto.is_finite() or monto <= 0:
+                raise ValueError(f"{campo} no es un monto positivo")
+    umbral = Decimal(str(datos["umbral_aprobacion"]))
+    if not umbral.is_finite() or umbral < 0 or not isinstance(datos["pesos"], dict):
+        raise ValueError("faltan los pesos o el umbral")
+
+
 class Integraciones:
     def __init__(
         self, http: httpx.AsyncClient, inteligencia_url: str, proveedores_url: str
@@ -123,15 +141,14 @@ class Integraciones:
         self._inteligencia = inteligencia_url.rstrip("/")
         self._proveedores = proveedores_url.rstrip("/")
 
-    async def _get(
-        self, url: str, token: str, params: dict[str, str] | None = None
-    ) -> httpx.Response:
+    async def _pedir(self, metodo: str, url: str, token: str, **opciones: Any) -> httpx.Response:
         try:
-            return await self._http.get(
+            return await self._http.request(
+                metodo,
                 url,
-                params=params,
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=TIEMPO_ESPERA_S,
+                **opciones,
             )
         except httpx.HTTPError as exc:
             log.warning("No respondió %s: %r", url, exc)
@@ -141,10 +158,11 @@ class Integraciones:
         self, token: str, codigo: str, cantidad: Decimal, plazo: int
     ) -> dict[str, Any] | None:
         """P25/P50/P75 y su origen para esa cantidad y plazo; None si no hay referencia."""
-        respuesta = await self._get(
+        respuesta = await self._pedir(
+            "GET",
             f"{self._inteligencia}/precios/servicios/{codigo}/referencia",
             token,
-            {"cantidad": str(cantidad), "plazo": str(plazo)},
+            params={"cantidad": str(cantidad), "plazo": str(plazo)},
         )
         if respuesta.status_code == 404 and _sin_observaciones(respuesta):
             return None  # sin contratos recientes: el servicio existe pero no hay referencia
@@ -164,8 +182,8 @@ class Integraciones:
     async def contrato(
         self, token: str, proveedor_id: uuid.UUID, contrato_id: uuid.UUID
     ) -> ContratoVigente:
-        respuesta = await self._get(
-            f"{self._proveedores}/proveedores/{proveedor_id}/contratos", token
+        respuesta = await self._pedir(
+            "GET", f"{self._proveedores}/proveedores/{proveedor_id}/contratos", token
         )
         if respuesta.status_code == 404:
             raise invalido("proveedor_id", "El proveedor no existe.", "proveedor_inexistente")
@@ -179,3 +197,23 @@ class Integraciones:
             log.warning("Respuesta mal formada de %s: %r", respuesta.url.path, exc)
             raise no_disponible() from exc
         raise invalido("contrato_id", "El contrato no es de ese proveedor.", "contrato_inexistente")
+
+    async def recomendacion(self, token: str, cuerpo: dict[str, Any]) -> dict[str, Any]:
+        """La recomendación de adjudicación de inteligencia para los candidatos del cuerpo.
+
+        Cualquier falla (un código que no es 200, incluidos su 409 y su 422, el tiempo agotado o
+        una respuesta que no corresponde a lo pedido) es un 503: nunca se inventa una
+        recomendación ni un costo de 0.
+        """
+        respuesta = await self._pedir(
+            "POST", f"{self._inteligencia}/adjudicacion/recomendacion", token, json=cuerpo
+        )
+        if respuesta.status_code != 200:
+            raise _falla(respuesta)
+        try:
+            datos = respuesta.json()
+            _revisar_recomendacion(datos, [c["id"] for c in cuerpo["candidatos"]])
+        except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+            log.warning("Respuesta mal formada de %s: %r", respuesta.url.path, exc)
+            raise no_disponible() from exc
+        return dict(datos)
