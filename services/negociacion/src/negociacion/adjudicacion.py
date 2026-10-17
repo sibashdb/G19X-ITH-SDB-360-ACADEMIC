@@ -17,6 +17,15 @@ from negociacion.modelos import Adjudicacion, Evento, SesionNegociacion
 ESTADOS_EVALUACION = ("en_evaluacion", "pendiente_aprobacion", "adjudicado", "desierto")
 CRITERIOS = ("costo", "desempeno", "riesgo", "sla")  # el orden de `?pesos=40,30,15,15`
 VIGENTES = ("pendiente", "aprobada", "directa")
+ETIQUETAS_ESTADO = {
+    "borrador": "borrador",
+    "abierto": "abierto",
+    "en_evaluacion": "en evaluación",
+    "pendiente_aprobacion": "pendiente de aprobación",
+    "adjudicado": "adjudicado",
+    "desierto": "desierto",
+    "cancelado": "cancelado",
+}
 ENTERO = re.compile(r"[0-9]{1,3}")
 PESOS_INVALIDOS = (
     "Indique los pesos como cuatro enteros de 0 a 100 que sumen 100, en el orden costo, "
@@ -31,16 +40,18 @@ def pesos_de(texto: str | None) -> dict[str, int] | None:
     partes = texto.split(",")
     if len(partes) == len(CRITERIOS) and all(ENTERO.fullmatch(parte) for parte in partes):
         pesos = dict(zip(CRITERIOS, map(int, partes), strict=True))
-        if max(pesos.values()) <= 100 and sum(pesos.values()) == 100:
+        if sum(pesos.values()) == 100:  # sin signo y sumando 100, ninguno pasa de 100
             return pesos
     raise invalido("pesos", PESOS_INVALIDOS, "pesos_invalidos")
 
 
 def exigir_estado(evento: Evento, *estados: str) -> None:
+    """409 `estado_invalido` si el evento no está en uno de esos estados; dice cuál tiene."""
     if evento.estado not in estados:
+        permitidos = ", ".join(ETIQUETAS_ESTADO.get(estado, estado) for estado in estados)
+        actual = ETIQUETAS_ESTADO.get(evento.estado, evento.estado)
         raise conflicto(
-            f"La negociación está en estado «{evento.estado}»; esta acción solo procede en: "
-            f"{', '.join(estados)}.",
+            f"La negociación está en estado «{actual}»; esta acción solo procede en: {permitidos}.",
             "estado_invalido",
         )
 
@@ -89,6 +100,16 @@ async def candidatos(bd: AsyncSession, evento: Evento) -> list[dict[str, Any]]:
     return resultado
 
 
+async def peticion_de(
+    bd: AsyncSession, evento: Evento, pesos: dict[str, int] | None
+) -> dict[str, Any]:
+    """El cuerpo de la consulta a inteligencia: los acuerdos de hoy y, si se dieron, los pesos."""
+    cuerpo: dict[str, Any] = {"moneda": evento.moneda, "candidatos": await candidatos(bd, evento)}
+    if pesos is not None:
+        cuerpo["pesos"] = pesos
+    return cuerpo
+
+
 async def evaluar(
     bd: AsyncSession,
     integ: Integraciones,
@@ -97,11 +118,12 @@ async def evaluar(
     pesos: dict[str, int] | None,
 ) -> dict[str, Any]:
     """La recomendación de inteligencia para los acuerdos de hoy, con los pesos dados o, sin
-    ellos, los configurados. Si inteligencia falla, 503."""
-    cuerpo: dict[str, Any] = {"moneda": evento.moneda, "candidatos": await candidatos(bd, evento)}
-    if pesos is not None:
-        cuerpo["pesos"] = pesos
-    return await integ.recomendacion(token, cuerpo)
+    ellos, los configurados. Si inteligencia falla, 503.
+
+    Usa la transacción que tenga `bd`: quien la llame con el evento bloqueado lo conserva así
+    durante la consulta.
+    """
+    return await integ.recomendacion(token, await peticion_de(bd, evento, pesos))
 
 
 async def propuestas(
@@ -127,20 +149,24 @@ async def evaluacion(
     evento_id: uuid.UUID,
     pesos: dict[str, int] | None,
 ) -> esquemas.Evaluacion:
-    evento = await consultas.evento_o_404(bd, evento_id)
-    exigir_estado(evento, *ESTADOS_EVALUACION)
-    recomendacion = None
-    if evento.estado != "desierto":
+    """La recomendación de hoy, la propuesta vigente y las rechazadas de un evento.
+
+    Lee la base en su propia transacción (llámela sin una en curso) y la cierra antes de esperar
+    a inteligencia, hasta 5 s: así no retiene una conexión del pool mientras tanto.
+    """
+    peticion = None
+    async with bd.begin():
+        evento = await consultas.evento_o_404(bd, evento_id)
+        exigir_estado(evento, *ESTADOS_EVALUACION)
         hay_acuerdos = exists().where(
             SesionNegociacion.evento_id == evento.id,
             SesionNegociacion.estado == "acuerdo_tentativo",
         )
-        if await bd.scalar(select(hay_acuerdos)):
+        if evento.estado != "desierto" and await bd.scalar(select(hay_acuerdos)):
             # Aun pendiente o adjudicado se calcula de nuevo: la foto de la propuesta es `vigente`.
-            recomendacion = await evaluar(bd, integ, token, evento, pesos)
-    vigente, historial = await propuestas(bd, evento.id)
-    return esquemas.Evaluacion(
-        recomendacion=recomendacion,
-        vigente=None if vigente is None else esquemas.AdjudicacionSalida.model_validate(vigente),
-        historial=[esquemas.AdjudicacionSalida.model_validate(fila) for fila in historial],
-    )
+            peticion = await peticion_de(bd, evento, pesos)
+        vigente, historial = await propuestas(bd, evento.id)
+        propuesta = None if vigente is None else esquemas.AdjudicacionSalida.model_validate(vigente)
+        rechazadas = [esquemas.AdjudicacionSalida.model_validate(fila) for fila in historial]
+    recomendacion = None if peticion is None else await integ.recomendacion(token, peticion)
+    return esquemas.Evaluacion(recomendacion=recomendacion, vigente=propuesta, historial=rechazadas)

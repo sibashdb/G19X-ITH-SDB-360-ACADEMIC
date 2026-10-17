@@ -172,6 +172,8 @@ class Externos:
     cuerpo_intel: bytes = b""
     usd_mxn: Decimal | None = Decimal("20.00")  # None: inteligencia no tiene tipo de cambio
     umbral: Decimal = Decimal("500000.00")
+    # Ajusta el cuerpo de la recomendación antes de responderlo (una respuesta incoherente).
+    ajustar_recomendacion: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None = None
     peticiones: list[httpx.Request] = field(default_factory=list)
 
     def recomendaciones(self) -> list[dict[str, Any]]:
@@ -182,7 +184,7 @@ class Externos:
             if p.url.host == "intel" and p.url.path == RUTA_RECOMENDACION
         ]
 
-    def _recomendar(self, cuerpo: dict[str, Any]) -> httpx.Response:
+    async def _recomendar(self, cuerpo: dict[str, Any]) -> httpx.Response:
         """Una recomendación determinista: gana el que menos cuesta (ver inteligencia)."""
         usd = cuerpo["moneda"] == "USD"
         if usd and self.usd_mxn is None:
@@ -196,44 +198,41 @@ class Externos:
             for c in cuerpo["candidatos"]
         }
         orden = sorted(cuerpo["candidatos"], key=lambda c: (costos[c["id"]], c["id"]))
-        return httpx.Response(
-            200,
-            json={
-                "pesos": cuerpo.get("pesos")
-                or {"costo": 40, "desempeno": 30, "riesgo": 15, "sla": 15},
-                "umbral_aprobacion": str(self.umbral),
-                "tipo_cambio": {"periodo": "2026-10-01", "usd_mxn": str(self.usd_mxn)}
-                if usd
-                else None,
-                "candidatos": [
-                    {
-                        "id": c["id"],
-                        "proveedor_id": c["proveedor_id"],
-                        "nombre": c["nombre"],
-                        "costo_total": str(costos[c["id"]]),
-                        "costo_total_mxn": str(costos[c["id"]] * factor),
-                        "desempeno": 50.0,
-                        "riesgo": {
-                            "valor": 0.0,
-                            "nivel": "bajo",
-                            "concentracion": 0.0,
-                            "tendencia": 0.0,
-                            "sin_historial": True,
-                        },
-                        "sla": c["sla"],
-                        "normalizados": {},
-                        "aportes": {},
-                        "puntaje": 100.0 - lugar,
-                        "lugar": lugar,
-                    }
-                    for lugar, c in enumerate(orden, start=1)
-                ],
-                "recomendado": orden[0]["id"],
-                "margen": 0.0,
-                "explicacion": ["Gana el que menos cuesta."],
-                "sensibilidad": [],
-            },
-        )
+        respuesta: dict[str, Any] = {
+            "pesos": cuerpo.get("pesos") or {"costo": 40, "desempeno": 30, "riesgo": 15, "sla": 15},
+            "umbral_aprobacion": str(self.umbral),
+            "tipo_cambio": {"periodo": "2026-10-01", "usd_mxn": str(self.usd_mxn)} if usd else None,
+            "candidatos": [
+                {
+                    "id": c["id"],
+                    "proveedor_id": c["proveedor_id"],
+                    "nombre": c["nombre"],
+                    "costo_total": str(costos[c["id"]]),
+                    "costo_total_mxn": str(costos[c["id"]] * factor),
+                    "desempeno": 50.0,
+                    "riesgo": {
+                        "valor": 0.0,
+                        "nivel": "bajo",
+                        "concentracion": 0.0,
+                        "tendencia": 0.0,
+                        "sin_historial": True,
+                    },
+                    "sla": c["sla"],
+                    "normalizados": {},
+                    "aportes": {},
+                    "puntaje": 100.0 - lugar,
+                    "lugar": lugar,
+                }
+                for lugar, c in enumerate(orden, start=1)
+            ],
+            "recomendado": orden[0]["id"],
+            "margen": 0.0,
+            "explicacion": ["Gana el que menos cuesta."],
+            "sensibilidad": [],
+        }
+        if self.ajustar_recomendacion is not None:
+            respuesta = await self.ajustar_recomendacion(respuesta)
+        return httpx.Response(200, json=respuesta)
 
     async def manejar(self, peticion: httpx.Request) -> httpx.Response:
         self.peticiones.append(peticion)
@@ -244,7 +243,7 @@ class Externos:
             if self.estado_intel is not None:
                 return httpx.Response(self.estado_intel, content=self.cuerpo_intel)
             if peticion.url.path == RUTA_RECOMENDACION:
-                return self._recomendar(json.loads(peticion.content))
+                return await self._recomendar(json.loads(peticion.content))
             banda = self.referencias.get(partes[2])
             if banda is None:
                 return httpx.Response(404, json={"codigo": "sin_observaciones"})

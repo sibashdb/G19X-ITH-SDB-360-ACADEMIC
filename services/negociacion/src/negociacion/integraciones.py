@@ -14,10 +14,13 @@ from typing import Any
 import httpx
 from comun.errores import ErrorDominio
 
-from negociacion.errores import invalido, no_disponible
+from negociacion.errores import SIN_REFERENCIA, invalido, no_disponible
 
 log = logging.getLogger(__name__)
 TIEMPO_ESPERA_S = 5.0
+SIN_RECOMENDACION = (
+    "No se pudo obtener la recomendación de adjudicación. Intente de nuevo en unos minutos."
+)
 CAMPOS_REFERENCIA = ("p25", "p50", "p75", "metodo", "version", "confianza", "observaciones")
 
 
@@ -109,10 +112,10 @@ def _sin_observaciones(respuesta: httpx.Response) -> bool:
     return isinstance(cuerpo, dict) and cuerpo.get("codigo") == "sin_observaciones"
 
 
-def _falla(respuesta: httpx.Response) -> ErrorDominio:
+def _falla(respuesta: httpx.Response, detalle: str = SIN_REFERENCIA) -> ErrorDominio:
     """Registra la respuesta inesperada (sin cabeceras ni token) y devuelve el 503."""
     log.warning("%s respondió %s", respuesta.url.path, respuesta.status_code)
-    return no_disponible()
+    return no_disponible(detalle)
 
 
 def _revisar_recomendacion(datos: Any, pedidos: list[str]) -> None:
@@ -141,7 +144,9 @@ class Integraciones:
         self._inteligencia = inteligencia_url.rstrip("/")
         self._proveedores = proveedores_url.rstrip("/")
 
-    async def _pedir(self, metodo: str, url: str, token: str, **opciones: Any) -> httpx.Response:
+    async def _pedir(
+        self, metodo: str, url: str, token: str, *, detalle: str = SIN_REFERENCIA, **opciones: Any
+    ) -> httpx.Response:
         try:
             return await self._http.request(
                 metodo,
@@ -152,7 +157,7 @@ class Integraciones:
             )
         except httpx.HTTPError as exc:
             log.warning("No respondió %s: %r", url, exc)
-            raise no_disponible() from exc
+            raise no_disponible(detalle) from exc
 
     async def referencia(
         self, token: str, codigo: str, cantidad: Decimal, plazo: int
@@ -206,14 +211,18 @@ class Integraciones:
         recomendación ni un costo de 0.
         """
         respuesta = await self._pedir(
-            "POST", f"{self._inteligencia}/adjudicacion/recomendacion", token, json=cuerpo
+            "POST",
+            f"{self._inteligencia}/adjudicacion/recomendacion",
+            token,
+            detalle=SIN_RECOMENDACION,
+            json=cuerpo,
         )
         if respuesta.status_code != 200:
-            raise _falla(respuesta)
+            raise _falla(respuesta, SIN_RECOMENDACION)
         try:
             datos = respuesta.json()
             _revisar_recomendacion(datos, [c["id"] for c in cuerpo["candidatos"]])
         except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
             log.warning("Respuesta mal formada de %s: %r", respuesta.url.path, exc)
-            raise no_disponible() from exc
+            raise no_disponible(SIN_RECOMENDACION) from exc
         return dict(datos)

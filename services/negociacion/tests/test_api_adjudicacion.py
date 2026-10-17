@@ -1,17 +1,25 @@
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from decimal import Decimal as D
 from typing import Any
 
 import httpx
 import pytest
+from comun.errores import ErrorDominio
+from fastapi import FastAPI
+from negociacion.adjudicacion import evaluar, exigir_estado
 from negociacion.modelos import Adjudicacion, Evento
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy import text, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 pytestmark = pytest.mark.integracion
 Fabrica = async_sessionmaker[AsyncSession]
 FECHA_LIMITE_RENOVACION = "2026-10-20T15:00:00+00:00"
+SIN_RECOMENDACION = (
+    "No se pudo obtener la recomendación de adjudicación. Intente de nuevo en unos minutos."
+)
 
 
 def _linea(evento: dict[str, Any]) -> str:
@@ -257,7 +265,10 @@ async def test_evaluacion_fuera_de_estado(
     respuesta = await _evaluacion(cliente, evento, comprador)
     assert respuesta.status_code == 409, respuesta.text
     assert respuesta.json()["codigo"] == "estado_invalido"
-    assert "abierto" in respuesta.json()["detail"]
+    assert respuesta.json()["detail"] == (
+        "La negociación está en estado «abierto»; esta acción solo procede en: en evaluación, "
+        "pendiente de aprobación, adjudicado, desierto."
+    )
     assert externos.recomendaciones() == []
 
 
@@ -298,6 +309,71 @@ async def test_inteligencia_caida_o_incoherente_responde_503(
     respuesta = await _evaluacion(cliente, evento, comprador)
     assert respuesta.status_code == 503, respuesta.text
     assert respuesta.json()["codigo"] == "dependencia_no_disponible"
+    assert respuesta.json()["detail"] == SIN_RECOMENDACION
+
+
+def _cambia(**cambios: Any) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
+    """Ajusta la recomendación de inteligencia: cambia campos de la respuesta."""
+
+    async def _ajustar(cuerpo: dict[str, Any]) -> dict[str, Any]:
+        return cuerpo | cambios
+
+    return _ajustar
+
+
+def _cambia_candidato(**cambios: Any) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
+    """Ajusta la recomendación de inteligencia: cambia campos del primer candidato."""
+
+    async def _ajustar(cuerpo: dict[str, Any]) -> dict[str, Any]:
+        [primero, *otros] = cuerpo["candidatos"]
+        return cuerpo | {"candidatos": [primero | cambios, *otros]}
+
+    return _ajustar
+
+
+@pytest.mark.parametrize(
+    "ajuste",
+    [
+        pytest.param(_cambia(recomendado="otra-sesion"), id="recomendado_ajeno"),
+        pytest.param(_cambia(candidatos=[]), id="sin_candidatos"),
+        pytest.param(_cambia_candidato(id="otra-sesion"), id="candidato_ajeno"),
+        pytest.param(_cambia_candidato(costo_total="0"), id="costo_total_cero"),
+        pytest.param(_cambia_candidato(costo_total="-5"), id="costo_total_negativo"),
+        pytest.param(_cambia_candidato(costo_total="NaN"), id="costo_total_nan"),
+        pytest.param(_cambia_candidato(costo_total="no es un numero"), id="costo_total_texto"),
+        pytest.param(_cambia_candidato(costo_total_mxn="-5"), id="costo_mxn_negativo"),
+        pytest.param(_cambia_candidato(costo_total=None), id="costo_total_nulo"),
+        pytest.param(_cambia(umbral_aprobacion="-1"), id="umbral_negativo"),
+        pytest.param(_cambia(umbral_aprobacion="NaN"), id="umbral_nan"),
+        pytest.param(_cambia(umbral_aprobacion="Infinity"), id="umbral_infinito"),
+        pytest.param(_cambia(pesos=[40, 30, 15, 15]), id="pesos_no_es_objeto"),
+        pytest.param(_cambia(pesos=None), id="pesos_nulos"),
+    ],
+)
+async def test_una_recomendacion_incoherente_responde_503(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_acuerdos: Any,
+    externos: Any,
+    ajuste: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]],
+) -> None:
+    evento, _ = con_acuerdos
+    externos.ajustar_recomendacion = ajuste
+    respuesta = await _evaluacion(cliente, evento, comprador)
+    assert respuesta.status_code == 503, respuesta.text
+    assert respuesta.json()["codigo"] == "dependencia_no_disponible"
+    assert respuesta.json()["detail"] == SIN_RECOMENDACION
+
+
+async def test_las_otras_consultas_conservan_su_aviso_de_referencia(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], cuerpo_compra: Any, externos: Any
+) -> None:
+    externos.caido = "intel"
+    respuesta = await cliente.post("/eventos", json=cuerpo_compra(), headers=comprador)
+    assert respuesta.status_code == 503, respuesta.text
+    assert respuesta.json()["detail"] == (
+        "No se pudo consultar la referencia de precios; intente de nuevo."
+    )
 
 
 async def test_el_aprobador_puede_ver_la_evaluacion(
@@ -408,3 +484,78 @@ async def test_un_evento_desierto_no_pide_recomendacion(
     assert respuesta.status_code == 200, respuesta.text
     assert respuesta.json() == {"recomendacion": None, "vigente": None, "historial": []}
     assert externos.recomendaciones() == []
+
+
+@pytest.mark.parametrize(
+    ("estado", "etiqueta"),
+    [
+        ("borrador", "borrador"),
+        ("abierto", "abierto"),
+        ("en_evaluacion", "en evaluación"),
+        ("pendiente_aprobacion", "pendiente de aprobación"),
+        ("adjudicado", "adjudicado"),
+        ("desierto", "desierto"),
+        ("cancelado", "cancelado"),
+    ],
+)
+def test_exigir_estado_nombra_el_estado_en_espanol(estado: str, etiqueta: str) -> None:
+    permitidos = (
+        ("adjudicado", "desierto")
+        if estado not in ("adjudicado", "desierto")
+        else (
+            "borrador",
+            "abierto",
+        )
+    )
+    with pytest.raises(ErrorDominio) as error:
+        exigir_estado(Evento(estado=estado), *permitidos)
+    assert error.value.estado == 409
+    assert error.value.extra == {"codigo": "estado_invalido"}
+    assert error.value.detalle.startswith(f"La negociación está en estado «{etiqueta}»;")
+    assert error.value.detalle.endswith(f"solo procede en: {', '.join(permitidos)}.")
+    exigir_estado(Evento(estado=estado), estado)  # en su estado, no hay error
+
+
+async def test_evaluar_manda_los_pesos_dados_a_inteligencia(
+    app: FastAPI, fabrica: Fabrica, con_acuerdos: Any, externos: Any
+) -> None:
+    evento, enlaces = con_acuerdos
+    pesos = {"costo": 70, "desempeno": 10, "riesgo": 10, "sla": 10}
+    async with fabrica() as bd:
+        fila = await bd.get(Evento, uuid.UUID(evento["id"]))
+        assert fila is not None
+        recomendacion = await evaluar(bd, app.state.integraciones, "token", fila, pesos)
+    assert externos.recomendaciones()[0]["pesos"] == pesos
+    assert recomendacion["pesos"] == pesos
+    assert {c["id"] for c in recomendacion["candidatos"]} == {e["sesion_id"] for e in enlaces}
+
+
+async def test_la_consulta_no_retiene_una_transaccion_mientras_espera_a_inteligencia(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_acuerdos: Any,
+    externos: Any,
+    urls_bd: tuple[str, str],
+) -> None:
+    evento, _ = con_acuerdos
+    abiertas: list[Any] = []
+
+    async def _contar(cuerpo: dict[str, Any]) -> dict[str, Any]:
+        """Cuenta, desde fuera, las conexiones de la aplicación con una transacción abierta."""
+        motor = create_async_engine(urls_bd[0], poolclass=NullPool)
+        async with motor.connect() as conexion:
+            abiertas.append(
+                await conexion.scalar(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE usename = 'negociacion' AND state = 'idle in transaction'"
+                    )
+                )
+            )
+        await motor.dispose()
+        return cuerpo
+
+    externos.ajustar_recomendacion = _contar
+    respuesta = await _evaluacion(cliente, evento, comprador)
+    assert respuesta.status_code == 200, respuesta.text
+    assert abiertas == [0]

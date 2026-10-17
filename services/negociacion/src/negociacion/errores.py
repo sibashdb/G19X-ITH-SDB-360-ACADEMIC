@@ -21,10 +21,10 @@ def conflicto(detalle: str, codigo: str) -> ErrorDominio:
     return ErrorDominio(409, "Conflicto", detalle, {"codigo": codigo})
 
 
-def no_disponible() -> ErrorDominio:
+SIN_REFERENCIA = "No se pudo consultar la referencia de precios; intente de nuevo."
+
+
+def no_disponible(detalle: str = SIN_REFERENCIA) -> ErrorDominio:
     return ErrorDominio(
-        503,
-        "Servicio no disponible",
-        "No se pudo consultar la referencia de precios; intente de nuevo.",
-        {"codigo": "dependencia_no_disponible"},
+        503, "Servicio no disponible", detalle, {"codigo": "dependencia_no_disponible"}
     )
