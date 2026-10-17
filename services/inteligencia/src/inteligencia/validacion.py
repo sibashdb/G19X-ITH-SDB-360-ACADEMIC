@@ -2,15 +2,16 @@
 
     uv run python -m inteligencia.validacion --verdad datos/verdad_oculta.json
 
-Lee los CSV que exporta el generador (en la carpeta de la verdad, o en --datos) y escribe
-docs/qa/validacion-inteligencia.md con las métricas y las metas de la especificación (§1) y la de
-la recomendación de adjudicación. La verdad oculta solo se lee aquí: nunca se carga a la
-plataforma.
+Lee los CSV que exporta el generador (servicios, proveedores, contratos, desempeno y
+tipo_cambio; en la carpeta de la verdad, o en --datos) y escribe docs/qa/validacion-inteligencia.md
+con las métricas y las metas de la especificación (§1) y la de la recomendación de adjudicación.
+La verdad oculta solo se lee aquí: nunca se carga a la plataforma.
 """
 
 import argparse
 import csv
 import json
+import math
 import random
 import statistics
 import sys
@@ -108,6 +109,14 @@ class ResultadoAdjudicacion:
     acierto_top1: float  # fracción de eventos en que el recomendado es el mejor verdadero
     acierto_top2: float  # ... y en que el mejor verdadero está entre los dos primeros
     margen_fallos: float | None  # puntos promedio en los fallos; None si no hubo fallos
+    semilla: int
+
+    @property
+    def intervalo_top1(self) -> tuple[float, float]:
+        """Intervalo de 95 % del acierto top-1 (aproximación normal), recortado a [0, 1]."""
+        p = self.acierto_top1
+        mitad = 1.96 * math.sqrt(p * (1 - p) / self.eventos)
+        return max(0.0, p - mitad), min(1.0, p + mitad)
 
 
 @dataclass(frozen=True)
@@ -165,6 +174,29 @@ def _gasto_anual(
     return gasto
 
 
+def _comparar(
+    entradas: Sequence[Entrada], oculta: Mapping[str, Mapping[str, Any]], pesos: PesosAdjudicacion
+) -> tuple[bool, bool, float]:
+    """Compara, en un evento, el ranking observado con el verdadero (calidad por 100).
+
+    Devuelve si el recomendado es el mejor verdadero (top-1), si el mejor verdadero está entre los
+    dos primeros del recomendado (top-2) y cuántos puntos le saca el mejor verdadero al
+    recomendado en el ranking verdadero (0 si coinciden).
+    """
+    recomendada = recomendar(entradas, pesos).evaluados
+    verdadera = recomendar(
+        [replace(e, desempeno=float(oculta[e.candidato.id]["calidad"]) * 100) for e in entradas],
+        pesos,
+    )
+    elegido, mejor = recomendada[0].entrada.candidato.id, verdadera.recomendado
+    puntos = {e.entrada.candidato.id: e.puntaje for e in verdadera.evaluados}
+    return (
+        elegido == mejor,
+        mejor in [e.entrada.candidato.id for e in recomendada[:2]],
+        puntos[mejor] - puntos[elegido],
+    )
+
+
 def validar_adjudicacion(
     proveedores: list[dict[str, str]],
     contratos: list[dict[str, str]],
@@ -188,6 +220,8 @@ def validar_adjudicacion(
     y el SLA son los mismos. En la concentración, el gasto de cada proveedor es el anualizado de
     sus líneas vigentes en `hasta`.
     """
+    if eventos < 1:
+        raise ValueError("Se necesita al menos un evento para validar la adjudicación.")
     usd_mxn = tipo_cambio_en(tipos_cambio, hasta)
     if usd_mxn is None:
         raise ValueError("Se necesita un tipo de cambio para validar la adjudicación.")
@@ -213,6 +247,10 @@ def validar_adjudicacion(
         )
         if len(rfcs) >= 2:
             elegibles[categoria] = rfcs
+    if not elegibles:
+        raise ValueError(
+            "Ninguna categoría con contratos tiene al menos 2 proveedores activos con puntuación."
+        )
     nombres = {p["rfc"]: p["nombre"] for p in proveedores}
     tendencias = {
         rfc: tendencia_incidentes(
@@ -249,6 +287,7 @@ def validar_adjudicacion(
                 (LineaCandidato(codigo, unidad, cantidad, precio),),
             )
             costo = costo_total(candidato)
+            # Misma Entrada que arma api/adjudicacion.py::_entrada: si allá cambia, cambie aquí.
             # El plazo es de un año y no hay cuota: el costo total es el costo anual.
             costo_mxn = a_mxn(costo, moneda, usd_mxn)
             entradas.append(
@@ -264,22 +303,17 @@ def validar_adjudicacion(
                     ),
                 )
             )
-        recomendada = recomendar(entradas, pesos).evaluados
-        verdadera = recomendar(
-            [
-                replace(e, desempeno=float(oculta[e.candidato.id]["calidad"]) * 100)
-                for e in entradas
-            ],
-            pesos,
-        )
-        elegido, mejor = recomendada[0].entrada.candidato.id, verdadera.recomendado
-        top1 += elegido == mejor
-        top2 += mejor in [e.entrada.candidato.id for e in recomendada[:2]]
-        if elegido != mejor:
-            puntos = {e.entrada.candidato.id: e.puntaje for e in verdadera.evaluados}
-            margenes.append(puntos[mejor] - puntos[elegido])
+        acierta1, acierta2, ventaja = _comparar(entradas, oculta, pesos)
+        top1 += acierta1
+        top2 += acierta2
+        if not acierta1:
+            margenes.append(ventaja)
     return ResultadoAdjudicacion(
-        eventos, top1 / eventos, top2 / eventos, statistics.mean(margenes) if margenes else None
+        eventos,
+        top1 / eventos,
+        top2 / eventos,
+        statistics.mean(margenes) if margenes else None,
+        semilla,
     )
 
 
@@ -357,6 +391,7 @@ def informe(v: Validacion, generado: date) -> str:
     minima, maxima = META_COBERTURA
     a = v.adjudicacion
     margen = "sin fallos" if a.margen_fallos is None else f"{a.margen_fallos:.1f} puntos"
+    baja, alta = a.intervalo_top1
     lineas = [
         "# Validación del servicio de inteligencia",
         "",
@@ -391,7 +426,7 @@ def informe(v: Validacion, generado: date) -> str:
         "",
         "## Adjudicación",
         "",
-        f"{a.eventos} eventos simulados (semilla {SEMILLA_ADJUDICACION}): cada uno es una "
+        f"{a.eventos} eventos simulados (semilla {a.semilla}): cada uno es una "
         "categoría con 2 a 5 proveedores activos, a 12 meses, con el P50 del servicio por el nivel "
         "de precio latente de cada proveedor y un SLA nulo o de 99.0 a 99.9 %. El recomendado usa "
         "la puntuación observada; el mejor verdadero repite el cálculo con la calidad oculta por "
@@ -405,7 +440,9 @@ def informe(v: Validacion, generado: date) -> str:
         f"{_pct(a.acierto_top2)} | |",
         f"| Margen promedio de los fallos | {margen} | |",
         "",
-        f"Con los pesos por defecto. Cumple: {_cumple(v.cumple_adjudicacion)}.",
+        f"Con los pesos por defecto. Cumple: {_cumple(v.cumple_adjudicacion)}. "
+        f"Con {a.eventos} eventos, el intervalo de 95 % del acierto top-1 va de {_pct(baja)} a "
+        f"{_pct(alta)}.",
         "",
     ]
     return "\n".join(lineas)

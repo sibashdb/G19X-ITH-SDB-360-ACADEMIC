@@ -33,4 +33,4 @@ Con los pesos por defecto. Cumple: sí.
 | Acierto top-2 (el mejor verdadero está entre los dos primeros) | 99.5 % | |
 | Margen promedio de los fallos | 7.6 puntos | |
 
-Con los pesos por defecto. Cumple: sí.
+Con los pesos por defecto. Cumple: sí. Con 200 eventos, el intervalo de 95 % del acierto top-1 va de 80.1 % a 89.9 %.

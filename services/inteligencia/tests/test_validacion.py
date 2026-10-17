@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -7,18 +8,27 @@ import pytest
 import sklearn
 from generador.modelo import generar
 from generador.salida import escribir
+from inteligencia.dominio.adjudicacion import (
+    Candidato,
+    Entrada,
+    PesosAdjudicacion,
+    Recomendacion,
+    Riesgo,
+    recomendar,
+)
 from inteligencia.dominio.puntuacion import Puntuacion
 from inteligencia.modelo import ModeloPrecios, Resultado
 from inteligencia.validacion import (
     ResultadoAdjudicacion,
     Validacion,
+    _comparar,
     informe,
     principal,
     validar,
     validar_adjudicacion,
 )
 
-ADJUDICACION = ResultadoAdjudicacion(200, 0.91, 0.98, 3.4)
+ADJUDICACION = ResultadoAdjudicacion(200, 0.91, 0.98, 3.4, 4242)
 
 
 def _validacion(
@@ -139,6 +149,8 @@ def test_la_validacion_reporta_la_adjudicacion(tmp_path: Path) -> None:
     assert adjudicacion.eventos == 200
     assert 0.0 <= adjudicacion.acierto_top1 <= adjudicacion.acierto_top2 <= 1.0
     assert adjudicacion.margen_fallos is None or adjudicacion.margen_fallos > 0
+    # Piso de regresión, no la meta: con el dataset por defecto el top-1 ronda 85 %, justo en ella.
+    assert adjudicacion.acierto_top1 >= 0.75
 
 
 def test_misma_semilla_mismo_resultado(tmp_path: Path) -> None:
@@ -147,18 +159,52 @@ def test_misma_semilla_mismo_resultado(tmp_path: Path) -> None:
     assert validar(tmp_path, verdad).adjudicacion == validar(tmp_path, verdad).adjudicacion
 
 
+def test_la_semilla_y_los_eventos_se_respetan() -> None:
+    escenario = {**_escenario(0.1, 0.9), "eventos": 30}
+    uno = validar_adjudicacion(**escenario, semilla=1)
+    assert validar_adjudicacion(**escenario, semilla=1) == uno
+    otro = validar_adjudicacion(**escenario, semilla=2)
+    assert otro.margen_fallos != uno.margen_fallos  # otra semilla, otros SLA sorteados
+    assert (uno.eventos, uno.semilla, otro.semilla) == (30, 1, 2)
+    assert validar_adjudicacion(**{**escenario, "eventos": 10}).eventos == 10
+
+
 def test_el_informe_incluye_la_seccion_de_adjudicacion() -> None:
     texto = informe(_validacion(), date(2026, 10, 16))
     adjudicacion = texto.split("## Adjudicación")[1]
-    for parte in ("200 eventos", "top-1", "91.0 %", "top-2", "98.0 %", "3.4 puntos", "Cumple: sí"):
+    partes = ("200 eventos", "semilla 4242", "top-1", "91.0 %", "top-2", "98.0 %", "3.4 puntos")
+    for parte in (*partes, "Cumple: sí"):
         assert parte in adjudicacion, parte
+
+
+def test_el_informe_toma_la_semilla_del_resultado() -> None:
+    validacion = _validacion(adjudicacion=ResultadoAdjudicacion(200, 0.91, 0.98, 3.4, 77))
+    assert "semilla 77" in informe(validacion, date(2026, 10, 16)).split("## Adjudicación")[1]
+
+
+@pytest.mark.parametrize(
+    ("eventos", "top1", "intervalo"),
+    [
+        pytest.param(200, 0.85, "80.1 % a 89.9 %", id="en-la-meta"),
+        pytest.param(50, 0.99, "96.2 % a 100.0 %", id="se-recorta-en-100"),
+        pytest.param(50, 0.01, "0.0 % a 3.8 %", id="se-recorta-en-0"),
+    ],
+)
+def test_el_informe_da_el_intervalo_de_95_por_ciento_del_top_1(
+    eventos: int, top1: float, intervalo: str
+) -> None:
+    validacion = _validacion(adjudicacion=ResultadoAdjudicacion(eventos, top1, 1.0, None, 4242))
+    texto = informe(validacion, date(2026, 10, 16)).split("## Adjudicación")[1]
+    assert (
+        f"Con {eventos} eventos, el intervalo de 95 % del acierto top-1 va de {intervalo}" in texto
+    )
 
 
 @pytest.mark.parametrize(
     ("top1", "cumple"), [(0.85, True), (0.849, False)], ids=["en-la-meta", "bajo-la-meta"]
 )
 def test_la_meta_de_adjudicacion_es_85_por_ciento(top1: float, cumple: bool) -> None:
-    validacion = _validacion(adjudicacion=ResultadoAdjudicacion(200, top1, 1.0, None))
+    validacion = _validacion(adjudicacion=ResultadoAdjudicacion(200, top1, 1.0, None, 4242))
     assert validacion.cumple_adjudicacion is cumple
     texto = informe(validacion, date(2026, 10, 16)).split("## Adjudicación")[1]
     assert ("Cumple: sí" in texto) is cumple
@@ -168,7 +214,7 @@ def test_la_meta_de_adjudicacion_es_85_por_ciento(top1: float, cumple: bool) -> 
 def test_la_adjudicacion_no_cambia_el_codigo_de_salida(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    validacion = _validacion(adjudicacion=ResultadoAdjudicacion(200, 0.4, 0.6, 20.0))
+    validacion = _validacion(adjudicacion=ResultadoAdjudicacion(200, 0.4, 0.6, 20.0, 4242))
     monkeypatch.setattr("inteligencia.validacion.validar", lambda carpeta, verdad: validacion)
     salida = tmp_path / "validacion.md"
     assert principal(["--verdad", str(tmp_path / "v.json"), "--salida", str(salida)]) == 0
@@ -219,7 +265,7 @@ def _escenario(calidad_a: float, calidad_b: float) -> dict[str, Any]:
 
 def test_si_la_puntuacion_coincide_con_la_calidad_se_acierta_siempre() -> None:
     resultado = validar_adjudicacion(**_escenario(0.9, 0.1))
-    assert resultado == ResultadoAdjudicacion(30, 1.0, 1.0, None)
+    assert resultado == ResultadoAdjudicacion(30, 1.0, 1.0, None, 4242)
 
 
 def test_si_la_puntuacion_se_equivoca_siempre_falla_el_top1_y_se_mide_el_margen() -> None:
@@ -233,3 +279,69 @@ def test_si_la_puntuacion_se_equivoca_siempre_falla_el_top1_y_se_mide_el_margen(
 def test_sin_tipo_de_cambio_no_se_puede_validar() -> None:
     with pytest.raises(ValueError, match="tipo de cambio"):
         validar_adjudicacion(**{**_escenario(0.9, 0.1), "tipos_cambio": {}})
+
+
+def test_solo_participan_los_activos_con_puntuacion_y_de_la_categoria(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    escenario = _escenario(0.9, 0.1)
+    # C tiene la categoría en segundo lugar (sí participa); D está inactivo, E no tiene puntuación
+    # y F es de otra categoría (no participan).
+    otros = {"C": ("nube|soporte", "true"), "D": ("soporte", "false"), "E": ("soporte", "true")}
+    otros["F"] = ("nube", "true")
+    escenario["proveedores"] += [
+        {"rfc": rfc, "nombre": rfc, "categorias": categorias, "activo": activo}
+        for rfc, (categorias, activo) in otros.items()
+    ]
+    escenario["puntuaciones"] |= {r: Puntuacion(50.0, 50.0, 12, {}, {}) for r in "CDF"}
+    escenario["oculta"] |= {r: {"calidad": 0.5, "nivel_precio": 1.0} for r in "CDEF"}
+    vistos: set[str] = set()
+
+    def espia(entradas: Sequence[Entrada], pesos: PesosAdjudicacion) -> Recomendacion:
+        vistos.update(e.candidato.id for e in entradas)
+        return recomendar(entradas, pesos)
+
+    monkeypatch.setattr("inteligencia.validacion.recomendar", espia)
+    validar_adjudicacion(**escenario)
+    assert vistos == {"A", "B", "C"}
+
+
+def test_sin_eventos_no_hay_nada_que_medir() -> None:
+    with pytest.raises(ValueError, match="al menos un evento"):
+        validar_adjudicacion(**{**_escenario(0.9, 0.1), "eventos": 0})
+
+
+def test_sin_una_categoria_con_dos_proveedores_elegibles_no_se_puede_validar() -> None:
+    escenario = _escenario(0.9, 0.1)
+    escenario["proveedores"][1]["activo"] = "false"
+    with pytest.raises(ValueError, match="al menos 2 proveedores"):
+        validar_adjudicacion(**escenario)
+
+
+def _empatada(rfc: str, desempeno: float) -> Entrada:
+    """Una entrada con costo, riesgo y SLA iguales a los de las demás: solo decide el desempeño."""
+    candidato = Candidato(rfc, rfc, rfc, 12, Decimal(0), None, ())
+    return Entrada(candidato, Decimal(1000), Decimal(1000), desempeno, Riesgo(0.0, 0.0, 0.0, False))
+
+
+@pytest.mark.parametrize(
+    ("calidades", "esperado"),
+    [
+        # Observado: A 100, B 88.75, C 70. Verdadero: A 100, B 88.75, C 70. Coinciden.
+        pytest.param((0.9, 0.6, 0.1), (True, True, 0.0), id="acierta"),
+        # Verdadero: B 100, A 85, C 70. El verdadero es el segundo del observado (en el observado
+        # su ventaja sobre A sería 11.25, no 15).
+        pytest.param((0.5, 0.9, 0.1), (False, True, 15.0), id="falla-el-top-1-y-acierta-el-top-2"),
+        # Verdadero: C 100, A 85, B 70. El verdadero es el tercero del observado (en el observado
+        # su ventaja sobre A sería 30, no 15).
+        pytest.param((0.5, 0.1, 0.9), (False, False, 15.0), id="falla-los-dos"),
+    ],
+)
+def test_comparar_mide_el_top_1_el_top_2_y_el_margen_del_ranking_verdadero(
+    calidades: tuple[float, float, float], esperado: tuple[bool, bool, float]
+) -> None:
+    entradas = [_empatada("A", 90.0), _empatada("B", 60.0), _empatada("C", 10.0)]
+    oculta = {rfc: {"calidad": c} for rfc, c in zip("ABC", calidades, strict=True)}
+    top1, top2, ventaja = _comparar(entradas, oculta, PesosAdjudicacion())
+    assert (top1, top2) == esperado[:2]
+    assert ventaja == pytest.approx(esperado[2])
