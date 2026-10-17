@@ -15,7 +15,7 @@ MAX_NOMBRE = 200
 
 @dataclass(frozen=True)
 class Actor:
-    tipo: str  # comprador, proveedor, agente o sistema
+    tipo: str  # comprador, aprobador, proveedor, agente o sistema
     id: str | None
     nombre: str
 
@@ -28,8 +28,8 @@ AGENTE = Actor("agente", None, "Agente")
 SISTEMA = Actor("sistema", None, "Sistema")
 
 
-def de_usuario(usuario: Usuario) -> Actor:
-    return Actor("comprador", usuario.id, usuario.nombre)
+def de_usuario(usuario: Usuario, tipo: str = "comprador") -> Actor:
+    return Actor(tipo, usuario.id, usuario.nombre)
 
 
 def registrar(

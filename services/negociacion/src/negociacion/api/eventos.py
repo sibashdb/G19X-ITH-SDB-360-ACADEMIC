@@ -3,7 +3,6 @@
 import uuid
 from decimal import Decimal
 from typing import Annotated
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 from sqlalchemy import delete, func, select, text
@@ -22,13 +21,13 @@ from negociacion.api.dependencias import (
     TokenUsuario,
 )
 from negociacion.bitacora import MAX_NOMBRE, de_usuario, registrar
+from negociacion.dominio.adjudicacion import ZONA_NEGOCIO
 from negociacion.dominio.configuracion import sugerir_precio
 from negociacion.errores import conflicto, invalido
 from negociacion.integraciones import ContratoVigente, Integraciones
 from negociacion.modelos import Evento, Linea, Palanca, SesionNegociacion
 
 router = APIRouter(tags=["eventos"])
-ZONA_NEGOCIO = ZoneInfo("America/Mexico_City")  # el "hoy" de los contratos es el del negocio
 # (código, nombre, unidad, cantidad, precio vigente) de cada línea nueva.
 LineaPorCrear = tuple[str, str, str, Decimal, Decimal | None]
 

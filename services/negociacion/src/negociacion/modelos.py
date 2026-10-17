@@ -31,9 +31,21 @@ from negociacion.db import Base
 
 DINERO = Numeric(14, 4)
 UTILIDAD = Numeric(6, 4)
+MONTO = Numeric(16, 2)
 SIGUIENTE_ORDEN = text("nextval('orden')")
 
-ESTADOS_EVENTO = ("borrador", "abierto", "en_evaluacion", "cancelado")
+ESTADOS_EVENTO = (
+    "borrador",
+    "abierto",
+    "en_evaluacion",
+    "pendiente_aprobacion",
+    "adjudicado",
+    "desierto",
+    "cancelado",
+)
+ESTADOS_ADJUDICACION = ("pendiente", "aprobada", "rechazada", "directa")
+MOTIVOS_APROBACION = ("umbral", "fuera_de_limites")
+ACTORES = ("comprador", "aprobador", "proveedor", "agente", "sistema")
 ESTADOS_SESION = (
     "invitada",
     "activa",
@@ -78,7 +90,7 @@ class Evento(Base):
     titulo: Mapped[str] = mapped_column(String(120))
     moneda: Mapped[str] = mapped_column(String(3))
     plazo_meses: Mapped[int]
-    estado: Mapped[str] = mapped_column(String(15), default="borrador")
+    estado: Mapped[str] = mapped_column(String(20), default="borrador")
     fecha_limite: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     rondas_max: Mapped[int] = mapped_column(default=6)
     estilo: Mapped[str] = mapped_column(String(10), default="balanceado")
@@ -89,6 +101,7 @@ class Evento(Base):
     # La fecha de la foto y, en renovación, los términos vigentes del contrato.
     foto: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     motivo_cancelacion: Mapped[str | None] = mapped_column(String(500))
+    motivo_desierta: Mapped[str | None] = mapped_column(String(500))
     creado_por_id: Mapped[str] = mapped_column(String(64))
     creado_por_nombre: Mapped[str] = mapped_column(String(200))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_ahora)
@@ -160,6 +173,8 @@ class SesionNegociacion(Base):
     correo_error: Mapped[str | None] = mapped_column(String(500))
     correo_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     fuera_de_limites: Mapped[bool] = mapped_column(default=False)
+    # Cuándo se le avisó el resultado de la negociación (adjudicada o desierta).
+    resultado_avisado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_ahora)
 
 
@@ -215,9 +230,7 @@ class Bitacora(Base):
 
     __tablename__ = "bitacora"
     __table_args__ = (
-        CheckConstraint(
-            _en("actor_tipo", ("comprador", "proveedor", "agente", "sistema")), name="actor_tipo"
-        ),
+        CheckConstraint(_en("actor_tipo", ACTORES), name="actor_tipo"),
         Index("ix_bitacora_evento_id", "evento_id"),
         Index("ix_bitacora_sesion_id", "sesion_id"),
     )
@@ -231,6 +244,48 @@ class Bitacora(Base):
     evento_id: Mapped[uuid.UUID | None]
     sesion_id: Mapped[uuid.UUID | None]
     detalle: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class Adjudicacion(Base):
+    """Una fila por propuesta: las rechazadas quedan como historial.
+
+    El usuario de la aplicación solo actualiza las columnas de la decisión (GRANT por columna):
+    lo propuesto, el monto y la foto de la recomendación no se reescriben.
+    """
+
+    __tablename__ = "adjudicacion"
+    __table_args__ = (
+        CheckConstraint(_en("estado", ESTADOS_ADJUDICACION), name="estado"),
+        CheckConstraint(
+            "motivo_aprobacion <@ ARRAY["
+            + ", ".join(repr(m) for m in MOTIVOS_APROBACION)
+            + "]::varchar[]",
+            name="motivo_aprobacion",
+        ),
+        CheckConstraint("NOT se_aparta OR justificacion IS NOT NULL", name="justificacion"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("evento.id"))
+    sesion_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sesion.id"))  # la elegida
+    propuesta_por_id: Mapped[str] = mapped_column(String(64))
+    propuesta_por_nombre: Mapped[str] = mapped_column(String(200))
+    propuesta_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_ahora)
+    recomendada_sesion_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sesion.id"))
+    se_aparta: Mapped[bool]
+    justificacion: Mapped[str | None] = mapped_column(String(1000))
+    costo_total: Mapped[Decimal] = mapped_column(MONTO)  # en la moneda del evento
+    costo_total_mxn: Mapped[Decimal] = mapped_column(MONTO)
+    requiere_aprobacion: Mapped[bool]
+    motivo_aprobacion: Mapped[list[str]] = mapped_column(ARRAY(String(20)), default=list)
+    # La respuesta completa de inteligencia, con los pesos usados.
+    recomendacion: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    estado: Mapped[str] = mapped_column(String(10))
+    decidida_por_id: Mapped[str | None] = mapped_column(String(64))
+    decidida_por_nombre: Mapped[str | None] = mapped_column(String(200))
+    decidida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo_rechazo: Mapped[str | None] = mapped_column(String(500))
+    contrato_folio: Mapped[str | None] = mapped_column(String(30))
 
 
 class Proveedor(Base):
