@@ -90,27 +90,34 @@ async def enviar_pendientes(
     tienen; devuelve cuántas procesó.
 
     Cada sesión se marca (`resultado_avisado_en`) aunque el correo falle o no haya destinatario:
-    como una invitación, no se reintenta.
+    como una invitación, no se reintenta. Cada una va en su propia transacción: si una no se puede
+    confirmar, las ya avisadas no se repiten.
 
-    ponytail: el correo sale con las filas bloqueadas y antes de confirmar; si el proceso cae a
-    mitad, la siguiente vuelta repite los avisos de la tanda. Un commit por sesión si importara.
+    ponytail: el correo sale con la fila bloqueada y antes de confirmar; si el proceso cae entre
+    el envío y el commit, la siguiente vuelta repite el aviso de esa sola sesión. Un estado
+    «enviando» si importara.
     """
-    async with fabrica() as bd, bd.begin():
-        # skip_locked: dos trabajadores a la vez no avisan dos veces a la misma sesión.
-        pendientes = (
-            await bd.execute(
-                select(SesionNegociacion, Evento)
-                .join(Evento, Evento.id == SesionNegociacion.evento_id)
-                .where(
-                    SesionNegociacion.resultado_avisado_en.is_(None),
-                    Evento.estado.in_(("adjudicado", "desierto")),
+    procesadas = 0
+    while True:
+        async with fabrica() as bd, bd.begin():
+            # skip_locked: dos trabajadores a la vez no avisan dos veces a la misma sesión.
+            fila = (
+                await bd.execute(
+                    select(SesionNegociacion, Evento)
+                    .join(Evento, Evento.id == SesionNegociacion.evento_id)
+                    .where(
+                        SesionNegociacion.resultado_avisado_en.is_(None),
+                        Evento.estado.in_(("adjudicado", "desierto")),
+                    )
+                    .order_by(SesionNegociacion.id)
+                    .limit(1)
+                    .with_for_update(of=SesionNegociacion, skip_locked=True)
                 )
-                .order_by(SesionNegociacion.id)
-                .with_for_update(of=SesionNegociacion, skip_locked=True)
-            )
-        ).all()
-        for sesion, evento in pendientes:
+            ).first()
+            if fila is None:
+                return procesadas
+            sesion, evento = fila
             sesion.resultado_avisado_en = momento
             if sesion.destinatario:
                 await _avisar(bd, enviar, config, evento, sesion, momento)
-    return len(pendientes)
+        procesadas += 1

@@ -190,24 +190,33 @@ async def evaluacion(
     evento_id: uuid.UUID,
     pesos: dict[str, int] | None,
 ) -> esquemas.Evaluacion:
-    """La recomendación de hoy, la propuesta vigente y las rechazadas de un evento.
+    """La recomendación, la propuesta vigente y las rechazadas de un evento.
+
+    En evaluación, la recomendación es la de hoy (con los pesos dados o los configurados). Ya
+    propuesto o adjudicado es la foto que guardó la propuesta vigente, con los pesos que usó, y
+    no se consulta a inteligencia (`pesos` se ignora): quien decide siempre ve la propuesta. Un
+    evento desierto no tiene recomendación.
 
     Lee la base en su propia transacción (llámela sin una en curso) y la cierra antes de esperar
     a inteligencia, hasta 5 s: así no retiene una conexión del pool mientras tanto.
     """
     peticion = None
+    recomendacion = None
     async with bd.begin():
         evento = await consultas.evento_o_404(bd, evento_id)
         exigir_estado(evento, *ESTADOS_EVALUACION)
-        hay_acuerdos = exists().where(
-            SesionNegociacion.evento_id == evento.id,
-            SesionNegociacion.estado == "acuerdo_tentativo",
-        )
-        if evento.estado != "desierto" and await bd.scalar(select(hay_acuerdos)):
-            # Aun pendiente o adjudicado se calcula de nuevo: la foto de la propuesta es `vigente`.
-            peticion = await peticion_de(bd, evento, pesos)
         vigente, rechazadas = await _salidas(bd, evento.id)
-    recomendacion = None if peticion is None else await integ.recomendacion(token, peticion)
+        if evento.estado == "en_evaluacion":
+            hay_acuerdos = exists().where(
+                SesionNegociacion.evento_id == evento.id,
+                SesionNegociacion.estado == "acuerdo_tentativo",
+            )
+            if await bd.scalar(select(hay_acuerdos)):
+                peticion = await peticion_de(bd, evento, pesos)
+        elif vigente is not None:  # desierto no tiene propuesta vigente
+            recomendacion = vigente.recomendacion
+    if peticion is not None:
+        recomendacion = await integ.recomendacion(token, peticion)
     return esquemas.Evaluacion(recomendacion=recomendacion, vigente=vigente, historial=rechazadas)
 
 

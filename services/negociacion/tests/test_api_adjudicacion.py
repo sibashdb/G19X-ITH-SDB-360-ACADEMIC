@@ -393,7 +393,7 @@ async def _guardar(fabrica: Fabrica, estado_evento: str, evento_id: str, *filas:
     ("estado_evento", "estado_vigente"),
     [("pendiente_aprobacion", "pendiente"), ("adjudicado", "aprobada"), ("adjudicado", "directa")],
 )
-async def test_muestra_la_vigente_y_el_historial_y_recalcula_la_recomendacion(
+async def test_muestra_la_vigente_y_el_historial_con_la_foto_sin_consultar_inteligencia(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     con_acuerdos: Any,
@@ -414,7 +414,9 @@ async def test_muestra_la_vigente_y_el_historial_y_recalcula_la_recomendacion(
         _propuesta(evento["id"], sesion, estado_vigente, 15),
     )
 
-    respuesta = await _evaluacion(cliente, evento, comprador)
+    antes = len(externos.peticiones)
+
+    respuesta = await _evaluacion(cliente, evento, comprador, pesos="25,25,25,25")
 
     assert respuesta.status_code == 200, respuesta.text
     cuerpo = respuesta.json()
@@ -428,9 +430,41 @@ async def test_muestra_la_vigente_y_el_historial_y_recalcula_la_recomendacion(
         ("rechazada", 12),
     ]
     assert cuerpo["historial"][0]["motivo_rechazo"] == "Falta justificar"
-    # La recomendación se calcula de nuevo; la foto de la propuesta vive en `vigente`.
-    assert len(externos.recomendaciones()) == 1
-    assert len(cuerpo["recomendacion"]["candidatos"]) == 2
+    # Ya propuesta, la recomendación es la foto guardada (con sus pesos): no se consulta a nadie.
+    assert cuerpo["recomendacion"] == cuerpo["vigente"]["recomendacion"]  # y `pesos` se ignora
+    assert len(externos.peticiones) == antes
+
+
+@pytest.mark.parametrize(
+    ("estado_evento", "estado_vigente"),
+    [("pendiente_aprobacion", "pendiente"), ("adjudicado", "directa")],
+)
+async def test_con_inteligencia_caida_la_propuesta_siempre_se_ve(
+    cliente: httpx.AsyncClient,
+    aprobador: dict[str, str],
+    con_acuerdos: Any,
+    fabrica: Fabrica,
+    externos: Any,
+    estado_evento: str,
+    estado_vigente: str,
+) -> None:
+    evento, enlaces = con_acuerdos
+    await _guardar(
+        fabrica,
+        estado_evento,
+        evento["id"],
+        _propuesta(evento["id"], enlaces[0]["sesion_id"], estado_vigente, 15),
+    )
+    externos.caido = "intel"
+    antes = len(externos.peticiones)
+
+    respuesta = await _evaluacion(cliente, evento, aprobador)
+
+    assert respuesta.status_code == 200, respuesta.text
+    cuerpo = respuesta.json()
+    assert cuerpo["vigente"]["id"]  # el aprobador siempre puede decidir sobre ella
+    assert cuerpo["recomendacion"] == {"recomendado": enlaces[0]["sesion_id"], "foto": 15}
+    assert len(externos.peticiones) == antes  # ni siquiera se intentó
 
 
 async def test_un_evento_desierto_no_pide_recomendacion(

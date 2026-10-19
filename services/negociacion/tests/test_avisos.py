@@ -1,6 +1,7 @@
 import logging
 import re
 import uuid
+from collections import Counter
 from collections.abc import Awaitable, Callable
 from decimal import Decimal as D
 from email.message import EmailMessage
@@ -261,6 +262,35 @@ async def test_dos_trabajadores_no_envian_dos_veces(
         assert await avisar() == 0  # SKIP LOCKED: no espera ni envía
     assert buzon.enviados == []
     assert await avisar() == 2
+
+
+async def test_un_fallo_al_confirmar_no_repite_los_avisos_ya_confirmados(
+    adjudicado: Any,
+    avisar: Avisar,
+    buzon: Any,
+    fabrica: Fabrica,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registrar = avisos.registrar
+    llamadas: list[int] = []
+
+    def falla_en_la_segunda(*args: Any, **kwargs: Any) -> Any:
+        llamadas.append(1)
+        if len(llamadas) == 2:
+            raise RuntimeError("base caída")
+        return registrar(*args, **kwargs)
+
+    monkeypatch.setattr(avisos, "registrar", falla_en_la_segunda)
+    with pytest.raises(RuntimeError, match="base caída"):
+        await avisar()
+    # Cada sesión confirma por su cuenta: la primera quedó avisada aunque la segunda falló.
+    [confirmada] = [s for s in await _sesiones(fabrica) if s.resultado_avisado_en is not None]
+
+    monkeypatch.setattr(avisos, "registrar", registrar)
+    assert await avisar() == 1  # solo la que no se confirmó
+    enviados = Counter(str(m["To"]) for m in buzon.enviados)
+    assert enviados.pop(confirmada.destinatario) == 1  # no se repitió
+    assert list(enviados.values()) == [2]  # la no confirmada sí: no se supo si salió
 
 
 async def test_avisos_de_una_negociacion_desierta(

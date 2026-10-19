@@ -8,7 +8,7 @@ import httpx
 import pytest
 from negociacion import vencimientos
 from negociacion.config import Configuracion
-from negociacion.modelos import Bitacora, Mensaje, Outbox, SesionNegociacion
+from negociacion.modelos import Bitacora, Evento, Mensaje, Outbox, SesionNegociacion
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -107,6 +107,43 @@ async def test_vencido_con_un_acuerdo_pasa_a_evaluacion_aunque_otra_sesion_este_
         assert await vencimientos.cerrar_vencidos(fabrica, momento) == 1  # solo el evento
     assert await _estado(cliente, comprador, evento) == "en_evaluacion"
     assert await _desiertas(fabrica) == []
+
+
+@pytest.mark.parametrize("estado", ["pendiente_aprobacion", "adjudicado"])
+async def test_la_sesion_saltada_se_expira_aunque_el_evento_ya_se_haya_propuesto_o_adjudicado(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    publicar: Any,
+    fabrica: Fabrica,
+    estado: str,
+) -> None:
+    evento, enlaces = await publicar()
+    momento = datetime.fromisoformat(evento["fecha_limite"]) + timedelta(seconds=1)
+    acordada, a_medio_turno = (uuid.UUID(e["sesion_id"]) for e in enlaces)
+    async with fabrica() as bd:
+        await bd.execute(
+            update(SesionNegociacion)
+            .where(SesionNegociacion.id == acordada)
+            .values(estado="acuerdo_tentativo")
+        )
+        await bd.commit()
+    async with fabrica() as turno, turno.begin():
+        consulta = select(SesionNegociacion).where(SesionNegociacion.id == a_medio_turno)
+        await turno.execute(consulta.with_for_update())
+        assert await vencimientos.cerrar_vencidos(fabrica, momento) == 1  # solo el evento
+    # Antes de la siguiente vuelta el comprador propone o adjudica.
+    async with fabrica() as bd:
+        await bd.execute(
+            update(Evento).where(Evento.id == uuid.UUID(evento["id"])).values(estado=estado)
+        )
+        await bd.commit()
+
+    assert await vencimientos.cerrar_vencidos(fabrica, momento) == 1  # la sesión que se saltó
+
+    detalle = (await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()
+    assert detalle["estado"] == estado  # solo expira sesiones: no toca el evento
+    assert sorted(s["estado"] for s in detalle["sesiones"]) == ["acuerdo_tentativo", "expirada"]
+    assert await vencimientos.cerrar_vencidos(fabrica, momento) == 0
 
 
 async def test_antes_de_la_fecha_limite_no_cambia_nada(
