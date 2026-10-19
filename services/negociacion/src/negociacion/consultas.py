@@ -220,6 +220,7 @@ async def evento_salida(
         publicado_en=evento.publicado_en,
         cerrado_en=evento.cerrado_en,
         motivo_cancelacion=evento.motivo_cancelacion,
+        motivo_desierta=evento.motivo_desierta,
         version=evento.version,
         errores=[
             esquemas.ProblemaSalida(campo=p.campo, mensaje=p.mensaje)

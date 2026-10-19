@@ -52,20 +52,22 @@ async def proponer_adjudicacion(
 
 @router.post("/eventos/{evento_id}/adjudicacion/aprobar")
 async def aprobar_adjudicacion(
-    evento_id: uuid.UUID, usuario: Aprobador, bd: Bd, reloj: Reloj
+    evento_id: uuid.UUID, datos: esquemas.Aprobacion, usuario: Aprobador, bd: Bd, reloj: Reloj
 ) -> esquemas.Evaluacion:
-    return await adjudicacion.aprobar(bd, usuario, evento_id, reloj())
+    return await adjudicacion.aprobar(bd, usuario, evento_id, datos.adjudicacion_id, reloj())
 
 
 @router.post("/eventos/{evento_id}/adjudicacion/rechazar")
 async def rechazar_adjudicacion(
-    evento_id: uuid.UUID, datos: esquemas.MotivoDecision, usuario: Aprobador, bd: Bd, reloj: Reloj
+    evento_id: uuid.UUID, datos: esquemas.Rechazo, usuario: Aprobador, bd: Bd, reloj: Reloj
 ) -> esquemas.Evaluacion:
-    return await adjudicacion.rechazar(bd, usuario, evento_id, datos.motivo, reloj())
+    return await adjudicacion.rechazar(
+        bd, usuario, evento_id, datos.adjudicacion_id, datos.motivo, reloj()
+    )
 
 
 @router.post("/eventos/{evento_id}/desierta")
 async def declarar_desierta(
-    evento_id: uuid.UUID, datos: esquemas.MotivoDecision, usuario: Comprador, bd: Bd, reloj: Reloj
+    evento_id: uuid.UUID, datos: esquemas.Desierta, usuario: Comprador, bd: Bd, reloj: Reloj
 ) -> esquemas.Evaluacion:
     return await adjudicacion.declarar_desierta(bd, usuario, evento_id, datos.motivo, reloj())

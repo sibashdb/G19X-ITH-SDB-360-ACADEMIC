@@ -54,11 +54,13 @@ async def test_las_rutas_del_comprador_exigen_su_rol(
         de_externo = await cliente.request(metodo, ruta, headers=externo)
         assert de_externo.status_code == 403, (metodo, plantilla)
         if (metodo, plantilla) in DEL_APROBADOR:  # solo el aprobador decide
+            cuerpo = {"adjudicacion_id": UUID, "motivo": "No procede."}
             for otro in (comprador, admin):
-                de_otro = await cliente.request(metodo, ruta, headers=otro)
+                de_otro = await cliente.request(metodo, ruta, headers=otro, json=cuerpo)
                 assert de_otro.status_code == 403, (metodo, plantilla)
-            de_aprobador = await cliente.request(metodo, ruta, headers=aprobador)
-            assert de_aprobador.status_code not in (401, 403), (metodo, plantilla)
+            de_aprobador = await cliente.request(metodo, ruta, headers=aprobador, json=cuerpo)
+            # Llega a la ruta: la negociación de prueba no existe.
+            assert de_aprobador.status_code == 404, (metodo, plantilla)
         elif metodo != "GET":  # aprobador y admin solo consultan
             de_aprobador = await cliente.request(metodo, ruta, headers=aprobador)
             assert de_aprobador.status_code == 403, (metodo, plantilla)

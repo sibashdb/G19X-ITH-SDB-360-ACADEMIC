@@ -52,6 +52,9 @@ JUSTIFICACION_OBLIGATORIA = (
 JUSTIFICACION_LONGITUD = "La justificación debe tener de 10 a 1,000 caracteres."
 SESION_NO_CANDIDATA = "La sesión elegida no es un acuerdo tentativo de esta negociación."
 MISMA_PERSONA = "Usted propuso esta adjudicación; la decide otra persona."
+PROPUESTA_DISTINTA = (
+    "La propuesta cambió desde que usted la abrió. Revise la propuesta vigente antes de decidir."
+)
 SIN_CONTRATO_VIGENTE = (
     "Esta renovación no conserva el contrato vigente, así que no se puede armar el nuevo contrato."
 )
@@ -275,7 +278,6 @@ def _adjudicar(
     aprobacion: str,
 ) -> None:
     """Adjudica el evento y avisa a proveedores (el contrato) y a administración."""
-    fila.contrato_folio = terminos.folio
     evento.estado = "adjudicado"
     registrar_evento(
         bd,
@@ -339,6 +341,7 @@ async def proponer(
         # También si queda pendiente: una propuesta que no podría adjudicarse no debe esperar.
         terminos = await _terminos(bd, evento, sesion, momento)
         fila = Adjudicacion(
+            id=uuid.uuid4(),
             evento_id=evento.id,
             sesion_id=sesion.id,
             propuesta_por_id=usuario.id,
@@ -354,8 +357,10 @@ async def proponer(
             recomendacion=recomendacion,
             estado="pendiente" if requiere else "directa",
         )
+        if not requiere:  # la decide el comprador: nace decidida, en un solo INSERT
+            _decidida(fila, actor, momento)
+            fila.contrato_folio = terminos.folio
         bd.add(fila)
-        await bd.flush()
         detalle = _detalle(fila, sesion) | {
             "se_aparta": se_aparta,
             "requiere_aprobacion": requiere,
@@ -373,7 +378,6 @@ async def proponer(
                 fecha=momento,
             )
         else:
-            _decidida(fila, actor, momento)
             _adjudicar(bd, evento, fila, sesion, terminos, actor, "directa")
             registrar(
                 bd,
@@ -388,9 +392,11 @@ async def proponer(
 
 
 async def _pendiente(
-    bd: AsyncSession, usuario: Usuario, evento_id: uuid.UUID
+    bd: AsyncSession, usuario: Usuario, evento_id: uuid.UUID, adjudicacion_id: uuid.UUID
 ) -> tuple[Evento, Adjudicacion, SesionNegociacion]:
-    """El evento (bloqueado) y su propuesta pendiente; decide otra persona que quien la hizo."""
+    """El evento (bloqueado) y su propuesta pendiente, la que el aprobador revisó y que decide
+    otra persona que quien la hizo. Orden de los errores: estado (409), propuesta (409), persona
+    (403)."""
     evento = await consultas.evento_o_404(bd, evento_id, bloquear=True)
     exigir_estado(evento, "pendiente_aprobacion")
     fila = await bd.scalar(
@@ -401,20 +407,26 @@ async def _pendiente(
     sesion = None if fila is None else await bd.get(SesionNegociacion, fila.sesion_id)
     if fila is None or sesion is None:
         raise RuntimeError("Un evento pendiente de aprobación siempre tiene su propuesta pendiente")
+    if fila.id != adjudicacion_id:  # se rechazó y se propuso otra mientras tanto
+        raise conflicto(PROPUESTA_DISTINTA, "propuesta_distinta")
     if fila.propuesta_por_id == usuario.id:  # aunque tenga los dos roles
         raise prohibido(MISMA_PERSONA, "misma_persona")
     return evento, fila, sesion
 
 
 async def aprobar(
-    bd: AsyncSession, usuario: Usuario, evento_id: uuid.UUID, momento: datetime
+    bd: AsyncSession,
+    usuario: Usuario,
+    evento_id: uuid.UUID,
+    adjudicacion_id: uuid.UUID,
+    momento: datetime,
 ) -> esquemas.Evaluacion:
     """El aprobador aprueba la propuesta guardada (sin consultar de nuevo a inteligencia)."""
     actor = de_usuario(usuario, "aprobador")
     async with bd.begin():
-        evento, fila, sesion = await _pendiente(bd, usuario, evento_id)
+        evento, fila, sesion = await _pendiente(bd, usuario, evento_id, adjudicacion_id)
         terminos = await _terminos(bd, evento, sesion, momento)
-        fila.estado = "aprobada"
+        fila.estado, fila.contrato_folio = "aprobada", terminos.folio
         _decidida(fila, actor, momento)
         _adjudicar(bd, evento, fila, sesion, terminos, actor, "aprobada")
         registrar(
@@ -430,13 +442,18 @@ async def aprobar(
 
 
 async def rechazar(
-    bd: AsyncSession, usuario: Usuario, evento_id: uuid.UUID, motivo: str, momento: datetime
+    bd: AsyncSession,
+    usuario: Usuario,
+    evento_id: uuid.UUID,
+    adjudicacion_id: uuid.UUID,
+    motivo: str,
+    momento: datetime,
 ) -> esquemas.Evaluacion:
     """El aprobador rechaza la propuesta; el evento vuelve a evaluación y se puede proponer de
     nuevo. Responde sin recomendación: el comprador la consulta otra vez al volver a proponer."""
     actor = de_usuario(usuario, "aprobador")
     async with bd.begin():
-        evento, fila, sesion = await _pendiente(bd, usuario, evento_id)
+        evento, fila, sesion = await _pendiente(bd, usuario, evento_id, adjudicacion_id)
         fila.estado, fila.motivo_rechazo = "rechazada", motivo
         _decidida(fila, actor, momento)
         evento.estado = "en_evaluacion"

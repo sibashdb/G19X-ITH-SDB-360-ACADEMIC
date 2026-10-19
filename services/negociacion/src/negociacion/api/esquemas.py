@@ -157,6 +157,7 @@ class EventoSalida(BaseModel):
     publicado_en: datetime | None
     cerrado_en: datetime | None
     motivo_cancelacion: str | None
+    motivo_desierta: str | None
     version: int
     errores: list[ProblemaSalida]  # lo que impide publicar (solo en borrador)
     avisos: list[ProblemaSalida]
@@ -240,9 +241,19 @@ class Cancelacion(BaseModel):
     motivo: Motivo
 
 
-class MotivoDecision(BaseModel):
-    """El motivo de rechazar una propuesta o de declarar desierta la negociación."""
+class Desierta(BaseModel):
+    """Por qué el comprador declara desierta la negociación."""
 
+    motivo: Motivo
+
+
+class Aprobacion(BaseModel):
+    """La propuesta que el aprobador revisó: si ya no es la pendiente, no se decide."""
+
+    adjudicacion_id: uuid.UUID  # el `vigente.id` de la evaluación que tenía abierta
+
+
+class Rechazo(Aprobacion):
     motivo: Motivo
 
 
@@ -427,8 +438,11 @@ class Propuesta(BaseModel):
     """Lo que manda el comprador al proponer una adjudicación."""
 
     sesion_id: uuid.UUID  # la elegida
-    pesos: str | None = None  # "40,30,15,15", como en la consulta de la evaluación
-    justificacion: str | None = None  # obligatoria si no es la recomendada (10 a 1,000 caracteres)
+    # "40,30,15,15", como en la consulta de la evaluación (el máximo es "100,100,100,100").
+    pesos: str | None = Field(None, max_length=15)
+    # Obligatoria si no es la recomendada: de 10 a 1,000 caracteres ya recortada (adjudicacion.py);
+    # el tope de aquí solo acota lo que se lee antes de recortar.
+    justificacion: str | None = Field(None, max_length=2000)
 
 
 class Evaluacion(BaseModel):
