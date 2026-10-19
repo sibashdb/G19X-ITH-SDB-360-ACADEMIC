@@ -208,7 +208,7 @@ historial:
 | Método y ruta | Rol | Qué hace |
 |---|---|---|
 | `GET /eventos/{id}/evaluacion?pesos=40,30,15,15` | interno | Arma los candidatos, pide la recomendación a `inteligencia` y devuelve también la adjudicación vigente o pendiente y el historial de propuestas. Sin `pesos`, usa los configurados. Solo funciona en `en_evaluacion`, `pendiente_aprobacion`, `adjudicado` y `desierto` |
-| `POST /eventos/{id}/adjudicacion` | comprador | Cuerpo: `sesion_id`, `pesos` (el texto «40,30,15,15», como en la consulta) y `justificacion`. Vuelve a pedir la recomendación en el servidor (nunca confía en la del cliente) y aplica D4 a D7. Responde con el evento actualizado |
+| `POST /eventos/{id}/adjudicacion` | comprador | Cuerpo: `sesion_id`, `pesos` (el texto «40,30,15,15», como en la consulta) y `justificacion`. Vuelve a pedir la recomendación en el servidor (nunca confía en la del cliente) y aplica D4 a D7. Responde con la evaluación (`recomendacion`, `vigente` e `historial`) |
 | `POST /eventos/{id}/adjudicacion/aprobar` | aprobador | Cuerpo: `adjudicacion_id`, el `vigente.id` de la evaluación que el aprobador revisó. Solo en `pendiente_aprobacion` y si no es quien propuso (si lo es: 403 con `codigo` `misma_persona`). Si `adjudicacion_id` no es la propuesta pendiente: 409 `propuesta_distinta`. El evento pasa a `adjudicado` |
 | `POST /eventos/{id}/adjudicacion/rechazar` | aprobador | Cuerpo: `adjudicacion_id` y `motivo` (de 1 a 500 caracteres). Misma regla de persona y el mismo 409 `propuesta_distinta`. El evento vuelve a `en_evaluacion` |
 | `POST /eventos/{id}/desierta` | comprador | Cuerpo: `motivo`. Solo desde `en_evaluacion` |
@@ -220,6 +220,8 @@ historial:
   - `misma_persona`;
   - `propuesta_distinta`;
   - `sesion_no_candidata`.
+- Las cuatro acciones (`POST`) responden con la misma evaluación que `GET /evaluacion`; el
+  estado del evento se lee con `GET /eventos/{id}`.
 - `inteligencia` caída: 503, igual que en N1.
 - Cada acción deja su fila en la `bitacora`: `adjudicacion.propuesta`, `adjudicacion.aprobada`,
   `adjudicacion.directa`, `adjudicacion.rechazada` y `evento.desierto`, con su detalle.

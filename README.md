@@ -23,9 +23,9 @@ hasta el contrato registrado; lo siguiente es su interfaz.
 | 4 | Eventos de negociación | Hecho | `services/negociacion`: compra o renovación, líneas, invitados, ideal y límite por término, palancas con peso y fecha límite; pantalla Negociaciones | — |
 | 5 | Negociación con agente en el portal | Parcial | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual | Los mensajes del agente son plantillas y la nota del proveedor no se interpreta (el LLM llega con N2) |
 | 6 | Propuestas de negociación | Falta | — | Documento de estrategia y argumentos para negociar a mano |
-| 7 | Recomendación de adjudicación | Hecho | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta | La pantalla de evaluación y propuesta (incremento 4′b); mientras tanto se usa la API |
+| 7 | Recomendación de adjudicación | Parcial | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta | Las pantallas de evaluación y propuesta y los campos de Configuración para los pesos de la adjudicación y el umbral (incremento 4′b); mientras tanto se usan la API de `negociacion` y `PUT /configuracion` de `inteligencia` |
 | 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
-| 9 | Aprobaciones y bitácora | Hecho | Aprobación en `services/negociacion`: sobre el umbral (500,000 MXN por defecto) o fuera de límites decide un aprobador, y nunca quien propuso ([ADR-011](docs/arquitectura/adr/011-quien-aprueba-una-adjudicacion.md)); la adjudicación aprobada registra el contrato en `proveedores`. Aviso del resultado a los proveedores por correo. Bitácora inmutable en `administracion` (pantalla Actividad, con adjudicaciones y desiertas; pantalla Correos) y en `negociacion` | La pantalla de aprobación (incremento 4′b); mientras tanto se usa la API |
+| 9 | Aprobaciones y bitácora | Parcial | Aprobación en `services/negociacion`: sobre el umbral (500,000 MXN por defecto) o fuera de límites decide un aprobador, y nunca quien propuso ([ADR-011](docs/arquitectura/adr/011-quien-aprueba-una-adjudicacion.md)); la adjudicación aprobada registra el contrato en `proveedores`. Aviso del resultado a los proveedores por correo. Bitácora inmutable en `administracion` (pantalla Actividad, con adjudicaciones y desiertas; pantalla Correos) y en `negociacion` | La pantalla de aprobación y los campos de Configuración para el umbral (incremento 4′b); mientras tanto se usan la API de `negociacion` y `PUT /configuracion` de `inteligencia` |
 | 10 | Tablero | Parcial | Gasto, contratos por vencer, proveedores en riesgo y ahorro potencial | Estado de las negociaciones y ahorro logrado |
 
 **Métricas medidas** (PRD §1.6):
@@ -91,7 +91,10 @@ Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1
 con usuario y contraseña. La prueba de humo deja un usuario `humo.prueba` desactivado, que
 reutiliza en cada corrida, y un servicio `HUMO-SERV` en el catálogo, que reactiva en cada
 corrida. Cada corrida también deja una negociación cancelada y otra adjudicada, con su contrato
-`C-NEG-…` en el historial de `proveedores`.
+`C-NEG-…` en el historial de `proveedores`. Ese contrato (1,000 unidades, unos $36.9
+millones de MXN al año) es real para el sistema: entra al precio de referencia del
+servicio, al «gasto anual contratado» del Tablero de ese proveedor y a la concentración
+de las recomendaciones que se calculen después. Solo afecta al entorno local.
 
 Si su entorno ya existía antes de alguno de los servicios, siga
 [`docs/actualizar-entorno.md`](docs/actualizar-entorno.md).
@@ -191,7 +194,8 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.
 - **Adjudicación solo por la API.** La evaluación, la propuesta y la aprobación todavía no tienen
-  pantalla (incremento 4′b): se usan con `/api/negociacion` (contrato en
+  pantalla, y tampoco los pesos de la adjudicación ni el umbral en Configuración (incremento
+  4′b): se usan con `/api/negociacion` y `PUT /api/inteligencia/configuracion` (contrato en
   [`docs/arquitectura/openapi/negociacion.json`](docs/arquitectura/openapi/negociacion.json)).
 - **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
   interpreta; la IA llega con N2.

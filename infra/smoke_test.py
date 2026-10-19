@@ -260,6 +260,25 @@ def verificar_inteligencia(cliente: httpx.Client) -> None:
     verificar(sin_permiso.status_code == 403, "un comprador no debe ver los datos de inteligencia")
 
 
+def esperar_actividad(cliente: httpx.Client, folio: str, tipo: str) -> None:
+    """Espera a que el evento `tipo` de la negociación `folio` llegue a la Actividad."""
+    limite = time.monotonic() + ESPERA_EVENTOS_S
+    while True:
+        admin = token_de(cliente, "admin1")
+        actividad = cliente.get(
+            "/api/administracion/actividad",
+            params={"tipo": "negociacion", "tamano": 100},
+            headers=admin,
+        ).json()["elementos"]
+        if any(a["objeto_id"] == folio and a["tipo"] == tipo for a in actividad):
+            return
+        verificar(
+            time.monotonic() < limite,
+            f"{tipo} de la negociación {folio} no llegó a la Actividad en {ESPERA_EVENTOS_S} s",
+        )
+        time.sleep(2)
+
+
 def publicar_compra(
     cliente: httpx.Client, cantidad: str
 ) -> tuple[dict[str, str], dict[str, Any], dict[str, Any], dict[str, str]]:
@@ -300,7 +319,11 @@ def publicar_compra(
     publicado = cliente.post(f"/api/negociacion/eventos/{evento['id']}/publicar", headers=comprador)
     verificar(publicado.status_code == 200, f"publicar la negociación falló: {publicado.text}")
     [enlace] = publicado.json()["enlaces"]
-    verificar(enlace["correo_estado"] == "enviado", f"la invitación no salió: {enlace}")
+    # El enlace lleva el token de la invitación: ningún mensaje de falla lo incluye.
+    verificar(
+        enlace["correo_estado"] == "enviado",
+        f"la invitación no salió (correo_estado: {enlace['correo_estado']})",
+    )
     evento["sesion_id"] = enlace["sesion_id"]
     portal = {"Authorization": f"Invitacion {enlace['enlace'].split('#t=')[1]}"}
     verificar(
@@ -341,24 +364,7 @@ def verificar_negociacion(cliente: httpx.Client) -> None:
     )
     verificar(cancelada.status_code == 200, f"cancelar la negociación falló: {cancelada.text}")
     # La publicación llega a la Actividad por RabbitMQ.
-    limite = time.monotonic() + ESPERA_EVENTOS_S
-    while True:
-        admin = token_de(cliente, "admin1")
-        actividad = cliente.get(
-            "/api/administracion/actividad",
-            params={"tipo": "negociacion", "tamano": 100},
-            headers=admin,
-        ).json()["elementos"]
-        if any(
-            a["objeto_id"] == evento["folio"] and a["tipo"] == "negociacion.publicada"
-            for a in actividad
-        ):
-            return
-        verificar(
-            time.monotonic() < limite,
-            f"la publicación de la negociación no llegó a la Actividad en {ESPERA_EVENTOS_S} s",
-        )
-        time.sleep(2)
+    esperar_actividad(cliente, evento["folio"], "negociacion.publicada")
 
 
 def esperar_estado(cliente: httpx.Client, evento_id: str, estado: str) -> None:
@@ -378,7 +384,7 @@ def esperar_estado(cliente: httpx.Client, evento_id: str, estado: str) -> None:
 
 def verificar_adjudicacion(cliente: httpx.Client) -> None:
     """De la negociación al contrato: acuerdo, evaluación, propuesta, aprobación y contrato."""
-    # Una cantidad grande, para que el costo suela superar el umbral y pase por el aprobador.
+    # Una cantidad grande: el costo debe superar el umbral para que pase por el aprobador.
     cantidad = "1000"
     comprador, proveedor, evento, portal = publicar_compra(cliente, cantidad)
     linea = evento["lineas"][0]
@@ -403,37 +409,43 @@ def verificar_adjudicacion(cliente: httpx.Client) -> None:
         recomendacion["recomendado"] == evento["sesion_id"],
         f"la recomendación no es el único acuerdo: {recomendacion['recomendado']}",
     )
+    costo = Decimal(recomendacion["candidatos"][0]["costo_total_mxn"])
+    umbral = Decimal(recomendacion["umbral_aprobacion"])
+    verificar(
+        costo > umbral,
+        f"la compra de humo cuesta {costo} MXN y no supera el umbral de aprobación de {umbral} "
+        f"MXN, así que no pasaría por el aprobador: suba la cantidad ({cantidad})",
+    )
 
     propuesta = cliente.post(
         f"{api}/adjudicacion", json={"sesion_id": recomendacion["recomendado"]}, headers=comprador
     )
     verificar(propuesta.status_code == 200, f"proponer la adjudicación falló: {propuesta.text}")
     vigente = propuesta.json()["vigente"]
-    # La regla de aprobación (spec §4.3): sobre el umbral, la decide el aprobador.
-    sobre_umbral = Decimal(vigente["costo_total_mxn"]) > Decimal(recomendacion["umbral_aprobacion"])
+    # La regla de aprobación (spec §4.3): sobre el umbral, la decide un aprobador.
     verificar(
-        vigente["requiere_aprobacion"] is sobre_umbral
-        and vigente["estado"] == ("pendiente" if sobre_umbral else "directa"),
-        f"la regla de aprobación no se cumplió: {vigente}",
+        vigente["requiere_aprobacion"] is True
+        and "umbral" in vigente["motivo_aprobacion"]
+        and vigente["estado"] == "pendiente",
+        f"la propuesta sobre el umbral debía quedar pendiente: {vigente}",
     )
-    if vigente["estado"] == "pendiente":
-        esperar_estado(cliente, evento["id"], "pendiente_aprobacion")
-        aprobacion = {"adjudicacion_id": vigente["id"]}
-        sin_rol = cliente.post(f"{api}/adjudicacion/aprobar", json=aprobacion, headers=comprador)
-        verificar(sin_rol.status_code == 403, "un comprador no debe aprobar una adjudicación")
-        aprobador = token_de(cliente, "aprobador1")
-        otra = {"adjudicacion_id": str(uuid.uuid4())}
-        distinta = cliente.post(f"{api}/adjudicacion/aprobar", json=otra, headers=aprobador)
-        verificar(
-            distinta.status_code == 409 and distinta.json().get("codigo") == "propuesta_distinta",
-            f"aprobar otra propuesta debía dar 409 propuesta_distinta: {distinta.text}",
-        )
-        aprobada = cliente.post(f"{api}/adjudicacion/aprobar", json=aprobacion, headers=aprobador)
-        verificar(aprobada.status_code == 200, f"aprobar la adjudicación falló: {aprobada.text}")
-        vigente = aprobada.json()["vigente"]
+    esperar_estado(cliente, evento["id"], "pendiente_aprobacion")
+    aprobacion = {"adjudicacion_id": vigente["id"]}
+    sin_rol = cliente.post(f"{api}/adjudicacion/aprobar", json=aprobacion, headers=comprador)
+    verificar(sin_rol.status_code == 403, "un comprador no debe aprobar una adjudicación")
+    aprobador = token_de(cliente, "aprobador1")
+    otra = {"adjudicacion_id": str(uuid.uuid4())}
+    distinta = cliente.post(f"{api}/adjudicacion/aprobar", json=otra, headers=aprobador)
     verificar(
-        vigente["estado"] in ("aprobada", "directa") and vigente["contrato_folio"] is not None,
-        f"la adjudicación no quedó firme: {vigente}",
+        distinta.status_code == 409 and distinta.json().get("codigo") == "propuesta_distinta",
+        f"aprobar otra propuesta debía dar 409 propuesta_distinta: {distinta.text}",
+    )
+    aprobada = cliente.post(f"{api}/adjudicacion/aprobar", json=aprobacion, headers=aprobador)
+    verificar(aprobada.status_code == 200, f"aprobar la adjudicación falló: {aprobada.text}")
+    vigente = aprobada.json()["vigente"]
+    verificar(
+        vigente["estado"] == "aprobada" and vigente["contrato_folio"] is not None,
+        f"la adjudicación no quedó aprobada: {vigente}",
     )
     folio = f"C-{evento['folio']}"
     verificar(vigente["contrato_folio"] == folio, f"folio de contrato inesperado: {vigente}")
@@ -463,24 +475,7 @@ def verificar_adjudicacion(cliente: httpx.Client) -> None:
         f"el contrato no trae lo adjudicado: {contrato}",
     )
     # La adjudicación también llega a la Actividad por RabbitMQ.
-    limite = time.monotonic() + ESPERA_EVENTOS_S
-    while True:
-        admin = token_de(cliente, "admin1")
-        actividad = cliente.get(
-            "/api/administracion/actividad",
-            params={"tipo": "negociacion", "tamano": 100},
-            headers=admin,
-        ).json()["elementos"]
-        if any(
-            a["objeto_id"] == evento["folio"] and a["tipo"] == "negociacion.adjudicada"
-            for a in actividad
-        ):
-            return
-        verificar(
-            time.monotonic() < limite,
-            f"la adjudicación no llegó a la Actividad en {ESPERA_EVENTOS_S} s",
-        )
-        time.sleep(2)
+    esperar_actividad(cliente, evento["folio"], "negociacion.adjudicada")
 
 
 def main() -> int:
