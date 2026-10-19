@@ -44,6 +44,7 @@ const VISTA = {
   rondas_max: 6,
   rondas_restantes: 4,
   estado: "activa",
+  resultado: null,
   atendido_por: "agente",
   pide_confirmacion: false,
   lineas: [

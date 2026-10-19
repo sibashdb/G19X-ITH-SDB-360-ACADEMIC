@@ -75,6 +75,32 @@ describe("Negociaciones", () => {
     await esperarSinViolaciones(container)
   })
 
+  it("lista también las negociaciones propuestas, adjudicadas y desiertas", async () => {
+    const estados = [
+      ["pendiente_aprobacion", "Pendiente de aprobación"],
+      ["adjudicado", "Adjudicada"],
+      ["desierto", "Desierta"],
+    ] as const
+    simularApi(() =>
+      respuestaJson({
+        total: 3,
+        elementos: estados.map(([estado], i) => ({
+          ...PAGINA.elementos[0],
+          id: `5d1c2b0e-6f4a-4a8e-9f61-3c2a7e0b9d4${String(i)}`,
+          folio: `NEG-2026-000${String(i + 1)}`,
+          estado,
+        })),
+      })
+    )
+    const { container } = renderizarPagina(<Negociaciones />, {
+      ruta: "/negociaciones",
+    })
+    const tabla = await screen.findByRole("table")
+    for (const [, nombre] of estados)
+      expect(await within(tabla).findByText(nombre)).toBeInTheDocument()
+    await esperarSinViolaciones(container)
+  })
+
   it("solo el comprador ve «Nueva negociación»", async () => {
     simularApi(() => respuestaJson(PAGINA))
     renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })

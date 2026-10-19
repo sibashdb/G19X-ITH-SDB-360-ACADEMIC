@@ -14,8 +14,15 @@ import { formatoMoneda } from "@/tipos"
 // Montos, precios y valores llegan como texto decimal; las utilidades, como número de 0 a 1.
 
 export type TipoEvento = "compra" | "renovacion"
+// Los estados del evento, en services/negociacion/src/negociacion/modelos.py::ESTADOS_EVENTO.
 export type EstadoEvento =
-  "borrador" | "abierto" | "en_evaluacion" | "cancelado"
+  | "borrador"
+  | "abierto"
+  | "en_evaluacion"
+  | "pendiente_aprobacion"
+  | "adjudicado"
+  | "desierto"
+  | "cancelado"
 export type EstadoSesion =
   | "invitada"
   | "activa"
@@ -101,6 +108,7 @@ export type Evento = {
   publicado_en: string | null
   cerrado_en: string | null
   motivo_cancelacion: string | null
+  motivo_desierta: string | null
   version: number
   errores: Problema[]
   avisos: Problema[]
@@ -229,6 +237,7 @@ export type VistaPortal = {
   rondas_max: number
   rondas_restantes: number
   estado: EstadoSesion
+  resultado: "adjudicada" | "no_elegida" | "desierta" | null
   atendido_por: "agente" | "persona"
   pide_confirmacion: boolean
   lineas: LineaPortal[]
@@ -246,6 +255,9 @@ export const NOMBRES_ESTADO_EVENTO: Record<EstadoEvento, string> = {
   borrador: "Borrador",
   abierto: "Abierta",
   en_evaluacion: "En evaluación",
+  pendiente_aprobacion: "Pendiente de aprobación",
+  adjudicado: "Adjudicada",
+  desierto: "Desierta",
   cancelado: "Cancelada",
 }
 

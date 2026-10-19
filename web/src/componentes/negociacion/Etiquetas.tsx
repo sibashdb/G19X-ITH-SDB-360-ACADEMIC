@@ -1,8 +1,11 @@
 import {
+  BadgeCheck,
   Ban,
   CircleCheck,
   CircleOff,
+  ClipboardCheck,
   Clock,
+  FileX,
   Hand,
   Handshake,
   Hourglass,
@@ -25,6 +28,9 @@ const DE_EVENTO: Record<EstadoEvento, [LucideIcon, Variante]> = {
   borrador: [PencilLine, "outline"],
   abierto: [CircleCheck, "success"],
   en_evaluacion: [Hourglass, "secondary"],
+  pendiente_aprobacion: [ClipboardCheck, "warning"],
+  adjudicado: [BadgeCheck, "success"],
+  desierto: [FileX, "outline"],
   cancelado: [Ban, "outline"],
 }
 

@@ -87,6 +87,7 @@ const BORRADOR = {
   publicado_en: null,
   cerrado_en: null,
   motivo_cancelacion: null,
+  motivo_desierta: null,
   version: 3,
   errores: [],
   avisos: [],
