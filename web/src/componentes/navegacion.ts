@@ -133,7 +133,7 @@ export const NAVEGACION: SeccionNavegacion[] = [
         titulo: "Correos",
         ruta: "/sistema/correos",
         descripcion:
-          "Invitaciones, restablecimientos e invitaciones a negociar",
+          "Invitaciones, restablecimientos, invitaciones a negociar y sus resultados",
         icono: Mail,
         soloAdmin: true,
       },

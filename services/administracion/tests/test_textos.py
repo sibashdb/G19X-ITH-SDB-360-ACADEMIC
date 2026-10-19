@@ -11,6 +11,7 @@ WEB = Path(__file__).resolve().parents[3] / "web" / "src" / "actividad.ts"
 def _actividad(tipo: str, **campos: object) -> Actividad:
     return Actividad(
         tipo=tipo,
+        actor_id=campos.pop("actor_id", None),  # sin actor_id: la acción es del sistema
         actor_nombre="admin1",
         objeto_nombre=campos.pop("objeto_nombre", "Ana López"),
         detalle=campos.pop("detalle", {}),
@@ -245,6 +246,18 @@ CASOS: list[tuple[str, str, dict[str, object], str]] = [
         "peso del SLA en la adjudicación, umbral de aprobación",
     ),
 ]
+
+
+def test_un_comprador_que_escribe_sin_acuerdos_no_declara_la_desierta_automatica() -> None:
+    desierta = _actividad(
+        "negociacion.desierta",
+        objeto_nombre="NEG-2026-0001 «CRM 2027»",
+        actor_id="c-1",
+        detalle={"motivo": "sin_acuerdos"},
+    )
+    assert describir(desierta) == (
+        "Declaró desierta la negociación NEG-2026-0001 «CRM 2027»: sin_acuerdos"
+    )
 
 
 def test_la_tabla_cubre_todos_los_tipos() -> None:

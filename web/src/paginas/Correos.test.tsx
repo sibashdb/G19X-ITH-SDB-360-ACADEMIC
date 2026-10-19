@@ -118,6 +118,9 @@ describe("Correos", () => {
       await screen.findByText("Aún no se han enviado correos")
     ).toBeInTheDocument()
     expect(
+      screen.getByText(/las invitaciones a negociar y sus resultados/)
+    ).toBeInTheDocument()
+    expect(
       screen.queryByRole("link", { name: /Abrir buzón de desarrollo/ })
     ).not.toBeInTheDocument()
   })

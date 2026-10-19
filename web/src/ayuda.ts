@@ -324,7 +324,7 @@ export const ARTICULOS: Articulo[] = [
         parrafos: [
           "La invitación es un correo con un enlace para que la persona defina su contraseña; vence en 72 horas. A quien ya entró antes se le envía un correo de restablecimiento que vence en 24 horas.",
           "La contraseña temporal se muestra una sola vez: cópiela y entréguela por un medio seguro. La persona deberá cambiarla al entrar.",
-          "En Correos ve cada correo enviado y si salió bien. Si uno no salió, reintente desde la ficha de la persona o asígnele una contraseña temporal. A una cuenta desactivada no se le puede enviar el correo: actívela primero.",
+          "En Correos ve cada correo enviado y si salió bien: las invitaciones y restablecimientos de contraseña, y también las invitaciones a negociar y los resultados que se avisan a los proveedores. Si el de una persona no salió, reintente desde su ficha o asígnele una contraseña temporal. A una cuenta desactivada no se le puede enviar el correo: actívela primero.",
         ],
       },
     ],
@@ -338,7 +338,7 @@ export const ARTICULOS: Articulo[] = [
     secciones: [
       {
         parrafos: [
-          "Actividad reúne los inicios de sesión (incluidos los intentos fallidos), las acciones sobre usuarios, las importaciones, los cambios del catálogo y los cambios de la configuración de la puntuación y los entrenamientos del modelo de precios. Nada de esto se puede borrar ni modificar.",
+          "Actividad reúne los inicios de sesión (incluidos los intentos fallidos), las acciones sobre usuarios, las importaciones, los cambios del catálogo, los cambios de la configuración de la puntuación, los entrenamientos del modelo de precios y las negociaciones (su publicación, cancelación, adjudicación o declaración de desierta, y los correos a los proveedores). Nada de esto se puede borrar ni modificar.",
           "Filtre por persona, tipo y fechas. Con «Exportar CSV» descarga los registros filtrados para abrirlos en Excel; se exportan como máximo los 10,000 más recientes, así que acote las fechas si necesita más.",
         ],
       },

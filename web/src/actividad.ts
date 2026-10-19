@@ -107,7 +107,8 @@ function adjudicada(a: RegistroActividad): string {
 
 function desierta(a: RegistroActividad): string {
   const motivo = a.detalle.motivo
-  if (motivo === "sin_acuerdos")
+  // La automática la publica el sistema (sin actor_id); un comprador puede escribir lo mismo.
+  if (motivo === "sin_acuerdos" && a.actor_id === null)
     return `La negociación ${a.objeto_nombre} quedó desierta: ningún proveedor llegó a un acuerdo`
   const texto = `Declaró desierta la negociación ${a.objeto_nombre}`
   return motivo ? `${texto}: ${String(motivo)}` : texto

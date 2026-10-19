@@ -245,7 +245,12 @@ def test_el_resultado_enviado_registra_su_correo() -> None:
         _sobre("negociacion.resultado_enviado", aviso | {"estado": "fallido", "error": "x"})
     )
     assert fallido is not None and fallido.resultado == "fallo"
-    assert fallido.correo is not None and fallido.correo.error == "x"
+    assert fallido.correo is not None
+    assert (fallido.correo.error, fallido.correo.estado, fallido.correo.tipo) == (
+        "x",
+        "fallido",
+        "resultado_negociacion",
+    )
 
 
 @pytest.mark.parametrize(

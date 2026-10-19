@@ -105,7 +105,8 @@ def _adjudicada(a: Actividad) -> str:
 
 def _desierta(a: Actividad) -> str:
     motivo = a.detalle.get("motivo")
-    if motivo == "sin_acuerdos":  # la desierta automática
+    # La automática la publica el sistema (sin actor_id); un comprador puede escribir lo mismo.
+    if motivo == "sin_acuerdos" and a.actor_id is None:
         return (
             f"La negociación {a.objeto_nombre} quedó desierta: ningún proveedor llegó a un acuerdo"
         )

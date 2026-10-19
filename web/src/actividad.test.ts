@@ -156,8 +156,8 @@ describe("describirActividad", () => {
     ],
     [
       "negociacion.desierta",
-      { motivo: "sin_acuerdos" },
-      "La negociación NEG-2026-0001 «CRM 2027» quedó desierta: ningún proveedor llegó a un acuerdo",
+      { motivo: "sin_acuerdos" }, // la escribió un comprador (base.actor_id no es nulo)
+      "Declaró desierta la negociación NEG-2026-0001 «CRM 2027»: sin_acuerdos",
     ],
     [
       "negociacion.resultado_enviado",
@@ -173,6 +173,21 @@ describe("describirActividad", () => {
     const objeto_nombre = "NEG-2026-0001 «CRM 2027»"
     expect(describirActividad({ ...base, tipo, detalle, objeto_nombre })).toBe(
       esperado
+    )
+  })
+
+  it("la desierta automática es la del sistema con el motivo sin_acuerdos", () => {
+    expect(
+      describirActividad({
+        ...base,
+        tipo: "negociacion.desierta",
+        actor_id: null,
+        actor_nombre: "Sistema",
+        objeto_nombre: "NEG-2026-0001 «CRM 2027»",
+        detalle: { motivo: "sin_acuerdos" },
+      })
+    ).toBe(
+      "La negociación NEG-2026-0001 «CRM 2027» quedó desierta: ningún proveedor llegó a un acuerdo"
     )
   })
 

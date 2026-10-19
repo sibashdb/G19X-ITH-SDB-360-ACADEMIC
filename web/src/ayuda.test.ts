@@ -53,6 +53,15 @@ describe("contenido de la ayuda", () => {
     ).toContain("importar-datos")
   })
 
+  it("la ayuda de Correos y de Actividad menciona los avisos de negociación", () => {
+    const texto = (slug: string) =>
+      JSON.stringify(articuloPorSlug(slug)?.secciones)
+    expect(texto("contrasenas-y-correos")).toContain(
+      "invitaciones a negociar y los resultados"
+    )
+    expect(texto("revisar-actividad")).toContain("adjudicación")
+  })
+
   it("encuentra un artículo por su slug", () => {
     expect(articuloPorSlug("importar-datos")?.titulo).toBe(
       "Importar los datos del ERP"

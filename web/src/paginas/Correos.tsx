@@ -67,7 +67,7 @@ function ContenidoCorreos() {
         <EstadoVacio
           icono={Mail}
           titulo="Aún no se han enviado correos"
-          descripcion="Las invitaciones, los restablecimientos de contraseña y las invitaciones a negociar aparecerán aquí."
+          descripcion="Las invitaciones, los restablecimientos de contraseña, las invitaciones a negociar y sus resultados aparecerán aquí."
         />
       )
     return (
