@@ -128,6 +128,15 @@ Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
    `negociacion.eventos` muestre 0 mensajes listos (*Ready*). La cola `negociacion.eventos.dlq`
    debe quedar vacía.
 
+## Negociaciones de antes de la adjudicación
+
+- Las negociaciones que quedaron en evaluación sin ningún acuerdo no pasan solas a «desierta»: el
+  comprador la declara desierta con `POST /api/negociacion/eventos/{id}/desierta` hasta que exista la
+  pantalla del siguiente incremento.
+- Volver a las imágenes de `main` después de haber corrido esta rama exige un volumen de
+  PostgreSQL nuevo: los `downgrade` de la migración 0002 de la negociación y de la 0004 de la
+  administración se niegan si ya hay filas en los estados y tipos nuevos.
+
 ## Tema de inicio de sesión en un realm ya importado
 
 Keycloak importa el realm solo la primera vez. Si su volumen de PostgreSQL ya tenía el realm
