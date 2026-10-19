@@ -319,6 +319,8 @@ sequenceDiagram
 - El comprador propone la adjudicación. **Si se aparta de la recomendación, debe justificarlo** (queda en bitácora).
 - Tras la aprobación, se publica `negociacion.adjudicada` y los proveedores no elegidos reciben aviso en el portal.
 
+> **Desviación de 4′ (D9)** (`docs/superpowers/specs/2026-10-16-adjudicacion-y-aprobacion-design.md`, §4.6): el aviso del resultado va por correo a cada proveedor invitado que tenga destinatario y, si su enlace sigue vigente, también en el portal. El enlace vence en la fecha límite (§5.1) y la adjudicación casi siempre llega después, así que avisar solo en el portal no llegaría a nadie. El aviso va también al proveedor elegido y a los de una negociación desierta; dice cuál fue el resultado para él y nunca nombra al ganador ni revela montos.
+
 ### 3.6 Bitácora de auditoría
 
 Tabla de solo inserción. A nivel de base de datos, el usuario del servicio **no tiene permisos UPDATE ni DELETE** sobre ella. Registra cada mensaje, interpretación, decisión del motor con su traza y versión de configuración, y acción humana. Permite reproducir y explicar cualquier negociación: "¿por qué el agente ofreció 32.54 en la ronda 4?".

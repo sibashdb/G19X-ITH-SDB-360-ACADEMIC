@@ -113,6 +113,30 @@ channels:
     bindings:
       amqp:
         $ref: '#/components/channelBindings/eventos'
+  negociacionAdjudicada:
+    address: negociacion.adjudicada
+    messages:
+      negociacionAdjudicada:
+        $ref: '#/components/messages/negociacionAdjudicada'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  negociacionDesierta:
+    address: negociacion.desierta
+    messages:
+      negociacionDesierta:
+        $ref: '#/components/messages/negociacionDesierta'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
+  negociacionResultadoEnviado:
+    address: negociacion.resultado_enviado
+    messages:
+      negociacionResultadoEnviado:
+        $ref: '#/components/messages/negociacionResultadoEnviado'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/eventos'
 
 operations:
   # Quién publica cada evento.
@@ -130,7 +154,7 @@ operations:
     action: send
     channel:
       $ref: '#/channels/contratoRegistrado'
-    summary: proveedores, al importar contratos nuevos.
+    summary: proveedores, al importar contratos nuevos y al registrar el contrato de una adjudicación.
   proveedoresPublicaDesempeno:
     action: send
     channel:
@@ -176,6 +200,21 @@ operations:
     channel:
       $ref: '#/channels/negociacionInvitacionEnviada'
     summary: negociacion, al enviar o reenviar cada invitación.
+  negociacionPublicaAdjudicada:
+    action: send
+    channel:
+      $ref: '#/channels/negociacionAdjudicada'
+    summary: negociacion, al aprobarse una adjudicación o al adjudicar el comprador directamente.
+  negociacionPublicaDesierta:
+    action: send
+    channel:
+      $ref: '#/channels/negociacionDesierta'
+    summary: negociacion, cuando una negociación queda desierta (sin acuerdos o declarada por el comprador).
+  negociacionPublicaResultadoEnviado:
+    action: send
+    channel:
+      $ref: '#/channels/negociacionResultadoEnviado'
+    summary: negociacion, al enviar el aviso del resultado a cada proveedor.
 
   # Quién los recibe (cola entre paréntesis).
   inteligenciaRecibeProveedor:
@@ -252,6 +291,26 @@ operations:
     action: receive
     channel:
       $ref: '#/channels/negociacionInvitacionEnviada'
+    summary: administracion (administracion.actividad)
+  proveedoresRecibeAdjudicada:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionAdjudicada'
+    summary: proveedores (proveedores.eventos)
+  administracionRecibeAdjudicada:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionAdjudicada'
+    summary: administracion (administracion.actividad)
+  administracionRecibeDesierta:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionDesierta'
+    summary: administracion (administracion.actividad)
+  administracionRecibeResultadoEnviado:
+    action: receive
+    channel:
+      $ref: '#/channels/negociacionResultadoEnviado'
     summary: administracion (administracion.actividad)
 
 components:
@@ -503,4 +562,75 @@ components:
                   estado: {type: string, enum: [enviado, fallido]}
                   error: {type: [string, 'null']}
                   reenvio: {type: boolean}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    negociacionAdjudicada:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [folio, titulo, tipo, proveedor_id, proveedor, costo_total_mxn, contrato, aprobacion, actor]
+                properties:
+                  folio: {type: string}
+                  titulo: {type: string}
+                  tipo: {type: string, enum: [compra, renovacion]}
+                  proveedor_id: {type: string, format: uuid}
+                  proveedor: {type: string, description: Nombre del proveedor adjudicado.}
+                  costo_total_mxn: {$ref: '#/components/schemas/Monto'}
+                  contrato:
+                    type: object
+                    description: Los términos del contrato que proveedores registra.
+                    required: [folio, tipo, moneda, fecha_inicio, fecha_fin, plazo_pago_dias, cuota_implementacion, lineas]
+                    properties:
+                      folio: {type: string, pattern: '^[A-Z0-9-]{3,30}$', description: '«C-» y el folio de la negociación.'}
+                      tipo: {type: string, enum: [nuevo, renovacion]}
+                      moneda: {type: string, enum: [MXN, USD]}
+                      fecha_inicio: {type: string, format: date}
+                      fecha_fin: {type: string, format: date}
+                      plazo_pago_dias: {type: integer}
+                      sla_disponibilidad: {oneOf: [{$ref: '#/components/schemas/Monto'}, {type: 'null'}]}
+                      tope_aumento_pct: {oneOf: [{$ref: '#/components/schemas/Monto'}, {type: 'null'}]}
+                      cuota_implementacion: {$ref: '#/components/schemas/Monto'}
+                      lineas:
+                        type: array
+                        items:
+                          type: object
+                          required: [codigo_servicio, cantidad, precio_unitario]
+                          properties:
+                            codigo_servicio: {type: string}
+                            cantidad: {$ref: '#/components/schemas/Monto'}
+                            precio_unitario: {$ref: '#/components/schemas/Monto'}
+                  aprobacion: {type: string, enum: [directa, aprobada]}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    negociacionDesierta:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [folio, titulo, motivo, actor]
+                properties:
+                  folio: {type: string}
+                  titulo: {type: string}
+                  motivo: {type: string, description: 'El del comprador, o «sin_acuerdos» si la declara el sistema.'}
+                  actor: {$ref: '#/components/schemas/Actor'}
+    negociacionResultadoEnviado:
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Sobre'
+          - properties:
+              payload:
+                type: object
+                required: [folio, titulo, proveedor, destinatario, estado, reenvio, resultado, actor]
+                properties:
+                  folio: {type: string}
+                  titulo: {type: string}
+                  proveedor: {type: string}
+                  destinatario: {type: string}
+                  estado: {type: string, enum: [enviado, fallido]}
+                  error: {type: [string, 'null']}
+                  reenvio: {type: boolean}
+                  resultado: {type: string, enum: [adjudicada, no_elegida, desierta]}
                   actor: {$ref: '#/components/schemas/Actor'}

@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Un diagrama entidad-relación por servicio, generado de los modelos de SQLAlchemy al 15/10/2026
+Un diagrama entidad-relación por servicio, generado de los modelos de SQLAlchemy al 19/10/2026
 (las migraciones de Alembic de cada servicio crean exactamente estas tablas). Ningún servicio lee
 la base de otro: los datos compartidos viajan por eventos y cada quien guarda su copia.
 
@@ -11,7 +11,7 @@ un proceso del servicio lo publica en RabbitMQ.
 
 ## proveedores (`proveedores_db`)
 
-La fuente de verdad de los datos maestros: proveedores, catálogo de servicios, contratos con sus líneas, desempeño mensual y tipo de cambio. Todo llega por la importación de CSV (el adaptador del ERP simulado) o por la edición del catálogo, y cada cambio se publica como evento con el `outbox`.
+La fuente de verdad de los datos maestros: proveedores, catálogo de servicios, contratos con sus líneas, desempeño mensual y tipo de cambio. Los datos llegan por la importación de CSV (el adaptador del ERP simulado), por la edición del catálogo o, en el caso de un contrato, por una adjudicación aprobada en `negociacion`; cada cambio se publica como evento con el `outbox`. `evento_procesado` hace idempotente al consumidor de `negociacion.adjudicada`.
 
 ```mermaid
 erDiagram
@@ -52,6 +52,11 @@ erDiagram
     date periodo PK
     numeric usd_mxn
   }
+  evento_procesado {
+    string event_id PK
+    string tipo
+    timestamptz procesado_en
+  }
   contrato {
     uuid id PK
     string folio UK
@@ -88,7 +93,7 @@ erDiagram
 
 ## administracion (`administracion_db`)
 
-La Actividad (`actividad`) es una bitácora de solo inserción: el usuario de la aplicación no puede actualizar ni borrar filas, y `clave_origen` evita duplicar un evento que llega dos veces. `correo_enviado` alimenta la página Correos y `cursor_eventos` recuerda hasta dónde se leyeron los inicios de sesión de Keycloak.
+La Actividad (`actividad`) es una bitácora de solo inserción: el usuario de la aplicación no puede actualizar ni borrar filas, y `clave_origen` evita duplicar un evento que llega dos veces. `correo_enviado` alimenta la página Correos (su `tipo` es `invitacion`, `restablecimiento`, `negociacion` o `resultado_negociacion`) y `cursor_eventos` recuerda hasta dónde se leyeron los inicios de sesión de Keycloak.
 
 ```mermaid
 erDiagram
@@ -125,7 +130,7 @@ erDiagram
 
 ## inteligencia (`inteligencia_db`)
 
-Una copia local de lo que publica `proveedores` (sin llaves foráneas hacia otros servicios), más la configuración de la puntuación (`configuracion`, una sola fila) y el registro de modelos de precios (`modelo_benchmark`; los artefactos van en el volumen `modelos`). `evento_procesado` hace idempotente al consumidor.
+Una copia local de lo que publica `proveedores` (sin llaves foráneas hacia otros servicios), más la configuración de la puntuación y de la adjudicación (`configuracion`, una sola fila: los pesos de la puntuación, los cuatro pesos de la recomendación de adjudicación y el umbral de aprobación en MXN) y el registro de modelos de precios (`modelo_benchmark`; los artefactos van en el volumen `modelos`). `evento_procesado` hace idempotente al consumidor.
 
 ```mermaid
 erDiagram
@@ -139,6 +144,11 @@ erDiagram
     int peso_satisfaccion
     int umbral_riesgo
     numeric inflacion_anual
+    int adjudicacion_costo
+    int adjudicacion_desempeno
+    int adjudicacion_riesgo
+    int adjudicacion_sla
+    numeric umbral_aprobacion
     timestamptz actualizado_en
     string actualizado_por
   }
@@ -222,13 +232,16 @@ erDiagram
 
 ## negociacion (`negociacion_db`)
 
-Un `evento` de negociación (compra o renovación) tiene sus líneas, sus palancas y una `sesion` por proveedor invitado. Cada sesión guarda sus ofertas (con su utilidad y si respetan los límites) y su conversación (`mensaje`). `bitacora` es de solo inserción, como los mensajes y las ofertas. `evento.foto` guarda la fecha de la consulta de precios y, en una renovación, los términos vigentes del contrato de origen; la banda P25 · P50 · P75 de cada línea queda en `linea.referencia`. `proveedor` y `servicio` son copias locales alimentadas por eventos. Del enlace de invitación solo se guarda el hash (`token_hash`).
+Un `evento` de negociación (compra o renovación) tiene sus líneas, sus palancas y una `sesion` por proveedor invitado. Cada sesión guarda sus ofertas (con su utilidad y si respetan los límites) y su conversación (`mensaje`). `bitacora` es de solo inserción, como los mensajes y las ofertas. Cada propuesta de adjudicación es una fila de `adjudicacion`: las rechazadas quedan como historial, guardan la foto completa de la recomendación de `inteligencia` y no se borran; la aplicación solo actualiza las columnas de la decisión (`estado`, `decidida_por_id`, `decidida_por_nombre`, `decidida_en`, `motivo_rechazo` y `contrato_folio`), con `GRANT UPDATE` por columna, al estilo de la ADR-006. `evento.foto` guarda la fecha de la consulta de precios y, en una renovación, los términos vigentes del contrato de origen; la banda P25 · P50 · P75 de cada línea queda en `linea.referencia`. `proveedor` y `servicio` son copias locales alimentadas por eventos. Del enlace de invitación solo se guarda el hash (`token_hash`).
 
 ```mermaid
 erDiagram
   evento ||--o{ linea : "evento_id"
   evento ||--o{ palanca : "evento_id"
   evento ||--o{ sesion : "evento_id"
+  evento ||--o{ adjudicacion : "evento_id"
+  sesion ||--o{ adjudicacion : "sesion_id"
+  sesion ||--o{ adjudicacion : "recomendada_sesion_id"
   sesion ||--o{ oferta : "sesion_id"
   sesion ||--o{ mensaje : "sesion_id"
   oferta |o--o{ mensaje : "oferta_id"
@@ -259,6 +272,7 @@ erDiagram
     array invitados
     jsonb foto
     string motivo_cancelacion
+    string motivo_desierta
     string creado_por_id
     string creado_por_nombre
     timestamptz creado_en
@@ -332,7 +346,30 @@ erDiagram
     string correo_error
     timestamptz correo_en
     bool fuera_de_limites
+    timestamptz resultado_avisado_en
     timestamptz actualizado_en
+  }
+  adjudicacion {
+    uuid id PK
+    uuid evento_id FK
+    uuid sesion_id FK
+    string propuesta_por_id
+    string propuesta_por_nombre
+    timestamptz propuesta_en
+    uuid recomendada_sesion_id FK
+    bool se_aparta
+    string justificacion
+    numeric costo_total
+    numeric costo_total_mxn
+    bool requiere_aprobacion
+    array motivo_aprobacion
+    jsonb recomendacion
+    string estado
+    string decidida_por_id
+    string decidida_por_nombre
+    timestamptz decidida_en
+    string motivo_rechazo
+    string contrato_folio
   }
   oferta {
     uuid id PK
@@ -361,3 +398,5 @@ erDiagram
 ```
 
 Únicas compuestas: `linea` (evento_id, orden); `sesion` (evento_id, proveedor_id); `mensaje` (sesion_id, clave_idempotencia).
+
+Valores de `evento.estado`: `borrador`, `abierto`, `en_evaluacion`, `pendiente_aprobacion`, `adjudicado`, `desierto` y `cancelado`. `adjudicacion.estado` es `pendiente`, `aprobada`, `rechazada` o `directa` (la que decide el comprador cuando no requiere aprobación), y `motivo_aprobacion` contiene `umbral`, `fuera_de_limites`, los dos o ninguno. `bitacora.actor_tipo` suma `aprobador`. `evento.motivo_desierta` queda vacío cuando el sistema declara desierta la negociación, y `sesion.resultado_avisado_en` marca a quién ya se le avisó el resultado.

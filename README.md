@@ -11,8 +11,9 @@ IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
 ## Qué está hecho y qué falta
 
-Estado al 15/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
-determinista ya funciona de punta a punta; lo siguiente es la adjudicación con aprobación.
+Estado al 19/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
+determinista y la adjudicación con aprobación ya funcionan de punta a punta en los servicios,
+hasta el contrato registrado; lo siguiente es su interfaz.
 
 | # | Capacidad del PRD | Estado | Dónde | Qué falta |
 |---|---|---|---|---|
@@ -20,11 +21,11 @@ determinista ya funciona de punta a punta; lo siguiente es la adjudicación con 
 | 2 | Inteligencia de precios | Hecho | `services/inteligencia`: precio justo P25 · P50 · P75 (línea base y modelo), sobreprecios y vencimientos; pantallas Precios y Alertas | — |
 | 3 | Desempeño del proveedor | Hecho | Puntuación de 0 a 100 con pesos configurables; Ranking y ficha del proveedor | — |
 | 4 | Eventos de negociación | Hecho | `services/negociacion`: compra o renovación, líneas, invitados, ideal y límite por término, palancas con peso y fecha límite; pantalla Negociaciones | — |
-| 5 | Negociación con agente en el portal | Parcial | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual | Los mensajes del agente son plantillas y la nota del proveedor no se interpreta (el LLM llega con N2). Los acuerdos quedan tentativos hasta que exista la aprobación (9) |
+| 5 | Negociación con agente en el portal | Parcial | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual | Los mensajes del agente son plantillas y la nota del proveedor no se interpreta (el LLM llega con N2) |
 | 6 | Propuestas de negociación | Falta | — | Documento de estrategia y argumentos para negociar a mano |
-| 7 | Recomendación de adjudicación | Falta | — | Siguiente incremento |
+| 7 | Recomendación de adjudicación | Hecho | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta | La pantalla de evaluación y propuesta (incremento 4′b); mientras tanto se usa la API |
 | 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
-| 9 | Aprobaciones y bitácora | Parcial | Bitácora inmutable en `administracion` (pantalla Actividad) y en `negociacion` | La aprobación de la adjudicación (siguiente incremento) |
+| 9 | Aprobaciones y bitácora | Hecho | Aprobación en `services/negociacion`: sobre el umbral (500,000 MXN por defecto) o fuera de límites decide un aprobador, y nunca quien propuso ([ADR-011](docs/arquitectura/adr/011-quien-aprueba-una-adjudicacion.md)); la adjudicación aprobada registra el contrato en `proveedores`. Aviso del resultado a los proveedores por correo. Bitácora inmutable en `administracion` (pantalla Actividad, con adjudicaciones y desiertas; pantalla Correos) y en `negociacion` | La pantalla de aprobación (incremento 4′b); mientras tanto se usa la API |
 | 10 | Tablero | Parcial | Gasto, contratos por vencer, proveedores en riesgo y ahorro potencial | Estado de las negociaciones y ahorro logrado |
 
 **Métricas medidas** (PRD §1.6):
@@ -35,8 +36,15 @@ determinista ya funciona de punta a punta; lo siguiente es la adjudicación con 
 - Negociación contra los bots, 74 sesiones: 81.1 % de acuerdos (meta ≥ 70 %), 16.5 % de ahorro
   frente a la primera oferta (meta ≥ 8 %) y 0 acuerdos fuera de los límites del comprador
   (meta 0), en [`docs/qa/simulacion-negociacion.md`](docs/qa/simulacion-negociacion.md).
-- Faltan el acierto de la adjudicación (meta ≥ 85 %) y las métricas del LLM (interpretación,
-  filtraciones y latencia), que dependen de N2.
+- Recomendación de adjudicación, 200 eventos simulados (semilla 4242): acierto top-1 de 85.0 %
+  (meta ≥ 85 %), acierto top-2 de 99.5 % y margen promedio de los fallos de 7.6 puntos, en
+  [`docs/qa/validacion-inteligencia.md`](docs/qa/validacion-inteligencia.md). El 85.0 % queda
+  exactamente sobre la meta, sin holgura: con 200 eventos, el intervalo de 95 % va de 80.1 % a
+  89.9 %, así que el resultado no demuestra por sí solo que se supere la meta.
+- Aprobación: 0 adjudicaciones sin aprobación cuando superan el umbral o salen de límites y 0
+  aprobaciones hechas por quien propuso (pruebas de la API de `negociacion`); cada adjudicación
+  aprobada llega a un contrato registrado en `proveedores` (prueba de humo).
+- Faltan las métricas del LLM (interpretación, filtraciones y latencia), que dependen de N2.
 
 **Entregables del cronograma** (PRD §6.5):
 
@@ -50,8 +58,9 @@ determinista ya funciona de punta a punta; lo siguiente es la adjudicación con 
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
 
-**Lo siguiente** (replanificación del 15/10/2026, PRD §6.6.1): adjudicación y aprobación
-(capacidades 7 y 9) del 21/10 al 11/11. Después, solo si hay tiempo: el LLM (N2), las propuestas
+**Lo siguiente** (replanificación del 15/10/2026, PRD §6.6.1): la interfaz de la adjudicación y
+la aprobación (incremento 4′b; evaluación, propuesta, aprobación, filtros de Negociaciones, portal,
+Configuración y ayuda), antes del 11/11. Después, solo si hay tiempo: el LLM (N2), las propuestas
 (6) y el simulador de escenarios (8).
 
 ## Requisitos
@@ -74,12 +83,15 @@ El script se puede repetir sin dañar nada:
 2. genera los datos sintéticos en `datos/` si faltan;
 3. levanta el stack y espera a que esté sano;
 4. importa los datos;
-5. corre la prueba de humo (`infra/smoke_test.py`).
+5. corre la prueba de humo (`infra/smoke_test.py`), que llega de una negociación aprobada a su
+   contrato registrado en `proveedores`.
 
 Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
 `aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
 con usuario y contraseña. La prueba de humo deja un usuario `humo.prueba` desactivado, que
-reutiliza en cada corrida, y un servicio `HUMO-SERV` en el catálogo, que reactiva en cada corrida.
+reutiliza en cada corrida, y un servicio `HUMO-SERV` en el catálogo, que reactiva en cada
+corrida. Cada corrida también deja una negociación cancelada y otra adjudicada, con su contrato
+`C-NEG-…` en el historial de `proveedores`.
 
 Si su entorno ya existía antes de alguno de los servicios, siga
 [`docs/actualizar-entorno.md`](docs/actualizar-entorno.md).
@@ -178,6 +190,9 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.
+- **Adjudicación solo por la API.** La evaluación, la propuesta y la aprobación todavía no tienen
+  pantalla (incremento 4′b): se usan con `/api/negociacion` (contrato en
+  [`docs/arquitectura/openapi/negociacion.json`](docs/arquitectura/openapi/negociacion.json)).
 - **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
   interpreta; la IA llega con N2.
 - **Portal solo con HTTPS o localhost.** El portal del proveedor genera claves de idempotencia

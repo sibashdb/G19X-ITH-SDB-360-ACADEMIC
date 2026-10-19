@@ -921,6 +921,52 @@
           }
         ]
       }
+    },
+    "/adjudicacion/recomendacion": {
+      "post": {
+        "tags": [
+          "adjudicacion"
+        ],
+        "summary": "Recomendacion",
+        "operationId": "recomendacion_adjudicacion_recomendacion_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecomendacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecomendacionSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1046,6 +1092,165 @@
         ],
         "title": "BandaMes"
       },
+      "CandidatoEntrada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Proveedor Id"
+          },
+          "nombre": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "plazo_meses": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Plazo Meses"
+          },
+          "cuota_implementacion": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,15}0*$)\\d{0,10}\\.\\d{0,4}0*$)"
+              }
+            ],
+            "title": "Cuota Implementacion"
+          },
+          "sla": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaEntrada"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lineas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "proveedor_id",
+          "nombre",
+          "plazo_meses",
+          "cuota_implementacion",
+          "lineas"
+        ],
+        "title": "CandidatoEntrada"
+      },
+      "CandidatoSalida": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "proveedor_id": {
+            "type": "string",
+            "title": "Proveedor Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "costo_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Total"
+          },
+          "costo_total_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Total Mxn"
+          },
+          "desempeno": {
+            "type": "number",
+            "title": "Desempeno"
+          },
+          "riesgo": {
+            "$ref": "#/components/schemas/RiesgoSalida"
+          },
+          "sla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla"
+          },
+          "normalizados": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Normalizados"
+          },
+          "aportes": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Aportes"
+          },
+          "puntaje": {
+            "type": "number",
+            "title": "Puntaje"
+          },
+          "lugar": {
+            "type": "integer",
+            "title": "Lugar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "proveedor_id",
+          "nombre",
+          "costo_total",
+          "costo_total_mxn",
+          "desempeno",
+          "riesgo",
+          "sla",
+          "normalizados",
+          "aportes",
+          "puntaje",
+          "lugar"
+        ],
+        "title": "CandidatoSalida"
+      },
       "Componente": {
         "properties": {
           "kpi": {
@@ -1125,6 +1330,74 @@
               }
             ],
             "title": "Inflacion Anual"
+          },
+          "adjudicacion_costo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjudicacion Costo"
+          },
+          "adjudicacion_desempeno": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjudicacion Desempeno"
+          },
+          "adjudicacion_riesgo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjudicacion Riesgo"
+          },
+          "adjudicacion_sla": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjudicacion Sla"
+          },
+          "umbral_aprobacion": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,15}0*$)\\d{0,12}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Umbral Aprobacion"
           }
         },
         "additionalProperties": false,
@@ -1171,6 +1444,27 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Inflacion Anual"
           },
+          "adjudicacion_costo": {
+            "type": "integer",
+            "title": "Adjudicacion Costo"
+          },
+          "adjudicacion_desempeno": {
+            "type": "integer",
+            "title": "Adjudicacion Desempeno"
+          },
+          "adjudicacion_riesgo": {
+            "type": "integer",
+            "title": "Adjudicacion Riesgo"
+          },
+          "adjudicacion_sla": {
+            "type": "integer",
+            "title": "Adjudicacion Sla"
+          },
+          "umbral_aprobacion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Umbral Aprobacion"
+          },
           "actualizado_en": {
             "anyOf": [
               {
@@ -1204,6 +1498,11 @@
           "peso_satisfaccion",
           "umbral_riesgo",
           "inflacion_anual",
+          "adjudicacion_costo",
+          "adjudicacion_desempeno",
+          "adjudicacion_riesgo",
+          "adjudicacion_sla",
+          "umbral_aprobacion",
           "actualizado_en",
           "actualizado_por"
         ],
@@ -1417,6 +1716,56 @@
           "bandas"
         ],
         "title": "HistorialPrecios"
+      },
+      "LineaEntrada": {
+        "properties": {
+          "codigo_servicio": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Codigo Servicio"
+          },
+          "unidad": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,15}0*$)\\d{0,10}\\.\\d{0,4}0*$)"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,15}0*$)\\d{0,10}\\.\\d{0,4}0*$)"
+              }
+            ],
+            "title": "Precio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo_servicio",
+          "unidad",
+          "cantidad",
+          "precio"
+        ],
+        "title": "LineaEntrada"
       },
       "MercadoLinea": {
         "properties": {
@@ -1701,6 +2050,43 @@
         ],
         "title": "PaginaProveedores"
       },
+      "PesosEntrada": {
+        "properties": {
+          "costo": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Costo"
+          },
+          "desempeno": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Desempeno"
+          },
+          "riesgo": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Riesgo"
+          },
+          "sla": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Sla"
+          }
+        },
+        "type": "object",
+        "required": [
+          "costo",
+          "desempeno",
+          "riesgo",
+          "sla"
+        ],
+        "title": "PesosEntrada",
+        "description": "Los pesos de los cuatro criterios de la adjudicación; deben sumar 100."
+      },
       "ProveedorResumen": {
         "properties": {
           "id": {
@@ -1963,6 +2349,106 @@
         ],
         "title": "RangoPuntuacion"
       },
+      "RecomendacionEntrada": {
+        "properties": {
+          "moneda": {
+            "type": "string",
+            "enum": [
+              "MXN",
+              "USD"
+            ],
+            "title": "Moneda"
+          },
+          "pesos": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PesosEntrada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/CandidatoEntrada"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Candidatos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "moneda",
+          "candidatos"
+        ],
+        "title": "RecomendacionEntrada"
+      },
+      "RecomendacionSalida": {
+        "properties": {
+          "pesos": {
+            "$ref": "#/components/schemas/PesosEntrada"
+          },
+          "umbral_aprobacion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Umbral Aprobacion"
+          },
+          "tipo_cambio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoCambioSalida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/CandidatoSalida"
+            },
+            "type": "array",
+            "title": "Candidatos"
+          },
+          "recomendado": {
+            "type": "string",
+            "title": "Recomendado"
+          },
+          "margen": {
+            "type": "number",
+            "title": "Margen"
+          },
+          "explicacion": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Explicacion"
+          },
+          "sensibilidad": {
+            "items": {
+              "$ref": "#/components/schemas/SensibilidadSalida"
+            },
+            "type": "array",
+            "title": "Sensibilidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pesos",
+          "umbral_aprobacion",
+          "tipo_cambio",
+          "candidatos",
+          "recomendado",
+          "margen",
+          "explicacion",
+          "sensibilidad"
+        ],
+        "title": "RecomendacionSalida"
+      },
       "ReferenciaSalida": {
         "properties": {
           "codigo": {
@@ -2112,6 +2598,86 @@
           "elementos"
         ],
         "title": "RegistroModelos"
+      },
+      "RiesgoSalida": {
+        "properties": {
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "bajo",
+              "medio",
+              "alto"
+            ],
+            "title": "Nivel"
+          },
+          "concentracion": {
+            "type": "number",
+            "title": "Concentracion"
+          },
+          "tendencia": {
+            "type": "number",
+            "title": "Tendencia"
+          },
+          "sin_historial": {
+            "type": "boolean",
+            "title": "Sin Historial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valor",
+          "nivel",
+          "concentracion",
+          "tendencia",
+          "sin_historial"
+        ],
+        "title": "RiesgoSalida"
+      },
+      "SensibilidadSalida": {
+        "properties": {
+          "criterio": {
+            "type": "string",
+            "title": "Criterio"
+          },
+          "peso_actual": {
+            "type": "integer",
+            "title": "Peso Actual"
+          },
+          "peso_necesario": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peso Necesario"
+          },
+          "ganaria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganaria"
+          }
+        },
+        "type": "object",
+        "required": [
+          "criterio",
+          "peso_actual",
+          "peso_necesario",
+          "ganaria"
+        ],
+        "title": "SensibilidadSalida"
       },
       "ServicioPrecios": {
         "properties": {
@@ -2350,6 +2916,26 @@
           "distribucion"
         ],
         "title": "TableroSalida"
+      },
+      "TipoCambioSalida": {
+        "properties": {
+          "periodo": {
+            "type": "string",
+            "format": "date",
+            "title": "Periodo"
+          },
+          "usd_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Usd Mxn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "periodo",
+          "usd_mxn"
+        ],
+        "title": "TipoCambioSalida"
       },
       "ValidationError": {
         "properties": {

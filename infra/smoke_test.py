@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -259,8 +260,14 @@ def verificar_inteligencia(cliente: httpx.Client) -> None:
     verificar(sin_permiso.status_code == 403, "un comprador no debe ver los datos de inteligencia")
 
 
-def verificar_negociacion(cliente: httpx.Client) -> None:
-    """Una compra de humo: se publica, la invitación llega a Mailpit y el agente responde."""
+def publicar_compra(
+    cliente: httpx.Client, cantidad: str
+) -> tuple[dict[str, str], dict[str, Any], dict[str, Any], dict[str, str]]:
+    """Crea y publica una compra de humo con un proveedor activo y abre su portal con el enlace.
+
+    Devuelve el token del comprador, el proveedor, el evento (con el `sesion_id` de su única
+    sesión) y la cabecera de autorización del portal.
+    """
     comprador = token_de(cliente, "comprador1")
     servicios = cliente.get("/api/inteligencia/precios/servicios", headers=comprador).json()
     servicio = next(s for s in servicios if s["observaciones"] > 0)
@@ -270,7 +277,7 @@ def verificar_negociacion(cliente: httpx.Client) -> None:
         "tipo": "compra",
         "titulo": f"Prueba de humo {uuid.uuid4().hex[:8]}",
         "fecha_limite": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
-        "lineas": [{"codigo_servicio": servicio["codigo"], "cantidad": "10"}],
+        "lineas": [{"codigo_servicio": servicio["codigo"], "cantidad": cantidad}],
         "proveedores": [proveedor["id"]],
     }
     # La copia de proveedores de negociacion se llena por eventos: se reintenta mientras llega.
@@ -286,26 +293,42 @@ def verificar_negociacion(cliente: httpx.Client) -> None:
         time.sleep(2)
         comprador = token_de(cliente, "comprador1")
     evento = creado.json()
-    linea = evento["lineas"][0]
-    verificar(linea["limite"] is not None, f"la línea no trae la referencia de precios: {linea}")
+    verificar(
+        evento["lineas"][0]["limite"] is not None,
+        f"la línea no trae la referencia de precios: {evento['lineas'][0]}",
+    )
     publicado = cliente.post(f"/api/negociacion/eventos/{evento['id']}/publicar", headers=comprador)
     verificar(publicado.status_code == 200, f"publicar la negociación falló: {publicado.text}")
     [enlace] = publicado.json()["enlaces"]
     verificar(enlace["correo_estado"] == "enviado", f"la invitación no salió: {enlace}")
+    evento["sesion_id"] = enlace["sesion_id"]
     portal = {"Authorization": f"Invitacion {enlace['enlace'].split('#t=')[1]}"}
     verificar(
         cliente.get("/api/negociacion/portal/sesion", headers=portal).status_code == 200,
         "el portal no abrió la sesión con el enlace de la invitación",
     )
-    oferta = {"valores": {"precios": {linea["id"]: str(Decimal(linea["limite"]) * 2)}}}
+    return comprador, proveedor, evento, portal
+
+
+def ofertar(cliente: httpx.Client, portal: dict[str, str], valores: dict[str, Any]) -> Any:
+    """Envía una oferta por el portal y devuelve la vista que el proveedor ve después."""
     respuesta = cliente.post(
         "/api/negociacion/portal/ofertas",
-        json=oferta,
+        json={"valores": valores},
         headers=portal | {"Idempotency-Key": uuid.uuid4().hex},
     )
+    verificar(respuesta.status_code == 200, f"la oferta en el portal falló: {respuesta.text}")
+    return respuesta.json()
+
+
+def verificar_negociacion(cliente: httpx.Client) -> None:
+    """Una compra de humo: se publica, la invitación llega a Mailpit y el agente responde."""
+    comprador, _, evento, portal = publicar_compra(cliente, "10")
+    linea = evento["lineas"][0]
+    vista = ofertar(cliente, portal, {"precios": {linea["id"]: str(Decimal(linea["limite"]) * 2)}})
     verificar(
-        respuesta.status_code == 200 and respuesta.json()["mensajes"][-1]["autor"] == "agente",
-        f"el agente no respondió en el portal: {respuesta.text}",
+        vista["mensajes"][-1]["autor"] == "agente",
+        f"el agente no respondió en el portal: {vista['mensajes'][-1]}",
     )
     correos = httpx.get(
         f"{BUZON}/api/v1/search", params={"query": f'subject:"{evento["folio"]}"'}, timeout=10
@@ -334,6 +357,128 @@ def verificar_negociacion(cliente: httpx.Client) -> None:
         verificar(
             time.monotonic() < limite,
             f"la publicación de la negociación no llegó a la Actividad en {ESPERA_EVENTOS_S} s",
+        )
+        time.sleep(2)
+
+
+def esperar_estado(cliente: httpx.Client, evento_id: str, estado: str) -> None:
+    """Espera a que el evento llegue a ese estado (el cierre ocurre con la última oferta)."""
+    limite = time.monotonic() + 30
+    while True:
+        comprador = token_de(cliente, "comprador1")
+        actual = cliente.get(f"/api/negociacion/eventos/{evento_id}", headers=comprador).json()
+        if actual["estado"] == estado:
+            return
+        verificar(
+            time.monotonic() < limite,
+            f"el evento quedó en «{actual['estado']}» y se esperaba «{estado}»",
+        )
+        time.sleep(1)
+
+
+def verificar_adjudicacion(cliente: httpx.Client) -> None:
+    """De la negociación al contrato: acuerdo, evaluación, propuesta, aprobación y contrato."""
+    # Una cantidad grande, para que el costo suela superar el umbral y pase por el aprobador.
+    cantidad = "1000"
+    comprador, proveedor, evento, portal = publicar_compra(cliente, cantidad)
+    linea = evento["lineas"][0]
+    # El agente contesta con una propuesta (la primera oferta va fuera del límite); ofrecerle esa
+    # propuesta cierra el acuerdo. Si no propusiera, se ofrece el límite de la línea.
+    valores = {"precios": {linea["id"]: str(Decimal(linea["limite"]) * 2)}}
+    for _ in range(evento["rondas_max"]):
+        vista = ofertar(cliente, portal, valores)
+        if vista["estado"] == "acuerdo_tentativo":
+            break
+        valores = vista["ultima_propuesta"] or {"precios": {linea["id"]: linea["limite"]}}
+    verificar(vista["estado"] == "acuerdo_tentativo", f"el agente no aceptó el acuerdo: {vista}")
+    esperar_estado(cliente, evento["id"], "en_evaluacion")
+
+    api = f"/api/negociacion/eventos/{evento['id']}"
+    comprador = token_de(cliente, "comprador1")
+    evaluacion = cliente.get(f"{api}/evaluacion", headers=comprador)
+    verificar(evaluacion.status_code == 200, f"la evaluación falló: {evaluacion.text}")
+    recomendacion = evaluacion.json()["recomendacion"]
+    verificar(recomendacion is not None, f"la evaluación no trae recomendación: {evaluacion.text}")
+    verificar(
+        recomendacion["recomendado"] == evento["sesion_id"],
+        f"la recomendación no es el único acuerdo: {recomendacion['recomendado']}",
+    )
+
+    propuesta = cliente.post(
+        f"{api}/adjudicacion", json={"sesion_id": recomendacion["recomendado"]}, headers=comprador
+    )
+    verificar(propuesta.status_code == 200, f"proponer la adjudicación falló: {propuesta.text}")
+    vigente = propuesta.json()["vigente"]
+    # La regla de aprobación (spec §4.3): sobre el umbral, la decide el aprobador.
+    sobre_umbral = Decimal(vigente["costo_total_mxn"]) > Decimal(recomendacion["umbral_aprobacion"])
+    verificar(
+        vigente["requiere_aprobacion"] is sobre_umbral
+        and vigente["estado"] == ("pendiente" if sobre_umbral else "directa"),
+        f"la regla de aprobación no se cumplió: {vigente}",
+    )
+    if vigente["estado"] == "pendiente":
+        esperar_estado(cliente, evento["id"], "pendiente_aprobacion")
+        aprobacion = {"adjudicacion_id": vigente["id"]}
+        sin_rol = cliente.post(f"{api}/adjudicacion/aprobar", json=aprobacion, headers=comprador)
+        verificar(sin_rol.status_code == 403, "un comprador no debe aprobar una adjudicación")
+        aprobador = token_de(cliente, "aprobador1")
+        otra = {"adjudicacion_id": str(uuid.uuid4())}
+        distinta = cliente.post(f"{api}/adjudicacion/aprobar", json=otra, headers=aprobador)
+        verificar(
+            distinta.status_code == 409 and distinta.json().get("codigo") == "propuesta_distinta",
+            f"aprobar otra propuesta debía dar 409 propuesta_distinta: {distinta.text}",
+        )
+        aprobada = cliente.post(f"{api}/adjudicacion/aprobar", json=aprobacion, headers=aprobador)
+        verificar(aprobada.status_code == 200, f"aprobar la adjudicación falló: {aprobada.text}")
+        vigente = aprobada.json()["vigente"]
+    verificar(
+        vigente["estado"] in ("aprobada", "directa") and vigente["contrato_folio"] is not None,
+        f"la adjudicación no quedó firme: {vigente}",
+    )
+    folio = f"C-{evento['folio']}"
+    verificar(vigente["contrato_folio"] == folio, f"folio de contrato inesperado: {vigente}")
+    esperar_estado(cliente, evento["id"], "adjudicado")
+
+    # El contrato viaja por el outbox y RabbitMQ hasta proveedores.
+    limite = time.monotonic() + ESPERA_EVENTOS_S
+    while True:
+        comprador = token_de(cliente, "comprador1")
+        contratos = cliente.get(
+            f"/api/proveedores/proveedores/{proveedor['id']}/contratos", headers=comprador
+        )
+        verificar(contratos.status_code == 200, f"consultar los contratos falló: {contratos.text}")
+        contrato = next((c for c in contratos.json() if c["folio"] == folio), None)
+        if contrato is not None:
+            break
+        verificar(
+            time.monotonic() < limite,
+            f"el contrato {folio} no llegó a proveedores en {ESPERA_EVENTOS_S} s",
+        )
+        time.sleep(2)
+    [contratado] = contrato["lineas"]
+    verificar(
+        contrato["tipo"] == "nuevo"
+        and contratado["codigo_servicio"] == linea["codigo_servicio"]
+        and Decimal(contratado["cantidad"]) == Decimal(cantidad),
+        f"el contrato no trae lo adjudicado: {contrato}",
+    )
+    # La adjudicación también llega a la Actividad por RabbitMQ.
+    limite = time.monotonic() + ESPERA_EVENTOS_S
+    while True:
+        admin = token_de(cliente, "admin1")
+        actividad = cliente.get(
+            "/api/administracion/actividad",
+            params={"tipo": "negociacion", "tamano": 100},
+            headers=admin,
+        ).json()["elementos"]
+        if any(
+            a["objeto_id"] == evento["folio"] and a["tipo"] == "negociacion.adjudicada"
+            for a in actividad
+        ):
+            return
+        verificar(
+            time.monotonic() < limite,
+            f"la adjudicación no llegó a la Actividad en {ESPERA_EVENTOS_S} s",
         )
         time.sleep(2)
 
@@ -415,10 +560,11 @@ def main() -> int:
         verificar_operacion(cliente)
         verificar_inteligencia(cliente)
         verificar_negociacion(cliente)
+        verificar_adjudicacion(cliente)
 
     print(
-        "OK: SPA, Keycloak, proveedores, administración, operación, inteligencia y "
-        f"negociación responden ({lista.json()['total']} proveedores)."
+        "OK: SPA, Keycloak, proveedores, administración, operación, inteligencia, "
+        f"negociación y adjudicación responden ({lista.json()['total']} proveedores)."
     )
     return 0
 

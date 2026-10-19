@@ -105,7 +105,7 @@ proveedor en esa sesión: los precios por línea y las palancas acordadas. Así 
 | Criterio | Valor por candidato | Mejor si |
 |---|---|---|
 | **Costo total** | Σ por línea de `precio × cantidad × plazo` (en las unidades mensuales: `usuario_mes`, `vcpu_mes`, `gb_mes` y `mes`) o `precio × cantidad` (en las de consumo, como horas o tickets, cuya cantidad ya es del contrato), más la cuota de implementación acordada. El plazo es el acordado en la palanca `plazo_meses` o, si no se negoció, el del evento. Va en la moneda del evento y también en MXN, al tipo de cambio más reciente. | menor |
-| **Desempeño** | La puntuación actual del proveedor, de 0 a 100 (PRD §4.4). Sin puntuación: la media de su categoría, la misma que usa la contracción (**decisión del diseño**). | mayor |
+| **Desempeño** | La puntuación actual del proveedor, de 0 a 100 (PRD §4.4). Sin puntuación: la media de las puntuaciones de los proveedores de su categoría principal; si esa categoría no tiene ninguna, la de todos; si nadie tiene, 50 (**decisión del diseño**). | mayor |
 | **Riesgo** | De 0 a 1, el promedio de tres componentes (la combinación es **decisión del diseño**; los factores son del PRD): **concentración**, la fracción del gasto anual vigente en MXN que tendría el proveedor si se le adjudica: su gasto actual más el costo anual del candidato, entre el gasto total más ese costo anual. El gasto anual es el mismo «gasto anual contratado» del Tablero. El costo anual del candidato es su costo total sin la cuota, entre el plazo y por 12; **tendencia de incidentes**, el aumento relativo de incidentes críticos de los últimos 3 meses frente a los 3 anteriores, de 0 a 1 (`max(0, (últimos − anteriores) / max(anteriores, 1))` acotado a 1); y **sin historial**, 1 si tiene menos de 6 meses de desempeño y 0 si no. | menor |
 | **SLA** | La disponibilidad acordada en la palanca `sla_disponibilidad`. Si no se negoció: en una renovación, la del contrato vigente; en una compra, ninguna. | mayor |
 
@@ -159,7 +159,8 @@ proveedor en esa sesión: los precios por línea y las palancas acordadas. Así 
     SLA, normalizados, aportes, puntaje y lugar;
   - el `recomendado`, el `margen`, la `explicacion` (lista de textos) y la `sensibilidad`.
 - **Errores:** pesos que no suman 100, o candidatos vacíos o repetidos, dan 422. Un proveedor que
-  `inteligencia` no conoce cuenta como sin historial y sin puntuación.
+  `inteligencia` no conoce cuenta como sin historial y sin puntuación. Un evento en USD sin tipo de
+  cambio registrado da 409 `tipo_cambio_no_disponible`: nunca se calcula un costo de $0 MXN.
 
 ### 3.6 Validación (`inteligencia/validacion.py`)
 
@@ -207,9 +208,9 @@ historial:
 | Método y ruta | Rol | Qué hace |
 |---|---|---|
 | `GET /eventos/{id}/evaluacion?pesos=40,30,15,15` | interno | Arma los candidatos, pide la recomendación a `inteligencia` y devuelve también la adjudicación vigente o pendiente y el historial de propuestas. Sin `pesos`, usa los configurados. Solo funciona en `en_evaluacion`, `pendiente_aprobacion`, `adjudicado` y `desierto` |
-| `POST /eventos/{id}/adjudicacion` | comprador | Cuerpo: `sesion_id`, `pesos` y `justificacion`. Vuelve a pedir la recomendación en el servidor (nunca confía en la del cliente) y aplica D4 a D7. Responde con el evento actualizado |
-| `POST /eventos/{id}/adjudicacion/aprobar` | aprobador | Solo en `pendiente_aprobacion` y si no es quien propuso (si lo es: 403 con `codigo` `misma_persona`). El evento pasa a `adjudicado` |
-| `POST /eventos/{id}/adjudicacion/rechazar` | aprobador | Cuerpo: `motivo` (de 1 a 500 caracteres). Misma regla de persona. El evento vuelve a `en_evaluacion` |
+| `POST /eventos/{id}/adjudicacion` | comprador | Cuerpo: `sesion_id`, `pesos` (el texto «40,30,15,15», como en la consulta) y `justificacion`. Vuelve a pedir la recomendación en el servidor (nunca confía en la del cliente) y aplica D4 a D7. Responde con el evento actualizado |
+| `POST /eventos/{id}/adjudicacion/aprobar` | aprobador | Cuerpo: `adjudicacion_id`, el `vigente.id` de la evaluación que el aprobador revisó. Solo en `pendiente_aprobacion` y si no es quien propuso (si lo es: 403 con `codigo` `misma_persona`). Si `adjudicacion_id` no es la propuesta pendiente: 409 `propuesta_distinta`. El evento pasa a `adjudicado` |
+| `POST /eventos/{id}/adjudicacion/rechazar` | aprobador | Cuerpo: `adjudicacion_id` y `motivo` (de 1 a 500 caracteres). Misma regla de persona y el mismo 409 `propuesta_distinta`. El evento vuelve a `en_evaluacion` |
 | `POST /eventos/{id}/desierta` | comprador | Cuerpo: `motivo`. Solo desde `en_evaluacion` |
 
 **Comportamiento común:**
@@ -217,6 +218,7 @@ historial:
   - `justificacion_requerida`;
   - `estado_invalido`, que dice el estado actual;
   - `misma_persona`;
+  - `propuesta_distinta`;
   - `sesion_no_candidata`.
 - `inteligencia` caída: 503, igual que en N1.
 - Cada acción deja su fila en la `bitacora`: `adjudicacion.propuesta`, `adjudicacion.aprobada`,
@@ -360,9 +362,11 @@ costo total, el folio del contrato y el historial de propuestas rechazadas, si l
 |---|---|
 | Dos compradores proponen a la vez | El segundo recibe 409 `estado_invalido`, porque el evento ya no está en evaluación |
 | El aprobador aprueba algo que ya se rechazó | 409 `estado_invalido` |
+| El aprobador aprueba o rechaza una propuesta que no es la pendiente (por ejemplo, la de una evaluación que ya cambió) | 409 `propuesta_distinta`; no se decide nada |
 | La sesión elegida no es candidata (no está en `acuerdo_tentativo` o es de otro evento) | 422 `sesion_no_candidata` |
 | No es el recomendado y la justificación viene vacía | 422 `justificacion_requerida` |
 | `inteligencia` no responde al proponer | 503; no se guarda nada |
+| Evento en USD sin tipo de cambio registrado | `inteligencia` responde 409 `tipo_cambio_no_disponible` y `negociacion` responde 503; no se guarda nada (nunca se calcula un costo de $0 MXN, que dejaría sin efecto el umbral) |
 | El correo de resultado falla | La adjudicación no se revierte: el envío queda `fallido` en Correos, como una invitación |
 | `proveedores` no puede crear el contrato | El evento va a la cola de fallidos y el Estado del sistema lo avisa; la adjudicación sigue válida |
 | Evento en USD | El ranking no cambia (todos comparten moneda); el umbral se compara en MXN |

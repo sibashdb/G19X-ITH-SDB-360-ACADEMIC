@@ -121,6 +121,9 @@
                     "borrador",
                     "abierto",
                     "en_evaluacion",
+                    "pendiente_aprobacion",
+                    "adjudicado",
+                    "desierto",
                     "cancelado"
                   ],
                   "type": "string"
@@ -394,6 +397,304 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EventoSalida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/evaluacion": {
+      "get": {
+        "tags": [
+          "adjudicacion"
+        ],
+        "summary": "Ver Evaluacion",
+        "operationId": "ver_evaluacion_eventos__evento_id__evaluacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          },
+          {
+            "name": "pesos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pesos de costo,desempeno,riesgo,sla: cuatro enteros que suman 100.",
+              "title": "Pesos"
+            },
+            "description": "Pesos de costo,desempeno,riesgo,sla: cuatro enteros que suman 100."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluacion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/adjudicacion": {
+      "post": {
+        "tags": [
+          "adjudicacion"
+        ],
+        "summary": "Proponer Adjudicacion",
+        "operationId": "proponer_adjudicacion_eventos__evento_id__adjudicacion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Propuesta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluacion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/adjudicacion/aprobar": {
+      "post": {
+        "tags": [
+          "adjudicacion"
+        ],
+        "summary": "Aprobar Adjudicacion",
+        "operationId": "aprobar_adjudicacion_eventos__evento_id__adjudicacion_aprobar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Aprobacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluacion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/adjudicacion/rechazar": {
+      "post": {
+        "tags": [
+          "adjudicacion"
+        ],
+        "summary": "Rechazar Adjudicacion",
+        "operationId": "rechazar_adjudicacion_eventos__evento_id__adjudicacion_rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rechazo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluacion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{evento_id}/desierta": {
+      "post": {
+        "tags": [
+          "adjudicacion"
+        ],
+        "summary": "Declarar Desierta",
+        "operationId": "declarar_desierta_eventos__evento_id__desierta_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Desierta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluacion"
                 }
               }
             }
@@ -819,6 +1120,166 @@
   },
   "components": {
     "schemas": {
+      "AdjudicacionSalida": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sesion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sesion Id"
+          },
+          "propuesta_por_id": {
+            "type": "string",
+            "title": "Propuesta Por Id"
+          },
+          "propuesta_por_nombre": {
+            "type": "string",
+            "title": "Propuesta Por Nombre"
+          },
+          "propuesta_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Propuesta En"
+          },
+          "recomendada_sesion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recomendada Sesion Id"
+          },
+          "se_aparta": {
+            "type": "boolean",
+            "title": "Se Aparta"
+          },
+          "justificacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Justificacion"
+          },
+          "costo_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Total"
+          },
+          "costo_total_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Total Mxn"
+          },
+          "requiere_aprobacion": {
+            "type": "boolean",
+            "title": "Requiere Aprobacion"
+          },
+          "motivo_aprobacion": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motivo Aprobacion"
+          },
+          "recomendacion": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Recomendacion"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "decidida_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidida Por Nombre"
+          },
+          "decidida_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidida En"
+          },
+          "motivo_rechazo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Rechazo"
+          },
+          "contrato_folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrato Folio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sesion_id",
+          "propuesta_por_id",
+          "propuesta_por_nombre",
+          "propuesta_en",
+          "recomendada_sesion_id",
+          "se_aparta",
+          "justificacion",
+          "costo_total",
+          "costo_total_mxn",
+          "requiere_aprobacion",
+          "motivo_aprobacion",
+          "recomendacion",
+          "estado",
+          "decidida_por_nombre",
+          "decidida_en",
+          "motivo_rechazo",
+          "contrato_folio"
+        ],
+        "title": "AdjudicacionSalida",
+        "description": "Una propuesta de adjudicación; `recomendacion` es la foto de inteligencia al proponer."
+      },
+      "Aprobacion": {
+        "properties": {
+          "adjudicacion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Adjudicacion Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adjudicacion_id"
+        ],
+        "title": "Aprobacion",
+        "description": "La propuesta que el aprobador revisó: si ya no es la pendiente, no se decide."
+      },
       "Banda": {
         "properties": {
           "p25": {
@@ -892,6 +1353,22 @@
         ],
         "title": "Control"
       },
+      "Desierta": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "Desierta",
+        "description": "Por qué el comprador declara desierta la negociación."
+      },
       "EnlaceSalida": {
         "properties": {
           "sesion_id": {
@@ -925,6 +1402,47 @@
           "correo_estado"
         ],
         "title": "EnlaceSalida"
+      },
+      "Evaluacion": {
+        "properties": {
+          "recomendacion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recomendacion"
+          },
+          "vigente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdjudicacionSalida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "historial": {
+            "items": {
+              "$ref": "#/components/schemas/AdjudicacionSalida"
+            },
+            "type": "array",
+            "title": "Historial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recomendacion",
+          "vigente",
+          "historial"
+        ],
+        "title": "Evaluacion",
+        "description": "Los acuerdos evaluados: la recomendación de hoy, la propuesta vigente y las rechazadas."
       },
       "EventoCambios": {
         "properties": {
@@ -1364,6 +1882,17 @@
             ],
             "title": "Motivo Cancelacion"
           },
+          "motivo_desierta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Desierta"
+          },
           "version": {
             "type": "integer",
             "title": "Version"
@@ -1413,6 +1942,7 @@
           "publicado_en",
           "cerrado_en",
           "motivo_cancelacion",
+          "motivo_desierta",
           "version",
           "errores",
           "avisos",
@@ -2148,6 +2678,45 @@
         ],
         "title": "ProblemaSalida"
       },
+      "Propuesta": {
+        "properties": {
+          "sesion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sesion Id"
+          },
+          "pesos": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pesos"
+          },
+          "justificacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Justificacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sesion_id"
+        ],
+        "title": "Propuesta",
+        "description": "Lo que manda el comprador al proponer una adjudicación."
+      },
       "Publicacion": {
         "properties": {
           "evento": {
@@ -2167,6 +2736,27 @@
           "enlaces"
         ],
         "title": "Publicacion"
+      },
+      "Rechazo": {
+        "properties": {
+          "adjudicacion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Adjudicacion Id"
+          },
+          "motivo": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adjudicacion_id",
+          "motivo"
+        ],
+        "title": "Rechazo"
       },
       "Respuesta": {
         "properties": {
@@ -2551,6 +3141,22 @@
             "type": "string",
             "title": "Estado"
           },
+          "resultado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "adjudicada",
+                  "no_elegida",
+                  "desierta"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultado"
+          },
           "atendido_por": {
             "type": "string",
             "enum": [
@@ -2604,6 +3210,7 @@
           "rondas_max",
           "rondas_restantes",
           "estado",
+          "resultado",
           "atendido_por",
           "pide_confirmacion",
           "lineas",

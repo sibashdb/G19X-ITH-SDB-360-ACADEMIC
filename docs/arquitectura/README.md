@@ -1,7 +1,7 @@
 # Documento de arquitectura
 
 Entregable 3 del cronograma (PRD §6.5). Describe la plataforma tal como está construida al
-15/10/2026, después de N1. Lo planeado aparece marcado como tal. Los requerimientos y el diseño
+19/10/2026, después de N1 y de la adjudicación en los servicios. Lo planeado aparece marcado como tal. Los requerimientos y el diseño
 original están en el
 [PRD](../superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md).
 
@@ -28,6 +28,7 @@ original están en el
 | [008](adr/008-benchmark-por-cuantiles.md) | Precio justo con regresión por cuantiles y regla de promoción | Aceptada |
 | [009](adr/009-eleccion-del-llm-por-evals.md) | Elección del LLM local según los evals | Propuesta (N2) |
 | [010](adr/010-negociacion-determinista-antes-del-llm.md) | Negociación determinista antes del LLM, y adjudicación antes que la IA | Aceptada |
+| [011](adr/011-quien-aprueba-una-adjudicacion.md) | Quién aprueba una adjudicación: el aprobador sobre el umbral o fuera de límites, si no el comprador; nunca quien propone | Aceptada |
 
 ## Mantenerlo al día
 
