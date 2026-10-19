@@ -170,7 +170,7 @@ def test_traduce_las_acciones_de_negociacion() -> None:
         "reenvio": False,
     }
     assert invitacion.correo == CorreoNegociacion(
-        "lucia@nubenorte.example", "comprador1", "enviado", None
+        "lucia@nubenorte.example", "comprador1", "enviado", None, "negociacion"
     )
     fallida = traducir(
         _sobre("negociacion.invitacion_enviada", INVITACION | {"estado": "fallido", "error": "x"})
@@ -178,6 +178,89 @@ def test_traduce_las_acciones_de_negociacion() -> None:
     assert fallida is not None and fallida.resultado == "fallo"
     with pytest.raises(EventoInvalido):
         traducir(_sobre("negociacion.invitacion_enviada", INVITACION | {"estado": "perdido"}))
+
+
+ADJUDICADA = NEGOCIACION | {
+    "tipo": "compra",
+    "proveedor_id": "7d0f6a52-6a0e-4a6f-9c1e-0f3b5f6f9a11",
+    "proveedor": "Nube Norte S.A. de C.V.",
+    "costo_total_mxn": "412000.00",
+    "contrato": {"folio": "C-NEG-2026-0004"},
+    "aprobacion": "aprobada",
+}
+SISTEMA_EVENTO = {"id": None, "nombre": "Sistema"}
+
+
+def test_traduce_la_adjudicacion() -> None:
+    registro = traducir(_sobre("negociacion.adjudicada", ADJUDICADA, "a-1"))
+    assert registro == Registro(
+        tipo="negociacion.adjudicada",
+        actor=Actor("c-1", "comprador1"),
+        objeto=Objeto("negociacion", "NEG-2026-0001", "NEG-2026-0001 «CRM 2027»"),
+        detalle={
+            "proveedor": "Nube Norte S.A. de C.V.",
+            "aprobacion": "aprobada",
+            "contrato_folio": "C-NEG-2026-0004",
+        },
+        resultado="exito",
+        clave_origen="negociacion:a-1",
+        fecha=datetime(2026, 10, 9, 15, tzinfo=UTC),
+        origen="negociacion",
+    )
+
+
+def test_traduce_la_desierta_automatica() -> None:
+    sobre = _sobre(
+        "negociacion.desierta",
+        NEGOCIACION | {"motivo": "sin_acuerdos", "actor": SISTEMA_EVENTO},
+        "d-1",
+    )
+    assert traducir(sobre) == Registro(
+        tipo="negociacion.desierta",
+        actor=Actor(None, "Sistema"),
+        objeto=Objeto("negociacion", "NEG-2026-0001", "NEG-2026-0001 «CRM 2027»"),
+        detalle={"motivo": "sin_acuerdos"},
+        resultado="exito",
+        clave_origen="negociacion:d-1",
+        fecha=datetime(2026, 10, 9, 15, tzinfo=UTC),
+        origen="negociacion",
+    )
+
+
+def test_el_resultado_enviado_registra_su_correo() -> None:
+    aviso = INVITACION | {"resultado": "no_elegida", "reenvio": False}
+    registro = traducir(_sobre("negociacion.resultado_enviado", aviso))
+    assert registro is not None
+    assert registro.detalle == {
+        "proveedor": "Nube Norte S.A. de C.V.",
+        "destinatario": "lucia@nubenorte.example",
+        "estado": "enviado",
+        "reenvio": False,
+        "resultado": "no_elegida",
+    }
+    assert registro.correo == CorreoNegociacion(
+        "lucia@nubenorte.example", "comprador1", "enviado", None, "resultado_negociacion"
+    )
+    fallido = traducir(
+        _sobre("negociacion.resultado_enviado", aviso | {"estado": "fallido", "error": "x"})
+    )
+    assert fallido is not None and fallido.resultado == "fallo"
+    assert fallido.correo is not None and fallido.correo.error == "x"
+
+
+@pytest.mark.parametrize(
+    ("tipo", "payload"),
+    [
+        ("negociacion.adjudicada", ADJUDICADA | {"aprobacion": "tacita"}),
+        ("negociacion.adjudicada", {k: v for k, v in ADJUDICADA.items() if k != "contrato"}),
+        ("negociacion.desierta", NEGOCIACION),  # sin motivo
+        ("negociacion.resultado_enviado", INVITACION),  # sin resultado
+        ("negociacion.resultado_enviado", INVITACION | {"resultado": "x", "estado": "perdido"}),
+    ],
+)
+def test_un_evento_de_resultado_mal_formado_es_invalido(tipo: str, payload: dict[str, Any]) -> None:
+    with pytest.raises(EventoInvalido):
+        traducir(_sobre(tipo, payload))
 
 
 def test_ignora_lo_que_no_va_a_la_bitacora() -> None:
@@ -306,6 +389,25 @@ async def test_una_invitacion_queda_una_vez_en_actividad_y_en_correos(
     assert [tuple(f) for f in actividad] == [("negociacion", "negociacion.invitacion_enviada")]
     assert [tuple(f) for f in correos] == [
         ("negociacion", "lucia@nubenorte.example", None, "comprador1", "enviado")
+    ]
+
+
+@pytest.mark.integracion
+async def test_un_resultado_enviado_queda_una_vez_en_actividad_y_en_correos(
+    fabrica: async_sessionmaker[AsyncSession],
+) -> None:
+    sobre = _sobre("negociacion.resultado_enviado", INVITACION | {"resultado": "adjudicada"})
+    atender = atendedor(fabrica)
+    await atender(sobre)
+    await atender(sobre)  # el mismo evento entregado dos veces
+    async with fabrica() as sesion:
+        actividad = (await sesion.execute(text("SELECT origen, tipo FROM actividad"))).all()
+        correos = (
+            await sesion.execute(text("SELECT tipo, destinatario, estado FROM correo_enviado"))
+        ).all()
+    assert [tuple(f) for f in actividad] == [("negociacion", "negociacion.resultado_enviado")]
+    assert [tuple(f) for f in correos] == [
+        ("resultado_negociacion", "lucia@nubenorte.example", "enviado")
     ]
 
 

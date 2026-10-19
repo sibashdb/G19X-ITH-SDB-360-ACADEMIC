@@ -185,6 +185,65 @@ CASOS: list[tuple[str, str, dict[str, object], str]] = [
         {"proveedor": "Nube Norte", "estado": "fallido", "reenvio": False},
         "No se pudo enviar a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
     ),
+    (
+        "negociacion.adjudicada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "aprobacion": "directa"},
+        "Adjudicó la negociación NEG-2026-0001 «CRM 2027» a Nube Norte (directa)",
+    ),
+    (
+        "negociacion.adjudicada",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "aprobacion": "aprobada"},
+        "Adjudicó la negociación NEG-2026-0001 «CRM 2027» a Nube Norte (aprobada)",
+    ),
+    (
+        "negociacion.desierta",
+        "NEG-2026-0001 «CRM 2027»",
+        {"motivo": "Cambió el presupuesto"},
+        "Declaró desierta la negociación NEG-2026-0001 «CRM 2027»: Cambió el presupuesto",
+    ),
+    (
+        "negociacion.desierta",
+        "NEG-2026-0001 «CRM 2027»",
+        {},
+        "Declaró desierta la negociación NEG-2026-0001 «CRM 2027»",
+    ),
+    (
+        "negociacion.desierta",
+        "NEG-2026-0001 «CRM 2027»",
+        {"motivo": "sin_acuerdos"},
+        "La negociación NEG-2026-0001 «CRM 2027» quedó desierta: ningún proveedor llegó a un "
+        "acuerdo",
+    ),
+    (
+        "negociacion.resultado_enviado",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "estado": "enviado", "resultado": "adjudicada"},
+        "Envió a Nube Norte el resultado de la negociación NEG-2026-0001 «CRM 2027»",
+    ),
+    (
+        "negociacion.resultado_enviado",
+        "NEG-2026-0001 «CRM 2027»",
+        {"proveedor": "Nube Norte", "estado": "fallido", "resultado": "desierta"},
+        "No se pudo enviar a Nube Norte el resultado de la negociación NEG-2026-0001 «CRM 2027»",
+    ),
+    (
+        "configuracion.actualizada",
+        "configuración de la puntuación",
+        {
+            "cambios": [
+                {"campo": "adjudicacion_costo", "anterior": 40, "nuevo": 50},
+                {"campo": "adjudicacion_desempeno", "anterior": 30, "nuevo": 20},
+                {"campo": "adjudicacion_riesgo", "anterior": 15, "nuevo": 15},
+                {"campo": "adjudicacion_sla", "anterior": 15, "nuevo": 15},
+                {"campo": "umbral_aprobacion", "anterior": "500000.00", "nuevo": "750000.00"},
+            ]
+        },
+        "Cambió la configuración de la puntuación: peso del costo en la adjudicación, "
+        "peso del desempeño en la adjudicación, peso del riesgo en la adjudicación, "
+        "peso del SLA en la adjudicación, umbral de aprobación",
+    ),
 ]
 
 

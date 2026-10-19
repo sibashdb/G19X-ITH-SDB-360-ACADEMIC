@@ -47,14 +47,17 @@ class Actividad(Base):
 class CorreoEnviado(Base):
     __tablename__ = "correo_enviado"
     __table_args__ = (
-        CheckConstraint("tipo IN ('invitacion', 'restablecimiento', 'negociacion')", name="tipo"),
+        CheckConstraint(
+            "tipo IN ('invitacion', 'restablecimiento', 'negociacion', 'resultado_negociacion')",
+            name="tipo",
+        ),
         CheckConstraint("estado IN ('enviado', 'fallido')", name="estado"),
         Index("ix_correo_enviado_fecha", "fecha"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_ahora)
-    tipo: Mapped[str] = mapped_column(String(20))
+    tipo: Mapped[str] = mapped_column(String(30))
     destinatario: Mapped[str] = mapped_column(String(254))
     usuario_id: Mapped[str | None] = mapped_column(String(64))
     solicitado_por: Mapped[str] = mapped_column(String(200))

@@ -20,16 +20,23 @@ NOMBRES_ENTIDAD = {
 CAMBIOS_SERVICIO = frozenset({"creado", "actualizado", "desactivado", "activado"})
 TIPOS_INTELIGENCIA = ("configuracion.", "modelo.")  # los publica inteligencia
 PREFIJO_NEGOCIACION = "negociacion."  # los publica negociacion
+# El correo que cada aviso de negociación deja en la página Correos.
+CORREOS_NEGOCIACION = {
+    "negociacion.invitacion_enviada": "negociacion",
+    "negociacion.resultado_enviado": "resultado_negociacion",
+}
+APROBACIONES = ("directa", "aprobada")
 
 
 @dataclass(frozen=True)
 class CorreoNegociacion:
-    """La invitación a negociar que mandó el servicio de negociación, para la página Correos."""
+    """La invitación o el resultado que mandó el servicio de negociación, para la página Correos."""
 
     destinatario: str
     solicitado_por: str
     estado: str  # enviado o fallido
     error: str | None
+    tipo: str  # el de correo_enviado.tipo
 
 
 @dataclass(frozen=True)
@@ -70,7 +77,20 @@ def _negociacion(
     if tipo == "negociacion.cancelada":
         detalle = {"motivo": str(payload["motivo"])}
         return Registro(tipo, actor, objeto, detalle, "exito", clave, fecha, "negociacion")
-    if tipo == "negociacion.invitacion_enviada":
+    if tipo == "negociacion.adjudicada":
+        aprobacion = str(payload["aprobacion"])
+        if aprobacion not in APROBACIONES:
+            raise ValueError(f"Aprobación desconocida: {aprobacion}")
+        detalle = {
+            "proveedor": str(payload["proveedor"]),
+            "aprobacion": aprobacion,
+            "contrato_folio": str(payload["contrato"]["folio"]),
+        }
+        return Registro(tipo, actor, objeto, detalle, "exito", clave, fecha, "negociacion")
+    if tipo == "negociacion.desierta":  # el motivo es el del comprador o "sin_acuerdos"
+        detalle = {"motivo": str(payload["motivo"])}
+        return Registro(tipo, actor, objeto, detalle, "exito", clave, fecha, "negociacion")
+    if tipo in CORREOS_NEGOCIACION:
         estado = str(payload["estado"])
         if estado not in ("enviado", "fallido"):
             raise ValueError(f"Estado de correo desconocido: {estado}")
@@ -81,11 +101,14 @@ def _negociacion(
             "estado": estado,
             "reenvio": bool(payload["reenvio"]),
         }
+        if tipo == "negociacion.resultado_enviado":
+            detalle["resultado"] = str(payload["resultado"])
         correo = CorreoNegociacion(
             str(payload["destinatario"]),
             actor.nombre[:MAX_NOMBRE],  # la columna mide lo mismo que actor_nombre
             estado,
             None if error is None else str(error),
+            CORREOS_NEGOCIACION[tipo],
         )
         resultado = "exito" if estado == "enviado" else "fallo"
         return Registro(
@@ -188,7 +211,7 @@ async def guardar(fabrica: async_sessionmaker[AsyncSession], registro: Registro)
             sesion.add(
                 CorreoEnviado(
                     fecha=registro.fecha,
-                    tipo="negociacion",
+                    tipo=registro.correo.tipo,
                     destinatario=registro.correo.destinatario,
                     usuario_id=None,
                     solicitado_por=registro.correo.solicitado_por,

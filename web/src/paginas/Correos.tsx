@@ -26,6 +26,7 @@ const TIPOS = {
   invitacion: "Invitación",
   restablecimiento: "Restablecimiento",
   negociacion: "Invitación a negociar",
+  resultado_negociacion: "Resultado de negociación",
 }
 
 export function Correos() {

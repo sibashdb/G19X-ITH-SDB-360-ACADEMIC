@@ -24,6 +24,9 @@ export const TIPOS_ACTIVIDAD = [
   "negociacion.publicada",
   "negociacion.cancelada",
   "negociacion.invitacion_enviada",
+  "negociacion.adjudicada",
+  "negociacion.desierta",
+  "negociacion.resultado_enviado",
 ] as const
 type TipoActividad = (typeof TIPOS_ACTIVIDAD)[number]
 
@@ -43,6 +46,11 @@ function roles(valor: unknown): string {
 const NOMBRES_AJUSTE: Record<string, string> = {
   umbral_riesgo: "umbral de riesgo",
   inflacion_anual: "inflación anual",
+  adjudicacion_costo: "peso del costo en la adjudicación",
+  adjudicacion_desempeno: "peso del desempeño en la adjudicación",
+  adjudicacion_riesgo: "peso del riesgo en la adjudicación",
+  adjudicacion_sla: "peso del SLA en la adjudicación",
+  umbral_aprobacion: "umbral de aprobación",
 }
 const CONFIGURACION = "Cambió la configuración de la puntuación"
 
@@ -87,6 +95,31 @@ function invitacion(a: RegistroActividad): string {
   return `${accion} a ${proveedor} la invitación a negociar ${a.objeto_nombre}`
 }
 
+const APROBACIONES: Record<string, string> = {
+  directa: " (directa)",
+  aprobada: " (aprobada)",
+}
+
+function adjudicada(a: RegistroActividad): string {
+  const aprobacion = APROBACIONES[String(a.detalle.aprobacion)] ?? ""
+  return `Adjudicó la negociación ${a.objeto_nombre} a ${String(a.detalle.proveedor ?? "")}${aprobacion}`
+}
+
+function desierta(a: RegistroActividad): string {
+  const motivo = a.detalle.motivo
+  if (motivo === "sin_acuerdos")
+    return `La negociación ${a.objeto_nombre} quedó desierta: ningún proveedor llegó a un acuerdo`
+  const texto = `Declaró desierta la negociación ${a.objeto_nombre}`
+  return motivo ? `${texto}: ${String(motivo)}` : texto
+}
+
+function resultado(a: RegistroActividad): string {
+  const proveedor = String(a.detalle.proveedor ?? "")
+  if (a.detalle.estado === "fallido")
+    return `No se pudo enviar a ${proveedor} el resultado de la negociación ${a.objeto_nombre}`
+  return `Envió a ${proveedor} el resultado de la negociación ${a.objeto_nombre}`
+}
+
 const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
   "sesion.iniciada": () => "Inició sesión",
   "sesion.fallida": (a) => {
@@ -123,6 +156,9 @@ const TEXTOS: Record<TipoActividad, (a: RegistroActividad) => string> = {
   "negociacion.cancelada": (a) =>
     `Canceló la negociación ${a.objeto_nombre}: ${String(a.detalle.motivo ?? "")}`,
   "negociacion.invitacion_enviada": invitacion,
+  "negociacion.adjudicada": adjudicada,
+  "negociacion.desierta": desierta,
+  "negociacion.resultado_enviado": resultado,
 }
 
 // Un alta que quedó a medias trae en el detalle qué faltó.

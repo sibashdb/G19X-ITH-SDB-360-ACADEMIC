@@ -40,7 +40,15 @@ def _sesion_fallida(a: Actividad) -> str:
     )
 
 
-NOMBRES_AJUSTE = {"umbral_riesgo": "umbral de riesgo", "inflacion_anual": "inflación anual"}
+NOMBRES_AJUSTE = {
+    "umbral_riesgo": "umbral de riesgo",
+    "inflacion_anual": "inflación anual",
+    "adjudicacion_costo": "peso del costo en la adjudicación",
+    "adjudicacion_desempeno": "peso del desempeño en la adjudicación",
+    "adjudicacion_riesgo": "peso del riesgo en la adjudicación",
+    "adjudicacion_sla": "peso del SLA en la adjudicación",
+    "umbral_aprobacion": "umbral de aprobación",
+}
 CONFIGURACION = "Cambió la configuración de la puntuación"
 
 
@@ -86,6 +94,32 @@ def _invitacion(a: Actividad) -> str:
     return f"{accion} a {proveedor} la invitación a negociar {a.objeto_nombre}"
 
 
+APROBACIONES = {"directa": " (directa)", "aprobada": " (aprobada)"}
+
+
+def _adjudicada(a: Actividad) -> str:
+    proveedor = a.detalle.get("proveedor", "")
+    aprobacion = APROBACIONES.get(str(a.detalle.get("aprobacion")), "")
+    return f"Adjudicó la negociación {a.objeto_nombre} a {proveedor}{aprobacion}"
+
+
+def _desierta(a: Actividad) -> str:
+    motivo = a.detalle.get("motivo")
+    if motivo == "sin_acuerdos":  # la desierta automática
+        return (
+            f"La negociación {a.objeto_nombre} quedó desierta: ningún proveedor llegó a un acuerdo"
+        )
+    texto = f"Declaró desierta la negociación {a.objeto_nombre}"
+    return f"{texto}: {motivo}" if motivo else texto
+
+
+def _resultado(a: Actividad) -> str:
+    proveedor = a.detalle.get("proveedor", "")
+    if a.detalle.get("estado") == "fallido":
+        return f"No se pudo enviar a {proveedor} el resultado de la negociación {a.objeto_nombre}"
+    return f"Envió a {proveedor} el resultado de la negociación {a.objeto_nombre}"
+
+
 TEXTOS: dict[str, Callable[[Actividad], str]] = {
     "sesion.iniciada": lambda a: "Inició sesión",
     "sesion.fallida": _sesion_fallida,
@@ -123,6 +157,9 @@ TEXTOS: dict[str, Callable[[Actividad], str]] = {
         f"Canceló la negociación {a.objeto_nombre}: {a.detalle.get('motivo', '')}"
     ),
     "negociacion.invitacion_enviada": _invitacion,
+    "negociacion.adjudicada": _adjudicada,
+    "negociacion.desierta": _desierta,
+    "negociacion.resultado_enviado": _resultado,
 }
 
 

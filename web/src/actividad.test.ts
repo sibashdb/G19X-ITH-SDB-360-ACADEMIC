@@ -68,6 +68,23 @@ describe("describirActividad", () => {
       "Cambió la configuración de la puntuación: pesos, inflación anual",
     ],
     [
+      "configuracion.actualizada",
+      {
+        cambios: [
+          { campo: "adjudicacion_costo", anterior: 40, nuevo: 50 },
+          { campo: "adjudicacion_desempeno", anterior: 30, nuevo: 20 },
+          { campo: "adjudicacion_riesgo", anterior: 15, nuevo: 15 },
+          { campo: "adjudicacion_sla", anterior: 15, nuevo: 15 },
+          {
+            campo: "umbral_aprobacion",
+            anterior: "500000.00",
+            nuevo: "750000.00",
+          },
+        ],
+      },
+      "Cambió la configuración de la puntuación: peso del costo en la adjudicación, peso del desempeño en la adjudicación, peso del riesgo en la adjudicación, peso del SLA en la adjudicación, umbral de aprobación",
+    ],
+    [
       "modelo.entrenado",
       { version: 4, mape: 0.112, promovido: true },
       "Reentrenó el modelo de precios: versión 4, MAPE 11.2 %, promovido",
@@ -116,6 +133,41 @@ describe("describirActividad", () => {
       "negociacion.invitacion_enviada",
       { proveedor: "Nube Norte", estado: "fallido", reenvio: false },
       "No se pudo enviar a Nube Norte la invitación a negociar NEG-2026-0001 «CRM 2027»",
+    ],
+    [
+      "negociacion.adjudicada",
+      { proveedor: "Nube Norte", aprobacion: "directa" },
+      "Adjudicó la negociación NEG-2026-0001 «CRM 2027» a Nube Norte (directa)",
+    ],
+    [
+      "negociacion.adjudicada",
+      { proveedor: "Nube Norte", aprobacion: "aprobada" },
+      "Adjudicó la negociación NEG-2026-0001 «CRM 2027» a Nube Norte (aprobada)",
+    ],
+    [
+      "negociacion.desierta",
+      { motivo: "Cambió el presupuesto" },
+      "Declaró desierta la negociación NEG-2026-0001 «CRM 2027»: Cambió el presupuesto",
+    ],
+    [
+      "negociacion.desierta",
+      {},
+      "Declaró desierta la negociación NEG-2026-0001 «CRM 2027»",
+    ],
+    [
+      "negociacion.desierta",
+      { motivo: "sin_acuerdos" },
+      "La negociación NEG-2026-0001 «CRM 2027» quedó desierta: ningún proveedor llegó a un acuerdo",
+    ],
+    [
+      "negociacion.resultado_enviado",
+      { proveedor: "Nube Norte", estado: "enviado", resultado: "adjudicada" },
+      "Envió a Nube Norte el resultado de la negociación NEG-2026-0001 «CRM 2027»",
+    ],
+    [
+      "negociacion.resultado_enviado",
+      { proveedor: "Nube Norte", estado: "fallido", resultado: "desierta" },
+      "No se pudo enviar a Nube Norte el resultado de la negociación NEG-2026-0001 «CRM 2027»",
     ],
   ])("negociación: %s", (tipo, detalle, esperado) => {
     const objeto_nombre = "NEG-2026-0001 «CRM 2027»"
