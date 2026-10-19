@@ -7,10 +7,18 @@ from datetime import datetime
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
+from negociacion.api.esquemas import Resultado
+
 EnviarCorreo = Callable[[EmailMessage], Awaitable[None]]
 ZONA = ZoneInfo("America/Mexico_City")
 TIEMPO_ESPERA_S = 10
 NO_ENTREGADO = "No se pudo entregar el correo al servidor de correo."
+# Spec §4.6: nunca dicen quién ganó ni ningún monto.
+TEXTO_RESULTADO: dict[Resultado, str] = {
+    "adjudicada": "Su oferta fue adjudicada; el equipo de compras se pondrá en contacto",
+    "no_elegida": "La negociación se adjudicó a otra propuesta",
+    "desierta": "La negociación se declaró desierta",
+}
 
 
 def invitacion(
@@ -35,6 +43,28 @@ def invitacion(
         f"enlace:\n{enlace}\n\n"
         "El enlace es personal: no lo comparta. En el portal también puede pedir hablar con una "
         "persona del equipo de compras.\n"
+    )
+    return mensaje
+
+
+def resultado(
+    *,
+    remitente: str,
+    destinatario: str,
+    contacto: str,
+    titulo: str,
+    folio: str,
+    resultado: Resultado,
+) -> EmailMessage:
+    mensaje = EmailMessage()
+    mensaje["From"] = remitente
+    mensaje["To"] = destinatario
+    mensaje["Subject"] = f"Resultado de la negociación {folio}"
+    mensaje.set_content(
+        f"Estimado(a) {contacto}:\n\n"
+        f"Le informamos el resultado de la negociación «{titulo}» (folio {folio}):\n\n"
+        f"{TEXTO_RESULTADO[resultado]}.\n\n"
+        "Gracias por su participación.\n"
     )
     return mensaje
 

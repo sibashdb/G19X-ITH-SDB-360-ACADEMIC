@@ -62,6 +62,7 @@ async def test_la_vista_muestra_lo_negociable_sin_los_limites(
     assert [linea["nombre"] for linea in vista["lineas"]] == ["CRM profesional"]
     assert vista["palancas"] == [] and vista["mensajes"] == []
     assert vista["ultima_propuesta"] is None
+    assert vista["resultado"] is None  # abierto: aún no hay resultado
     texto = json.dumps(vista)
     for prohibido in ('"ideal"', '"limite"', '"peso"', '"utilidad"', '"referencia"', "28.00"):
         assert prohibido not in texto, prohibido
@@ -234,7 +235,7 @@ async def test_avisa_si_otro_proveedor_ofrece_mejor(publicar: Any, ofertar: Any)
     assert "Hemos recibido propuestas más competitivas." in vista["mensajes"][-1]["texto"]
 
 
-async def test_en_la_ultima_ronda_cierra_y_el_evento_pasa_a_evaluacion(
+async def test_en_la_ultima_ronda_cierra_y_sin_acuerdos_el_evento_queda_desierto(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     publicar: Any,
@@ -251,7 +252,7 @@ async def test_en_la_ultima_ronda_cierra_y_el_evento_pasa_a_evaluacion(
         "Gracias por su tiempo. En esta ocasión no fue posible llegar a un acuerdo."
     )
     detalle = (await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()
-    assert detalle["estado"] == "en_evaluacion"
+    assert detalle["estado"] == "desierto"
 
 
 async def test_dos_ofertas_a_la_vez_se_procesan_una_tras_otra(

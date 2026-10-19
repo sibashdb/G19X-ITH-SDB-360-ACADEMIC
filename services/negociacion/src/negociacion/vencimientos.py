@@ -1,7 +1,9 @@
 """Cierre por fecha límite (spec §8.4): una tarea del servicio que corre cada minuto.
 
 También cierra los eventos cuyas sesiones ya terminaron y que ningún turno alcanzó a cerrar
-(ver turnos.cerrar_eventos_terminados). Es idempotente: repetirla no cambia nada.
+(ver turnos.cerrar_eventos_terminados) y, en cada vuelta, avisa el resultado a los proveedores de
+las negociaciones ya resueltas (ver avisos.enviar_pendientes). Es idempotente: repetirla no cambia
+nada.
 """
 
 import asyncio
@@ -12,8 +14,10 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from negociacion import textos
+from negociacion import avisos, textos
 from negociacion.bitacora import SISTEMA, registrar
+from negociacion.config import Configuracion
+from negociacion.correo import EnviarCorreo
 from negociacion.modelos import FINALES, Evento, Mensaje, SesionNegociacion
 from negociacion.turnos import cerrar_eventos_terminados
 
@@ -62,11 +66,18 @@ async def cerrar_vencidos(fabrica: async_sessionmaker[AsyncSession], momento: da
 
 
 async def ejecutar_periodicamente(
-    fabrica: async_sessionmaker[AsyncSession], reloj: Callable[[], datetime]
+    fabrica: async_sessionmaker[AsyncSession],
+    reloj: Callable[[], datetime],
+    enviar: EnviarCorreo,
+    config: Configuracion,
 ) -> None:
     while True:
         try:
             await cerrar_vencidos(fabrica, reloj())
         except Exception:
             log.exception("No se pudieron cerrar las negociaciones vencidas; se reintentará")
+        try:
+            await avisos.enviar_pendientes(fabrica, enviar, config, reloj())
+        except Exception:
+            log.exception("No se pudo avisar el resultado a los proveedores; se reintentará")
         await asyncio.sleep(INTERVALO_S)

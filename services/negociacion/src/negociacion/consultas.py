@@ -24,6 +24,7 @@ from negociacion.dominio.terminos import Palanca as PalancaTermino
 from negociacion.errores import invalido, no_existe
 from negociacion.modelos import (
     FINALES,
+    Adjudicacion,
     Bitacora,
     Evento,
     Linea,
@@ -295,6 +296,22 @@ def valores_salida(valores: Valores) -> esquemas.ValoresSalida:
     return esquemas.ValoresSalida(precios=dict(valores.precios), palancas=dict(valores.palancas))
 
 
+async def resultado_de(
+    bd: AsyncSession, evento: Evento, sesion_id: uuid.UUID
+) -> esquemas.Resultado | None:
+    """Lo que el proveedor de esa sesión puede saber del resultado; nulo mientras no se resuelve."""
+    if evento.estado == "desierto":
+        return "desierta"
+    if evento.estado != "adjudicado":
+        return None
+    ganadora = await bd.scalar(
+        select(Adjudicacion.sesion_id).where(
+            Adjudicacion.evento_id == evento.id, Adjudicacion.estado.in_(("aprobada", "directa"))
+        )
+    )
+    return "adjudicada" if ganadora == sesion_id else "no_elegida"
+
+
 async def vista_portal(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.VistaPortal:
     """Lo que ve el proveedor de su sesión: nada de ideales, límites, pesos ni referencia."""
     sesion = await bd.get(SesionNegociacion, sesion_id, populate_existing=True)
@@ -331,6 +348,7 @@ async def vista_portal(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.Vista
         rondas_max=evento.rondas_max,
         rondas_restantes=max(evento.rondas_max - sesion.ronda, 0),
         estado=sesion.estado,
+        resultado=await resultado_de(bd, evento, sesion.id),
         atendido_por="persona" if sesion.modo == "comprador" else "agente",
         pide_confirmacion=pide,
         lineas=[

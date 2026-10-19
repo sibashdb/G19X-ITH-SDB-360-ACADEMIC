@@ -45,6 +45,8 @@ EstadoEvento = Literal[
     "desierto",
     "cancelado",
 ]
+# Lo que el proveedor sabe del resultado de su negociación (nunca quién ganó ni cuánto).
+Resultado = Literal["adjudicada", "no_elegida", "desierta"]
 
 
 class LineaNueva(BaseModel):
@@ -321,6 +323,7 @@ class VistaPortal(BaseModel):
     rondas_max: int
     rondas_restantes: int
     estado: str
+    resultado: Resultado | None
     atendido_por: Literal["agente", "persona"]
     pide_confirmacion: bool
     lineas: list[LineaPortal]

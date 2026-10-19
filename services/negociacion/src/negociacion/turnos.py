@@ -9,8 +9,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from comun.errores import ErrorDominio
+from comun.outbox import registrar_evento
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from negociacion import consultas, textos
@@ -26,7 +27,7 @@ from negociacion.dominio.terminos import (
     utilidad,
 )
 from negociacion.errores import conflicto, invalidos, no_existe
-from negociacion.modelos import FINALES, Evento, Mensaje, Oferta, SesionNegociacion
+from negociacion.modelos import FINALES, Evento, Mensaje, Oferta, Outbox, SesionNegociacion
 
 LIMITE_POR_MINUTO = 10  # mensajes del proveedor por sesión (spec §8.2)
 CUATRO_DECIMALES = Decimal("0.0001")
@@ -213,10 +214,32 @@ async def responder(
         sesion.estado = "sin_acuerdo"
 
 
+def registrar_desierta(
+    bd: AsyncSession,
+    evento_id: uuid.UUID,
+    folio: str,
+    titulo: str,
+    motivo: str,
+    actor: Actor,
+    momento: datetime,
+) -> None:
+    """Publica `negociacion.desierta` y lo anota en la bitácora; el estado lo cambia quien llama."""
+    registrar_evento(
+        bd,
+        Outbox,
+        "negociacion.desierta",
+        {"folio": folio, "titulo": titulo, "motivo": motivo, "actor": actor.para_evento()},
+    )
+    registrar(
+        bd, "evento.desierto", actor, evento_id=evento_id, detalle={"motivo": motivo}, fecha=momento
+    )
+
+
 async def cerrar_eventos_terminados(
     bd: AsyncSession, momento: datetime, evento_id: uuid.UUID | None = None
 ) -> list[uuid.UUID]:
-    """Pasa a evaluación los eventos abiertos sin sesiones en curso o con la fecha límite vencida.
+    """Cierra los eventos abiertos sin sesiones en curso o con la fecha límite vencida: a
+    evaluación si alguna sesión quedó en acuerdo tentativo y, si ninguna, a desierto (spec §4.7).
 
     ponytail: dos turnos que cierran a la vez las dos últimas sesiones no se ven entre sí y ninguno
     cierra el evento; la tarea de la fecha límite (vencimientos.py) lo cierra en menos de un minuto.
@@ -227,19 +250,31 @@ async def cerrar_eventos_terminados(
         .correlate(Evento)
         .exists()
     )
+    hay_acuerdo = (
+        select(SesionNegociacion.id)
+        .where(
+            SesionNegociacion.evento_id == Evento.id,
+            SesionNegociacion.estado == "acuerdo_tentativo",
+        )
+        .correlate(Evento)
+        .exists()
+    )
     consulta = (
         update(Evento)
         .where(Evento.estado == "abierto", or_(~en_curso, Evento.fecha_limite <= momento))
-        .values(estado="en_evaluacion", cerrado_en=momento)
-        .returning(Evento.id)
+        .values(estado=case((hay_acuerdo, "en_evaluacion"), else_="desierto"), cerrado_en=momento)
+        .returning(Evento.id, Evento.estado, Evento.folio, Evento.titulo)
         .execution_options(synchronize_session=False)
     )
     if evento_id is not None:
         consulta = consulta.where(Evento.id == evento_id)
-    cerrados = list((await bd.scalars(consulta)).all())
-    for cerrado in cerrados:
-        registrar(bd, "evento.en_evaluacion", SISTEMA, evento_id=cerrado, fecha=momento)
-    return cerrados
+    cerrados = (await bd.execute(consulta)).all()
+    for cerrado, estado, folio, titulo in cerrados:
+        if estado == "desierto":  # `motivo_desierta` queda vacío: solo la manual lo lleva
+            registrar_desierta(bd, cerrado, folio, titulo, "sin_acuerdos", SISTEMA, momento)
+        else:
+            registrar(bd, "evento.en_evaluacion", SISTEMA, evento_id=cerrado, fecha=momento)
+    return [cerrado for cerrado, *_ in cerrados]
 
 
 async def recibir_oferta(

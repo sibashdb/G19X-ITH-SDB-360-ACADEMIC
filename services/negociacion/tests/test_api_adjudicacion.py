@@ -1147,18 +1147,19 @@ async def test_una_sesion_que_no_es_candidata_da_422(
     ofertar: Any,
     con_acuerdos: Any,
     externos: Any,
-    ids: dict[str, str],
 ) -> None:
     evento, _ = con_acuerdos
     ajeno, enlaces_ajeno = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
-    sin_acuerdo, [enlace_sin_acuerdo] = await publicar(proveedores=[ids["nube_norte"]])
+    # Con otra sesión en acuerdo: si ninguna lo estuviera, el evento ya sería desierto.
+    mixto, [enlace_acordada, enlace_sin_acuerdo] = await publicar()
+    await _acordar(cliente, comprador, ofertar, enlace_acordada, _linea(mixto), "31.00")
     await _sin_acuerdo(cliente, comprador, enlace_sin_acuerdo)
     externos.peticiones.clear()
 
     for evento_pedido, sesion in (
         (evento, {"sesion_id": str(uuid.uuid4())}),  # no existe
         (evento, enlaces_ajeno[0]),  # es de otra negociación
-        (sin_acuerdo, enlace_sin_acuerdo),  # no llegó a un acuerdo
+        (mixto, enlace_sin_acuerdo),  # no llegó a un acuerdo
     ):
         respuesta = await _proponer(cliente, comprador, evento_pedido, sesion)
         assert respuesta.status_code == 422, respuesta.text
@@ -1167,6 +1168,7 @@ async def test_una_sesion_que_no_es_candidata_da_422(
     assert externos.recomendaciones() == []
     assert await _estado(cliente, comprador, evento) == "en_evaluacion"
     assert await _estado(cliente, comprador, ajeno) == "en_evaluacion"
+    assert await _estado(cliente, comprador, mixto) == "en_evaluacion"
 
 
 async def test_si_inteligencia_falla_al_proponer_no_se_guarda_nada(

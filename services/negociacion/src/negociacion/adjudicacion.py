@@ -478,23 +478,7 @@ async def declarar_desierta(
         evento = await consultas.evento_o_404(bd, evento_id, bloquear=True)
         exigir_estado(evento, "en_evaluacion")
         evento.estado, evento.motivo_desierta = "desierto", motivo
-        registrar_evento(
-            bd,
-            Outbox,
-            "negociacion.desierta",
-            {
-                "folio": evento.folio,
-                "titulo": evento.titulo,
-                "motivo": motivo,
-                "actor": actor.para_evento(),
-            },
-        )
-        registrar(
-            bd,
-            "evento.desierto",
-            actor,
-            evento_id=evento.id,
-            detalle={"motivo": motivo},
-            fecha=momento,
+        turnos.registrar_desierta(
+            bd, evento.id, evento.folio, evento.titulo, motivo, actor, momento
         )
         return await _respuesta(bd, evento.id, None)
