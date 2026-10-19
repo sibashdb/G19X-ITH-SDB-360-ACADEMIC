@@ -449,8 +449,10 @@ class Propuesta(BaseModel):
 
 
 class Evaluacion(BaseModel):
-    """Los acuerdos evaluados: la recomendación de hoy, la propuesta vigente y las rechazadas."""
+    """Los acuerdos evaluados: la recomendación, la propuesta vigente y las rechazadas."""
 
-    recomendacion: dict[str, Any] | None  # la respuesta de inteligencia; None sin acuerdos
+    # En evaluación, la respuesta de inteligencia de hoy (None sin acuerdos); ya propuesta o
+    # adjudicada, la foto guardada con la propuesta vigente; desierta, None.
+    recomendacion: dict[str, Any] | None
     vigente: AdjudicacionSalida | None  # pendiente, aprobada o directa
     historial: list[AdjudicacionSalida]  # las rechazadas, de la más reciente a la más antigua
