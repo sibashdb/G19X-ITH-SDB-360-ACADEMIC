@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date
 from decimal import Decimal
@@ -232,8 +233,27 @@ async def test_proveedor_desconocido_se_reintenta_y_no_guarda_nada(
         {"cuota_implementacion": "mucho"},
         {"lineas": []},
         {"lineas": [{"codigo_servicio": "SAAS-OFI-EMP", "cantidad": "250"}]},
+        {"tipo": "compra"},
+        {"moneda": "EUR"},
+        {"fecha_fin": "2026-10-14"},  # la vigencia no empieza antes de terminar
+        {
+            "lineas": [
+                {"codigo_servicio": "SAAS-OFI-EMP", "cantidad": "1", "precio_unitario": "2"},
+                {"codigo_servicio": "SAAS-OFI-EMP", "cantidad": "3", "precio_unitario": "4"},
+            ]
+        },
     ],
-    ids=["fecha", "plazo", "cuota", "sin_lineas", "linea_sin_precio"],
+    ids=[
+        "fecha",
+        "plazo",
+        "cuota",
+        "sin_lineas",
+        "linea_sin_precio",
+        "tipo",
+        "moneda",
+        "vigencia",
+        "servicio_repetido",
+    ],
 )
 async def test_un_payload_mal_formado_es_evento_invalido(
     fabrica: Fabrica, catalogo_y_proveedor: None, cambio: dict[str, Any]
@@ -242,6 +262,58 @@ async def test_un_payload_mal_formado_es_evento_invalido(
         await _aplicar(fabrica, _sobre(**cambio))
 
     assert await _contar(fabrica, Contrato, Outbox, EventoProcesado) == [0] * 3
+
+
+async def test_una_moneda_distinta_a_la_del_servicio_es_evento_invalido(
+    fabrica: Fabrica, catalogo_y_proveedor: None
+) -> None:
+    with pytest.raises(ValueError, match="SAAS-OFI-EMP, SOP-MESA-TK"):
+        await _aplicar(fabrica, _sobre(moneda="MXN"))  # el catálogo está en USD
+
+    assert await _contar(fabrica, Contrato, LineaContrato, Outbox, EventoProcesado) == [0] * 4
+
+
+async def test_una_renovacion_conserva_el_sla_y_el_tope_acordados(
+    fabrica: Fabrica, catalogo_y_proveedor: None
+) -> None:
+    await _aplicar(
+        fabrica,
+        _sobre(
+            tipo="renovacion",
+            plazo_pago_dias=45,
+            sla_disponibilidad="99.90",
+            tope_aumento_pct="5.00",
+            cuota_implementacion="1500.50",
+        ),
+    )
+
+    async with fabrica() as bd:
+        contrato = await bd.scalar(select(Contrato))
+    assert contrato is not None
+    assert (contrato.tipo, contrato.plazo_pago_dias) == ("renovacion", 45)
+    assert contrato.sla_disponibilidad == Decimal("99.90")
+    assert contrato.tope_aumento_pct == Decimal("5.00")
+    assert contrato.cuota_implementacion == Decimal("1500.50")
+    [publicado] = await _contratos_publicados(fabrica)
+    assert (publicado["tipo"], publicado["plazo_pago_dias"]) == ("renovacion", 45)
+    assert publicado["sla_disponibilidad"] == "99.90"
+    assert publicado["tope_aumento_pct"] == "5.00"
+    assert publicado["cuota_implementacion"] == "1500.50"
+
+
+async def test_un_folio_existente_deja_un_aviso_sin_los_terminos(
+    fabrica: Fabrica, catalogo_y_proveedor: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    await _aplicar(fabrica, _sobre("evento-1"))
+
+    with caplog.at_level(logging.WARNING, logger="proveedores.eventos"):
+        await _aplicar(fabrica, _sobre("evento-2"))
+
+    [aviso] = [r.getMessage() for r in caplog.records if r.name == "proveedores.eventos"]
+    assert "C-NEG-2026-0001" in aviso
+    assert "evento-2" in aviso
+    assert "Nube Azteca" not in aviso
+    assert "125000" not in aviso
 
 
 async def test_un_payload_sin_contrato_es_evento_invalido(

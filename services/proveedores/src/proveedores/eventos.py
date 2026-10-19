@@ -4,6 +4,7 @@ Cada evento se aplica en una transacción que también registra su event_id, as�
 se aplica dos veces.
 """
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from proveedores.adjudicaciones import registrar_adjudicacion
 from proveedores.modelos import EventoProcesado
+
+log = logging.getLogger(__name__)
 
 APLICADORES: dict[str, Callable[[AsyncSession, dict[str, Any]], Awaitable[bool]]] = {
     "negociacion.adjudicada": registrar_adjudicacion,
@@ -30,7 +33,17 @@ async def aplicar(bd: AsyncSession, sobre: dict[str, Any]) -> bool:
         .returning(EventoProcesado.event_id)
     )
     aplicador = APLICADORES.get(tipo)
-    return nuevo is not None and aplicador is not None and await aplicador(bd, sobre["payload"])
+    if nuevo is None or aplicador is None:
+        return False
+    if await aplicador(bd, sobre["payload"]):
+        return True
+    # Ya validado por el aplicador; solo el folio llega al registro, nunca los términos.
+    log.warning(
+        "Adjudicación descartada: el folio %s ya tiene contrato (evento %s)",
+        sobre["payload"]["contrato"]["folio"],
+        sobre["event_id"],
+    )
+    return False
 
 
 def atendedor(fabrica: async_sessionmaker[AsyncSession]) -> Atender:
