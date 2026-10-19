@@ -4,9 +4,12 @@ Cada mensaje se entrega como sobre (un dict) a la función `atender` del servici
 - Un mensaje mal formado (`ValueError`, incluido `EventoInvalido`) se rechaza sin reintentarlo,
   porque no se arregla solo: la política de la topología lo manda a la cola de fallidos
   (`<cola>.dlq`).
-- Una falla de la base de datos (`SQLAlchemyError`, u `OSError`: asyncpg relanza los errores de red
-  sin envolverlos) espera `REINTENTO_S` y devuelve el mensaje a la cola. Tras 5 entregas fallidas,
-  RabbitMQ lo manda a la cola de fallidos (ver comun.topologia).
+- Cualquier otra excepción (una falla de la base de datos, `SQLAlchemyError` u `OSError`: asyncpg
+  relanza los errores de red sin envolverlos; o un `KeyError` porque el dato que el evento
+  referencia aún no llega) espera `REINTENTO_S` y devuelve el mensaje a la cola. Así el consumidor
+  nunca suelta su conexión por un mensaje. Tras 5 entregas fallidas, RabbitMQ lo manda a la cola
+  de fallidos (ver comun.topologia). `CancelledError` no es una `Exception`: el apagado sigue
+  cancelando el consumo.
 """
 
 import asyncio
@@ -18,7 +21,6 @@ from typing import Any
 
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage, AbstractRobustConnection
-from sqlalchemy.exc import SQLAlchemyError
 
 from comun.outbox import EXCHANGE_EVENTOS
 from comun.topologia import ARGUMENTOS_COLA, Cola
@@ -47,7 +49,7 @@ async def atender_mensaje(mensaje: AbstractIncomingMessage, atender: Atender) ->
         )
         await mensaje.reject(requeue=False)
         return
-    except (SQLAlchemyError, OSError):
+    except Exception:
         log.exception("No se pudo procesar el evento %s; se reintentará", mensaje.message_id)
         # Sin esta espera el mensaje vuelve de inmediato y agota sus entregas en milisegundos.
         await asyncio.sleep(REINTENTO_S)

@@ -105,6 +105,39 @@ async def test_si_falla_la_base_espera_y_devuelve_el_mensaje_a_la_cola(
     assert anotaciones == [("sleep", REINTENTO_S), ("reject", True)]
 
 
+@pytest.mark.parametrize(
+    "error",
+    [KeyError("proveedor desconocido"), RuntimeError("falla inesperada")],
+    ids=["clave_desconocida", "inesperada"],
+)
+async def test_cualquier_otro_error_espera_y_devuelve_el_mensaje_a_la_cola(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    anotaciones: list[tuple[Any, ...]] = []
+
+    async def dormir(segundos: float) -> None:
+        anotaciones.append(("sleep", segundos))
+
+    async def atender(_sobre: dict[str, Any]) -> None:
+        raise error
+
+    monkeypatch.setattr(asyncio, "sleep", dormir)
+    # No se propaga: si lo hiciera, el consumidor soltaría su conexión por un solo mensaje.
+    await atender_mensaje(_mensaje(json.dumps(SOBRE).encode(), anotaciones), atender)
+    assert anotaciones == [("sleep", REINTENTO_S), ("reject", True)]
+
+
+async def test_el_apagado_no_se_confunde_con_un_error_del_evento() -> None:
+    anotaciones: list[tuple[Any, ...]] = []
+
+    async def atender(_sobre: dict[str, Any]) -> None:
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await atender_mensaje(_mensaje(json.dumps(SOBRE).encode(), anotaciones), atender)
+    assert anotaciones == []
+
+
 async def test_si_cerrar_falla_el_consumidor_sigue_reintentando(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
