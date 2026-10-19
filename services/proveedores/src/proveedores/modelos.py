@@ -1,7 +1,7 @@
 """Entidades del servicio de proveedores. La fuente de verdad es el ERP (importación CSV)."""
 
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from comun.outbox import ColumnasOutbox
@@ -124,6 +124,18 @@ class TipoCambio(Base):
 
     periodo: Mapped[date] = mapped_column(Date, primary_key=True)
     usd_mxn: Mapped[Decimal] = mapped_column(Numeric(10, 4))
+
+
+class EventoProcesado(Base):
+    """Idempotencia: un evento repetido choca con su event_id y no se aplica dos veces."""
+
+    __tablename__ = "evento_procesado"
+
+    event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(100))
+    procesado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
 
 class Outbox(ColumnasOutbox, Base):

@@ -6,10 +6,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from comun.auth import ValidadorJWT, validador_desde_jwks
+from comun.consumidor import ConsumidorEventos
 from comun.errores import registrar_manejadores
 from comun.logs import configurar_logs, middleware_correlacion
 from comun.outbox import RelayOutbox
 from comun.salud import crear_router_salud
+from comun.topologia import COLA_PROVEEDORES
 from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -17,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from proveedores.api.catalogo import router as router_catalogo
 from proveedores.api.rutas import router
 from proveedores.config import Configuracion
+from proveedores.eventos import atendedor
 from proveedores.modelos import Outbox
 
 
@@ -33,15 +36,22 @@ def crear_app(
         expire_on_commit=False,
     )
     relay = RelayOutbox(sesiones, Outbox, config.rabbitmq_url)
+    consumidor = ConsumidorEventos(config.rabbitmq_url, COLA_PROVEEDORES, atendedor(sesiones))
 
     @asynccontextmanager
     async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
         await relay.conectar()
-        tarea = asyncio.create_task(relay.ejecutar())
+        tareas = [
+            asyncio.create_task(relay.ejecutar()),
+            asyncio.create_task(consumidor.ejecutar()),
+        ]
         yield
-        tarea.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await tarea
+        for tarea in tareas:
+            tarea.cancel()
+        for tarea in tareas:
+            with contextlib.suppress(asyncio.CancelledError):
+                await tarea
+        await consumidor.cerrar()
         await relay.cerrar()
 
     app = FastAPI(

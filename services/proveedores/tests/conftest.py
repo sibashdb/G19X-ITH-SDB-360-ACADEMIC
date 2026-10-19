@@ -34,7 +34,7 @@ async def fabrica(url_bd: str) -> AsyncIterator[async_sessionmaker[AsyncSession]
         await conexion.execute(
             text(
                 "TRUNCATE proveedor, servicio_catalogo, contrato, linea_contrato, "
-                "registro_desempeno, tipo_cambio, outbox CASCADE"
+                "registro_desempeno, tipo_cambio, outbox, evento_procesado CASCADE"
             )
         )
     await motor.dispose()

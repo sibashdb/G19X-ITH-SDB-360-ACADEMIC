@@ -1,6 +1,7 @@
 """Aplica en la BD los CSV validados y registra los eventos en el outbox. Todo o nada."""
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import date
 from decimal import Decimal
@@ -351,7 +352,7 @@ async def _contratos(sesion: AsyncSession, contenido: bytes) -> ResumenImportaci
             sesion,
             Outbox,
             "contrato.registrado",
-            _payload_contrato(contrato, cabecera, lineas, servicios),
+            payload_contrato(contrato, cabecera.rfc_proveedor, servicios),
         )
         nuevos += 1
     return ResumenImportacion(
@@ -359,25 +360,39 @@ async def _contratos(sesion: AsyncSession, contenido: bytes) -> ResumenImportaci
     )
 
 
-def _payload_contrato(
-    contrato: Contrato,
-    cabecera: FilaContrato,
-    lineas: list[tuple[int, FilaContrato]],
-    servicios: dict[str, ServicioCatalogo],
+def payload_contrato(
+    contrato: Contrato, rfc_proveedor: str, servicios: Mapping[str, ServicioCatalogo]
 ) -> dict[str, Any]:
+    """El payload de contrato.registrado, el mismo para la importación y la adjudicación.
+
+    `servicios` es el catálogo por código; cada línea se resuelve por su `servicio_id`.
+    """
+    por_id = {servicio.id: servicio for servicio in servicios.values()}
+    lineas = []
+    for linea in contrato.lineas:
+        servicio = por_id[linea.servicio_id]
+        lineas.append(
+            {
+                "codigo_servicio": servicio.codigo,
+                "nombre_servicio": servicio.nombre,
+                "categoria": servicio.categoria,
+                "unidad": servicio.unidad,
+                "cantidad": linea.cantidad,
+                "precio_unitario": linea.precio_unitario,
+            }
+        )
     return {
         "id": contrato.id,
         "proveedor_id": contrato.proveedor_id,
-        **cabecera.model_dump(exclude={"codigo_servicio", "cantidad", "precio_unitario"}),
-        "lineas": [
-            {
-                "codigo_servicio": fila.codigo_servicio,
-                "nombre_servicio": servicios[fila.codigo_servicio].nombre,
-                "categoria": servicios[fila.codigo_servicio].categoria,
-                "unidad": servicios[fila.codigo_servicio].unidad,
-                "cantidad": fila.cantidad,
-                "precio_unitario": fila.precio_unitario,
-            }
-            for _, fila in lineas
-        ],
+        "folio": contrato.folio,
+        "rfc_proveedor": rfc_proveedor,
+        "tipo": contrato.tipo,
+        "fecha_inicio": contrato.fecha_inicio,
+        "fecha_fin": contrato.fecha_fin,
+        "moneda": contrato.moneda,
+        "plazo_pago_dias": contrato.plazo_pago_dias,
+        "sla_disponibilidad": contrato.sla_disponibilidad,
+        "tope_aumento_pct": contrato.tope_aumento_pct,
+        "cuota_implementacion": contrato.cuota_implementacion,
+        "lineas": lineas,
     }
