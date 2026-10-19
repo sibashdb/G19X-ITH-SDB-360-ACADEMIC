@@ -26,9 +26,15 @@ INTERVALO_S: float = 60
 
 
 async def cerrar_vencidos(fabrica: async_sessionmaker[AsyncSession], momento: datetime) -> int:
-    """Expira las sesiones en curso de los eventos vencidos y cierra esos eventos."""
+    """Expira las sesiones en curso de los eventos vencidos y cierra esos eventos.
+
+    Una sesión a medio turno (bloqueada) se salta y se expira en la siguiente vuelta; mientras tanto
+    el evento vencido sin ningún acuerdo sigue abierto, para no declararlo desierto con esa sesión
+    todavía capaz de llegar a uno (ver turnos.cerrar_eventos_terminados).
+    """
     async with fabrica() as bd, bd.begin():
-        # skip_locked: una sesión en pleno turno se expira en la siguiente vuelta.
+        # skip_locked: una sesión en pleno turno se expira en la siguiente vuelta (y el evento
+        # vencido sin acuerdos espera a que la expiren).
         vencidas = (
             await bd.scalars(
                 select(SesionNegociacion)

@@ -39,6 +39,10 @@ Cuerpo = Callable[..., dict[str, Any]]
 Compra = Callable[..., Awaitable[dict[str, Any]]]
 Publicar = Callable[..., Awaitable[tuple[dict[str, Any], list[dict[str, Any]]]]]
 Ofertar = Callable[..., Awaitable[httpx.Response]]
+Acordar = Callable[..., Awaitable[None]]
+SinAcuerdo = Callable[[dict[str, Any]], Awaitable[None]]
+Proponer = Callable[..., Awaitable[httpx.Response]]
+EventoConAcuerdos = Callable[[], Awaitable[tuple[dict[str, Any], list[dict[str, Any]]]]]
 
 
 def _id(numero: int) -> str:
@@ -483,6 +487,82 @@ def ofertar(cliente: httpx.AsyncClient) -> Ofertar:
         )
 
     return _ofertar
+
+
+@pytest.fixture
+def acordar(cliente: httpx.AsyncClient, comprador: dict[str, str], ofertar: Ofertar) -> Acordar:
+    """Deja la sesión en acuerdo tentativo: el comprador toma el control y acepta la oferta."""
+
+    async def _acordar(
+        enlace: dict[str, Any],
+        linea: str,
+        precio: str,
+        palancas: dict[str, str] | None = None,
+        confirmar_fuera_de_limites: bool = False,
+    ) -> None:
+        sesion = enlace["sesion_id"]
+        tomada = await cliente.post(
+            f"/sesiones/{sesion}/control", json={"accion": "tomar"}, headers=comprador
+        )
+        assert tomada.status_code == 200, tomada.text
+        ofrecida = await ofertar(enlace, {linea: precio}, palancas)
+        assert ofrecida.status_code == 200, ofrecida.text
+        aceptada = await cliente.post(
+            f"/sesiones/{sesion}/respuestas",
+            json={"tipo": "aceptar", "confirmar_fuera_de_limites": confirmar_fuera_de_limites},
+            headers=comprador | {"Idempotency-Key": f"aceptar-{sesion}"},
+        )
+        assert aceptada.json()["estado"] == "acuerdo_tentativo", aceptada.text
+
+    return _acordar
+
+
+@pytest.fixture
+def sin_acuerdo(cliente: httpx.AsyncClient, comprador: dict[str, str]) -> SinAcuerdo:
+    """Cierra la sesión sin acuerdo: el comprador toma el control y la da por terminada."""
+
+    async def _sin_acuerdo(enlace: dict[str, Any]) -> None:
+        sesion = enlace["sesion_id"]
+        await cliente.post(
+            f"/sesiones/{sesion}/control", json={"accion": "tomar"}, headers=comprador
+        )
+        cerrada = await cliente.post(
+            f"/sesiones/{sesion}/respuestas",
+            json={"tipo": "cerrar"},
+            headers=comprador | {"Idempotency-Key": f"cerrar-{sesion}"},
+        )
+        assert cerrada.json()["estado"] == "sin_acuerdo", cerrada.text
+
+    return _sin_acuerdo
+
+
+@pytest.fixture
+def proponer(cliente: httpx.AsyncClient) -> Proponer:
+    """El comprador (o quien traiga esos `encabezados`) propone adjudicar a la sesión del enlace."""
+
+    async def _proponer(
+        encabezados: dict[str, str], evento: dict[str, Any], enlace: dict[str, Any], **extra: Any
+    ) -> httpx.Response:
+        cuerpo = {"sesion_id": enlace["sesion_id"], **extra}
+        return await cliente.post(
+            f"/eventos/{evento['id']}/adjudicacion", json=cuerpo, headers=encabezados
+        )
+
+    return _proponer
+
+
+@pytest.fixture
+def evento_con_acuerdos(publicar: Publicar, acordar: Acordar) -> EventoConAcuerdos:
+    """Un evento en evaluación con dos acuerdos tentativos: a 31.00 y a 30.00 (el recomendado)."""
+
+    async def _crear() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        evento, enlaces = await publicar()
+        linea = str(evento["lineas"][0]["id"])
+        await acordar(enlaces[0], linea, "31.00")
+        await acordar(enlaces[1], linea, "30.00")
+        return evento, enlaces
+
+    return _crear
 
 
 @pytest.fixture

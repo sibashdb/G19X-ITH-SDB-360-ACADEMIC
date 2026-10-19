@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from negociacion.api import esquemas
+from negociacion.dominio.adjudicacion import Resultado
 from negociacion.dominio.configuracion import (
     Banda,
     LineaRevision,
@@ -296,9 +297,7 @@ def valores_salida(valores: Valores) -> esquemas.ValoresSalida:
     return esquemas.ValoresSalida(precios=dict(valores.precios), palancas=dict(valores.palancas))
 
 
-async def resultado_de(
-    bd: AsyncSession, evento: Evento, sesion_id: uuid.UUID
-) -> esquemas.Resultado | None:
+async def resultado_de(bd: AsyncSession, evento: Evento, sesion_id: uuid.UUID) -> Resultado | None:
     """Lo que el proveedor de esa sesión puede saber del resultado; nulo mientras no se resuelve."""
     if evento.estado == "desierto":
         return "desierta"

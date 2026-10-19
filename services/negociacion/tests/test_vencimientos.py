@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -33,6 +34,12 @@ async def _terminar_sesiones(fabrica: Fabrica, primera: str, segunda: str) -> No
         await bd.commit()
 
 
+async def _estado(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], evento: dict[str, Any]
+) -> str:
+    return str((await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()["estado"])
+
+
 async def _desiertas(fabrica: Fabrica) -> list[dict[str, Any]]:
     async with fabrica() as bd:
         consulta = select(Outbox.payload).where(Outbox.tipo == "negociacion.desierta")
@@ -60,6 +67,46 @@ async def test_al_vencer_expira_lo_que_sigue_en_curso_y_el_evento_pasa_a_evaluac
     for accion in ("sesion.expirada", "evento.en_evaluacion"):
         assert await _contar(fabrica, select(func.count()).where(Bitacora.accion == accion)) == 1
     assert await vencimientos.cerrar_vencidos(fabrica, momento) == 0  # repetirla no cambia nada
+
+
+async def test_una_sesion_a_medio_turno_retiene_el_cierre_de_un_evento_vencido_sin_acuerdos(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, fabrica: Fabrica
+) -> None:
+    evento, enlaces = await publicar()
+    momento = datetime.fromisoformat(evento["fecha_limite"]) + timedelta(seconds=1)
+    a_medio_turno = uuid.UUID(enlaces[1]["sesion_id"])
+    async with fabrica() as turno, turno.begin():  # un turno que aún no confirma
+        consulta = select(SesionNegociacion).where(SesionNegociacion.id == a_medio_turno)
+        await turno.execute(consulta.with_for_update())
+        assert await vencimientos.cerrar_vencidos(fabrica, momento) == 1  # solo la otra sesión
+        assert await _estado(cliente, comprador, evento) == "abierto"  # podría terminar en acuerdo
+        assert await _desiertas(fabrica) == []
+    assert await vencimientos.cerrar_vencidos(fabrica, momento) == 2  # la sesión y el evento
+    assert await _estado(cliente, comprador, evento) == "desierto"
+    detalle = (await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()
+    assert {s["estado"] for s in detalle["sesiones"]} == {"expirada"}
+    assert len(await _desiertas(fabrica)) == 1
+
+
+async def test_vencido_con_un_acuerdo_pasa_a_evaluacion_aunque_otra_sesion_este_a_medio_turno(
+    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, fabrica: Fabrica
+) -> None:
+    evento, enlaces = await publicar()
+    momento = datetime.fromisoformat(evento["fecha_limite"]) + timedelta(seconds=1)
+    acordada, a_medio_turno = (uuid.UUID(e["sesion_id"]) for e in enlaces)
+    async with fabrica() as bd:
+        await bd.execute(
+            update(SesionNegociacion)
+            .where(SesionNegociacion.id == acordada)
+            .values(estado="acuerdo_tentativo")
+        )
+        await bd.commit()
+    async with fabrica() as turno, turno.begin():
+        consulta = select(SesionNegociacion).where(SesionNegociacion.id == a_medio_turno)
+        await turno.execute(consulta.with_for_update())
+        assert await vencimientos.cerrar_vencidos(fabrica, momento) == 1  # solo el evento
+    assert await _estado(cliente, comprador, evento) == "en_evaluacion"
+    assert await _desiertas(fabrica) == []
 
 
 async def test_antes_de_la_fecha_limite_no_cambia_nada(

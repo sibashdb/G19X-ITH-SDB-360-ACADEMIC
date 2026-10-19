@@ -16,6 +16,8 @@ from pydantic import (
     model_validator,
 )
 
+from negociacion.dominio.adjudicacion import Resultado
+
 # Categorías Zl y Zp (no empiezan con «C»): también parten una línea.
 SEPARADORES_DE_LINEA = "\N{LINE SEPARATOR}\N{PARAGRAPH SEPARATOR}"
 
@@ -45,8 +47,6 @@ EstadoEvento = Literal[
     "desierto",
     "cancelado",
 ]
-# Lo que el proveedor sabe del resultado de su negociación (nunca quién ganó ni cuánto).
-Resultado = Literal["adjudicada", "no_elegida", "desierta"]
 
 
 class LineaNueva(BaseModel):

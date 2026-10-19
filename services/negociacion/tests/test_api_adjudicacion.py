@@ -28,46 +28,6 @@ def _linea(evento: dict[str, Any]) -> str:
     return str(evento["lineas"][0]["id"])
 
 
-async def _acordar(
-    cliente: httpx.AsyncClient,
-    comprador: dict[str, str],
-    ofertar: Any,
-    enlace: dict[str, Any],
-    linea: str,
-    precio: str,
-    palancas: dict[str, str] | None = None,
-    confirmar_fuera_de_limites: bool = False,
-) -> None:
-    """Deja la sesión en acuerdo tentativo: el comprador toma el control y acepta la oferta."""
-    sesion = enlace["sesion_id"]
-    tomada = await cliente.post(
-        f"/sesiones/{sesion}/control", json={"accion": "tomar"}, headers=comprador
-    )
-    assert tomada.status_code == 200, tomada.text
-    ofrecida = await ofertar(enlace, {linea: precio}, palancas)
-    assert ofrecida.status_code == 200, ofrecida.text
-    aceptada = await cliente.post(
-        f"/sesiones/{sesion}/respuestas",
-        json={"tipo": "aceptar", "confirmar_fuera_de_limites": confirmar_fuera_de_limites},
-        headers=comprador | {"Idempotency-Key": f"aceptar-{sesion}"},
-    )
-    assert aceptada.json()["estado"] == "acuerdo_tentativo", aceptada.text
-
-
-async def _sin_acuerdo(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], enlace: dict[str, Any]
-) -> None:
-    """Cierra la sesión sin acuerdo: el comprador toma el control y la da por terminada."""
-    sesion = enlace["sesion_id"]
-    await cliente.post(f"/sesiones/{sesion}/control", json={"accion": "tomar"}, headers=comprador)
-    cerrada = await cliente.post(
-        f"/sesiones/{sesion}/respuestas",
-        json={"tipo": "cerrar"},
-        headers=comprador | {"Idempotency-Key": f"cerrar-{sesion}"},
-    )
-    assert cerrada.json()["estado"] == "sin_acuerdo", cerrada.text
-
-
 async def _evaluacion(
     cliente: httpx.AsyncClient, evento: dict[str, Any], encabezados: dict[str, str], pesos: str = ""
 ) -> httpx.Response:
@@ -75,21 +35,11 @@ async def _evaluacion(
     return await cliente.get(url, headers=encabezados)
 
 
-async def _evento_con_acuerdos(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, ofertar: Any
-) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Un evento en evaluación con dos acuerdos tentativos: a 31.00 y a 30.00 (el recomendado)."""
-    evento, enlaces = await publicar()
-    await _acordar(cliente, comprador, ofertar, enlaces[0], _linea(evento), "31.00")
-    await _acordar(cliente, comprador, ofertar, enlaces[1], _linea(evento), "30.00")
-    return evento, enlaces
-
-
 @pytest.fixture
 async def con_acuerdos(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, ofertar: Any
+    evento_con_acuerdos: Any,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    return await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
+    return await evento_con_acuerdos()
 
 
 async def test_la_evaluacion_pide_la_recomendacion_con_los_acuerdos(
@@ -98,13 +48,14 @@ async def test_la_evaluacion_pide_la_recomendacion_con_los_acuerdos(
     publicar: Any,
     ofertar: Any,
     externos: Any,
+    acordar: Any,
 ) -> None:
     evento, enlaces = await publicar()
     linea = _linea(evento)
     # El primer proveedor acepta la propuesta del agente; con el segundo, el comprador acepta.
     propuesta = (await ofertar(enlaces[0], {linea: "40.00"})).json()["ultima_propuesta"]
     await ofertar(enlaces[0], propuesta["precios"], propuesta["palancas"])
-    await _acordar(cliente, comprador, ofertar, enlaces[1], linea, "31.00")
+    await acordar(enlaces[1], linea, "31.00")
 
     respuesta = await _evaluacion(cliente, evento, comprador)
 
@@ -154,8 +105,9 @@ async def test_candidatos_usan_los_valores_acordados(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     nueva_compra: Any,
-    ofertar: Any,
     externos: Any,
+    acordar: Any,
+    sin_acuerdo: Any,
 ) -> None:
     evento = await nueva_compra()
     palancas = [
@@ -172,8 +124,8 @@ async def test_candidatos_usan_los_valores_acordados(
     assert publicado.status_code == 200, publicado.text
     [primero, segundo] = publicado.json()["enlaces"]
     acordadas = {"plazo_meses": "24", "sla_disponibilidad": "99.50", "cuota_implementacion": "1500"}
-    await _acordar(cliente, comprador, ofertar, primero, _linea(evento), "31.00", acordadas)
-    await _sin_acuerdo(cliente, comprador, segundo)
+    await acordar(primero, _linea(evento), "31.00", acordadas)
+    await sin_acuerdo(segundo)
 
     respuesta = await _evaluacion(cliente, evento, comprador)
 
@@ -192,8 +144,8 @@ async def test_en_renovacion_el_sla_no_negociado_es_el_del_contrato(
     comprador: dict[str, str],
     catalogo: None,
     ids: dict[str, str],
-    ofertar: Any,
     externos: Any,
+    acordar: Any,
 ) -> None:
     creada = await cliente.post(
         "/eventos",
@@ -211,7 +163,7 @@ async def test_en_renovacion_el_sla_no_negociado_es_el_del_contrato(
     publicado = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
     assert publicado.status_code == 200, publicado.text
     [enlace] = publicado.json()["enlaces"]
-    await _acordar(cliente, comprador, ofertar, enlace, _linea(evento), "31.00")
+    await acordar(enlace, _linea(evento), "31.00")
 
     respuesta = await _evaluacion(cliente, evento, comprador)
 
@@ -400,9 +352,10 @@ async def test_sin_acuerdos_no_hay_recomendacion_ni_llamada(
     publicar: Any,
     externos: Any,
     ids: dict[str, str],
+    sin_acuerdo: Any,
 ) -> None:
     evento, [enlace] = await publicar(proveedores=[ids["nube_norte"]])
-    await _sin_acuerdo(cliente, comprador, enlace)
+    await sin_acuerdo(enlace)
     respuesta = await _evaluacion(cliente, evento, comprador)
     assert respuesta.status_code == 200, respuesta.text
     assert respuesta.json() == {"recomendacion": None, "vigente": None, "historial": []}
@@ -586,19 +539,6 @@ CONTRATO_ESPERADO = {
 }
 
 
-async def _proponer(
-    cliente: httpx.AsyncClient,
-    encabezados: dict[str, str],
-    evento: dict[str, Any],
-    enlace: dict[str, Any],
-    **extra: Any,
-) -> httpx.Response:
-    cuerpo = {"sesion_id": enlace["sesion_id"], **extra}
-    return await cliente.post(
-        f"/eventos/{evento['id']}/adjudicacion", json=cuerpo, headers=encabezados
-    )
-
-
 async def _accion(
     cliente: httpx.AsyncClient,
     encabezados: dict[str, str],
@@ -682,9 +622,10 @@ async def test_bajo_el_umbral_el_comprador_adjudica_directo(
     con_acuerdos: Any,
     ids: dict[str, str],
     fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1])  # el recomendado
+    respuesta = await proponer(comprador, evento, enlaces[1])  # el recomendado
 
     assert respuesta.status_code == 200, respuesta.text
     vigente = respuesta.json()["vigente"]
@@ -735,11 +676,12 @@ async def test_sobre_el_umbral_queda_pendiente_y_el_aprobador_aprueba(
     externos: Any,
     reloj: Any,
     fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = UMBRAL_BAJO
 
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
 
     assert propuesta.status_code == 200, propuesta.text
     vigente = propuesta.json()["vigente"]
@@ -770,21 +712,24 @@ async def test_sobre_el_umbral_queda_pendiente_y_el_aprobador_aprueba(
 
 @pytest.fixture
 async def con_una_fuera_de_limites(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, ofertar: Any
+    publicar: Any, acordar: Any
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Dos acuerdos bajo el umbral: el primero, a 40.00, aceptado a mano fuera de límites."""
     evento, enlaces = await publicar()
-    await _acordar(cliente, comprador, ofertar, enlaces[0], _linea(evento), "40.00", None, True)
-    await _acordar(cliente, comprador, ofertar, enlaces[1], _linea(evento), "30.00")
+    await acordar(enlaces[0], _linea(evento), "40.00", None, True)
+    await acordar(enlaces[1], _linea(evento), "30.00")
     return evento, enlaces
 
 
 async def test_fuera_de_limites_siempre_pide_aprobacion(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_una_fuera_de_limites: Any
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_una_fuera_de_limites: Any,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_una_fuera_de_limites
 
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
+    respuesta = await proponer(comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
 
     assert respuesta.status_code == 200, respuesta.text
     vigente = respuesta.json()["vigente"]
@@ -794,10 +739,13 @@ async def test_fuera_de_limites_siempre_pide_aprobacion(
 
 
 async def test_solo_cuenta_si_la_sesion_elegida_salio_de_limites(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_una_fuera_de_limites: Any
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_una_fuera_de_limites: Any,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_una_fuera_de_limites
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1])  # la otra sesión
+    respuesta = await proponer(comprador, evento, enlaces[1])  # la otra sesión
     assert respuesta.status_code == 200, respuesta.text
     assert respuesta.json()["vigente"]["estado"] == "directa"
 
@@ -819,10 +767,11 @@ async def test_apartarse_de_la_recomendacion_exige_justificacion(
     con_acuerdos: Any,
     fabrica: Fabrica,
     justificacion: str | None,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(
-        cliente, comprador, evento, enlaces[0], justificacion=justificacion
+    respuesta = await proponer(
+        comprador, evento, enlaces[0], justificacion=justificacion
     )  # no es el recomendado
     assert respuesta.status_code == 422, respuesta.text
     assert respuesta.json()["codigo"] == "justificacion_requerida"
@@ -833,12 +782,14 @@ async def test_apartarse_de_la_recomendacion_exige_justificacion(
 
 @pytest.mark.parametrize("texto", ["a" * 10, "b" * 1000])
 async def test_la_justificacion_acepta_de_10_a_1000_caracteres_sin_espacios_sobrantes(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_acuerdos: Any, texto: str
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_acuerdos: Any,
+    texto: str,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(
-        cliente, comprador, evento, enlaces[0], justificacion=f"  {texto}\n"
-    )
+    respuesta = await proponer(comprador, evento, enlaces[0], justificacion=f"  {texto}\n")
     assert respuesta.status_code == 200, respuesta.text
     vigente = respuesta.json()["vigente"]
     assert (vigente["se_aparta"], vigente["justificacion"]) == (True, texto)
@@ -862,9 +813,10 @@ async def test_con_el_recomendado_la_justificacion_es_opcional(
     justificacion: str | None,
     guardada: str | None,
     estado: int,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1], justificacion=justificacion)
+    respuesta = await proponer(comprador, evento, enlaces[1], justificacion=justificacion)
     assert respuesta.status_code == estado, respuesta.text
     if estado == 200:
         assert respuesta.json()["vigente"]["justificacion"] == guardada
@@ -879,11 +831,12 @@ async def test_quien_propone_no_aprueba_aunque_tenga_los_dos_roles(
     claves: ClavesPrueba,
     con_acuerdos: Any,
     externos: Any,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = UMBRAL_BAJO
     ambos = {"Authorization": f"Bearer {claves.token('comprador', 'aprobador', sub='ambos-1')}"}
-    propuesta = await _proponer(cliente, ambos, evento, enlaces[1])
+    propuesta = await proponer(ambos, evento, enlaces[1])
     assert propuesta.json()["vigente"]["estado"] == "pendiente", propuesta.text
     propuesta_id = _id_vigente(propuesta)
 
@@ -912,10 +865,11 @@ async def test_tras_un_rechazo_se_propone_de_nuevo(
     aprobador: dict[str, str],
     con_acuerdos: Any,
     externos: Any,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = UMBRAL_BAJO
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
 
     rechazada = await _rechazar(
         cliente, aprobador, evento, _id_vigente(propuesta), "  Falta un tercer proveedor. "
@@ -942,7 +896,7 @@ async def test_tras_un_rechazo_se_propone_de_nuevo(
         assert tarde.json()["detail"].startswith("La negociación está en estado «en evaluación»;")
     assert await _estado(cliente, comprador, evento) == "en_evaluacion"
 
-    de_nuevo = await _proponer(cliente, comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
+    de_nuevo = await proponer(comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
 
     assert de_nuevo.status_code == 200, de_nuevo.text
     assert de_nuevo.json()["vigente"]["sesion_id"] == enlaces[0]["sesion_id"]
@@ -959,17 +913,18 @@ async def test_evento_en_usd_compara_el_umbral_en_mxn(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     publicar: Any,
-    ofertar: Any,
     externos: Any,
+    acordar: Any,
+    proponer: Any,
 ) -> None:
     assert externos.usd_mxn == D("20.00")
     evento, enlaces = await publicar(
         lineas=[{"codigo_servicio": "SAAS-CRM-PRO", "cantidad": "1000"}]
     )
-    await _acordar(cliente, comprador, ofertar, enlaces[0], _linea(evento), "30.00")
-    await _acordar(cliente, comprador, ofertar, enlaces[1], _linea(evento), "31.00")
+    await acordar(enlaces[0], _linea(evento), "30.00")
+    await acordar(enlaces[1], _linea(evento), "31.00")
 
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[0])
+    respuesta = await proponer(comprador, evento, enlaces[0])
 
     assert respuesta.status_code == 200, respuesta.text
     vigente = respuesta.json()["vigente"]
@@ -1022,18 +977,20 @@ async def test_el_motivo_de_desierta_y_de_rechazo_va_de_1_a_500_caracteres(
     con_acuerdos: Any,
     externos: Any,
     motivo: str,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     desierta = await _accion(cliente, comprador, evento, "desierta", motivo=motivo)
     assert desierta.status_code == 422, desierta.text
     externos.umbral = UMBRAL_BAJO
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
     rechazo = await _rechazar(cliente, aprobador, evento, _id_vigente(propuesta), motivo)
     assert rechazo.status_code == 422, rechazo.text
     assert await _estado(cliente, comprador, evento) == "pendiente_aprobacion"
 
 
 async def _intentos(
+    proponer: Any,
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     aprobador: dict[str, str],
@@ -1043,7 +1000,7 @@ async def _intentos(
 ) -> list[httpx.Response]:
     """Intenta esas acciones en orden; cada una debe fallar, así que no cambian el estado."""
     pedidos: dict[str, Callable[[], Awaitable[httpx.Response]]] = {
-        "proponer": lambda: _proponer(cliente, comprador, evento, enlace),
+        "proponer": lambda: proponer(comprador, evento, enlace),
         # Cualquier id: el estado se revisa antes que la propuesta.
         "aprobar": lambda: _aprobar(cliente, aprobador, evento, str(uuid.uuid4())),
         "rechazar": lambda: _rechazar(cliente, aprobador, evento, str(uuid.uuid4())),
@@ -1064,34 +1021,42 @@ async def test_transiciones_desde_otro_estado_dan_409(
     comprador: dict[str, str],
     aprobador: dict[str, str],
     publicar: Any,
-    ofertar: Any,
     externos: Any,
     fabrica: Fabrica,
+    evento_con_acuerdos: Any,
+    proponer: Any,
 ) -> None:
     abierto, enlaces_abierto = await publicar()
     todas = ("proponer", "aprobar", "rechazar", "desierta")
     _son_409(
-        await _intentos(cliente, comprador, aprobador, abierto, enlaces_abierto[0], *todas),
+        await _intentos(
+            proponer, cliente, comprador, aprobador, abierto, enlaces_abierto[0], *todas
+        ),
         "abierto",
     )
     assert externos.recomendaciones() == []
 
-    evento, enlaces = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
+    evento, enlaces = await evento_con_acuerdos()
     _son_409(
-        await _intentos(cliente, comprador, aprobador, evento, enlaces[1], "aprobar", "rechazar"),
+        await _intentos(
+            proponer, cliente, comprador, aprobador, evento, enlaces[1], "aprobar", "rechazar"
+        ),
         "en evaluación",
     )
 
     externos.umbral = UMBRAL_BAJO
-    pendiente = await _proponer(cliente, comprador, evento, enlaces[1])
+    pendiente = await proponer(comprador, evento, enlaces[1])
     _son_409(
-        await _intentos(cliente, comprador, aprobador, evento, enlaces[1], "proponer", "desierta"),
+        await _intentos(
+            proponer, cliente, comprador, aprobador, evento, enlaces[1], "proponer", "desierta"
+        ),
         "pendiente de aprobación",
     )
 
     await _aprobar(cliente, aprobador, evento, _id_vigente(pendiente))
     _son_409(
-        await _intentos(cliente, comprador, aprobador, evento, enlaces[1], *todas), "adjudicado"
+        await _intentos(proponer, cliente, comprador, aprobador, evento, enlaces[1], *todas),
+        "adjudicado",
     )
     assert len(await _filas(fabrica, evento)) == 1
     assert len(await _publicados(fabrica, "negociacion.adjudicada")) == 1
@@ -1104,11 +1069,15 @@ async def test_un_evento_desierto_no_admite_ninguna_accion(
     aprobador: dict[str, str],
     con_acuerdos: Any,
     fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     await _accion(cliente, comprador, evento, "desierta", motivo="Sin propuestas viables.")
     todas = ("proponer", "aprobar", "rechazar", "desierta")
-    _son_409(await _intentos(cliente, comprador, aprobador, evento, enlaces[1], *todas), "desierto")
+    _son_409(
+        await _intentos(proponer, cliente, comprador, aprobador, evento, enlaces[1], *todas),
+        "desierto",
+    )
     assert len(await _publicados(fabrica, "negociacion.desierta")) == 1
     assert await _filas(fabrica, evento) == []
 
@@ -1120,17 +1089,18 @@ async def test_solo_el_comprador_propone_y_solo_el_aprobador_aprueba(
     admin: dict[str, str],
     con_acuerdos: Any,
     externos: Any,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = UMBRAL_BAJO
     for quien in (aprobador, admin):
-        assert (await _proponer(cliente, quien, evento, enlaces[1])).status_code == 403
+        assert (await proponer(quien, evento, enlaces[1])).status_code == 403
         desierta = await _accion(cliente, quien, evento, "desierta", motivo="Sin propuestas.")
         assert desierta.status_code == 403
     assert externos.recomendaciones() == []
     assert await _estado(cliente, comprador, evento) == "en_evaluacion"
 
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
     assert propuesta.status_code == 200
     for quien in (comprador, admin):  # pendiente: no es el estado lo que las frena
         aprobada = await _aprobar(cliente, quien, evento, _id_vigente(propuesta))
@@ -1144,16 +1114,19 @@ async def test_una_sesion_que_no_es_candidata_da_422(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     publicar: Any,
-    ofertar: Any,
     con_acuerdos: Any,
     externos: Any,
+    acordar: Any,
+    sin_acuerdo: Any,
+    evento_con_acuerdos: Any,
+    proponer: Any,
 ) -> None:
     evento, _ = con_acuerdos
-    ajeno, enlaces_ajeno = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
+    ajeno, enlaces_ajeno = await evento_con_acuerdos()
     # Con otra sesión en acuerdo: si ninguna lo estuviera, el evento ya sería desierto.
     mixto, [enlace_acordada, enlace_sin_acuerdo] = await publicar()
-    await _acordar(cliente, comprador, ofertar, enlace_acordada, _linea(mixto), "31.00")
-    await _sin_acuerdo(cliente, comprador, enlace_sin_acuerdo)
+    await acordar(enlace_acordada, _linea(mixto), "31.00")
+    await sin_acuerdo(enlace_sin_acuerdo)
     externos.peticiones.clear()
 
     for evento_pedido, sesion in (
@@ -1161,7 +1134,7 @@ async def test_una_sesion_que_no_es_candidata_da_422(
         (evento, enlaces_ajeno[0]),  # es de otra negociación
         (mixto, enlace_sin_acuerdo),  # no llegó a un acuerdo
     ):
-        respuesta = await _proponer(cliente, comprador, evento_pedido, sesion)
+        respuesta = await proponer(comprador, evento_pedido, sesion)
         assert respuesta.status_code == 422, respuesta.text
         assert respuesta.json()["codigo"] == "sesion_no_candidata"
         assert respuesta.json()["errores"][0]["campo"] == "sesion_id"
@@ -1177,11 +1150,12 @@ async def test_si_inteligencia_falla_al_proponer_no_se_guarda_nada(
     con_acuerdos: Any,
     externos: Any,
     fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.caido = "intel"
 
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    respuesta = await proponer(comprador, evento, enlaces[1])
 
     assert respuesta.status_code == 503, respuesta.text
     assert respuesta.json()["codigo"] == "dependencia_no_disponible"
@@ -1192,14 +1166,18 @@ async def test_si_inteligencia_falla_al_proponer_no_se_guarda_nada(
     assert await _bitacora(fabrica, evento) == []
 
     externos.caido = None  # y al reintentar, procede
-    assert (await _proponer(cliente, comprador, evento, enlaces[1])).status_code == 200
+    assert (await proponer(comprador, evento, enlaces[1])).status_code == 200
 
 
 async def test_los_pesos_del_cuerpo_van_a_inteligencia_y_quedan_en_la_foto(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_acuerdos: Any, externos: Any
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_acuerdos: Any,
+    externos: Any,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1], pesos="50,20,15,15")
+    respuesta = await proponer(comprador, evento, enlaces[1], pesos="50,20,15,15")
     assert respuesta.status_code == 200, respuesta.text
     pesos = {"costo": 50, "desempeno": 20, "riesgo": 15, "sla": 15}
     assert [p["pesos"] for p in externos.recomendaciones()] == [pesos]
@@ -1214,21 +1192,26 @@ async def test_pesos_mal_formados_en_la_propuesta_dan_422_sin_llamar_a_inteligen
     con_acuerdos: Any,
     externos: Any,
     pesos: str,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1], pesos=pesos)
+    respuesta = await proponer(comprador, evento, enlaces[1], pesos=pesos)
     assert respuesta.status_code == 422, respuesta.text
     assert respuesta.json()["codigo"] == "pesos_invalidos"
     assert externos.recomendaciones() == []
 
 
 async def test_dos_propuestas_a_la_vez_solo_una_prospera(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_acuerdos: Any, fabrica: Fabrica
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_acuerdos: Any,
+    fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     respuestas = await asyncio.gather(
-        _proponer(cliente, comprador, evento, enlaces[1]),
-        _proponer(cliente, comprador, evento, enlaces[1]),
+        proponer(comprador, evento, enlaces[1]),
+        proponer(comprador, evento, enlaces[1]),
     )
     assert sorted(r.status_code for r in respuestas) == [200, 409]
     [perdedora] = [r for r in respuestas if r.status_code == 409]
@@ -1238,7 +1221,7 @@ async def test_dos_propuestas_a_la_vez_solo_una_prospera(
 
 
 async def _renovacion_con_acuerdo(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], ids: dict[str, str], ofertar: Any
+    cliente: httpx.AsyncClient, comprador: dict[str, str], ids: dict[str, str], acordar: Any
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     creada = await cliente.post(
         "/eventos",
@@ -1256,7 +1239,7 @@ async def _renovacion_con_acuerdo(
     publicado = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
     assert publicado.status_code == 200, publicado.text
     [enlace] = publicado.json()["enlaces"]
-    await _acordar(cliente, comprador, ofertar, enlace, _linea(evento), "31.00")
+    await acordar(enlace, _linea(evento), "31.00")
     return evento, enlace
 
 
@@ -1265,12 +1248,13 @@ async def test_en_una_renovacion_el_contrato_sigue_al_vigente(
     comprador: dict[str, str],
     catalogo: None,
     ids: dict[str, str],
-    ofertar: Any,
+    acordar: Any,
     fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
-    evento, enlace = await _renovacion_con_acuerdo(cliente, comprador, ids, ofertar)
+    evento, enlace = await _renovacion_con_acuerdo(cliente, comprador, ids, acordar)
 
-    respuesta = await _proponer(cliente, comprador, evento, enlace)
+    respuesta = await proponer(comprador, evento, enlace)
 
     assert respuesta.status_code == 200, respuesta.text
     assert respuesta.json()["vigente"]["estado"] == "directa"
@@ -1298,12 +1282,13 @@ async def test_una_renovacion_sin_contrato_vigente_da_409_y_no_guarda_nada(
     comprador: dict[str, str],
     catalogo: None,
     ids: dict[str, str],
-    ofertar: Any,
+    acordar: Any,
     externos: Any,
     fabrica: Fabrica,
     umbral: D,
+    proponer: Any,
 ) -> None:
-    evento, enlace = await _renovacion_con_acuerdo(cliente, comprador, ids, ofertar)
+    evento, enlace = await _renovacion_con_acuerdo(cliente, comprador, ids, acordar)
     async with fabrica() as bd, bd.begin():
         await bd.execute(
             update(Evento)
@@ -1312,7 +1297,7 @@ async def test_una_renovacion_sin_contrato_vigente_da_409_y_no_guarda_nada(
         )
     externos.umbral = umbral
 
-    respuesta = await _proponer(cliente, comprador, evento, enlace)
+    respuesta = await proponer(comprador, evento, enlace)
 
     assert respuesta.status_code == 409, respuesta.text
     assert respuesta.json()["codigo"] == "contrato_vigente_faltante"
@@ -1326,16 +1311,16 @@ async def test_cada_accion_queda_en_la_bitacora(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     aprobador: dict[str, str],
-    publicar: Any,
-    ofertar: Any,
     externos: Any,
     fabrica: Fabrica,
+    evento_con_acuerdos: Any,
+    proponer: Any,
 ) -> None:
-    evento, enlaces = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
+    evento, enlaces = await evento_con_acuerdos()
     externos.umbral = UMBRAL_BAJO
-    primera = await _proponer(cliente, comprador, evento, enlaces[1])
+    primera = await proponer(comprador, evento, enlaces[1])
     await _rechazar(cliente, aprobador, evento, _id_vigente(primera), "Falta justificar.")
-    segunda = await _proponer(cliente, comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
+    segunda = await proponer(comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
     await _aprobar(cliente, aprobador, evento, _id_vigente(segunda))
     filas = await _bitacora(fabrica, evento)
     assert sorted((f.accion, f.actor_tipo, f.actor_id) for f in filas) == [
@@ -1350,9 +1335,9 @@ async def test_cada_accion_queda_en_la_bitacora(
     assert detalles["adjudicacion.aprobada"]["contrato_folio"] == f"C-{evento['folio']}"
 
     externos.umbral = D("500000.00")
-    directo, enlaces_directo = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
-    await _proponer(cliente, comprador, directo, enlaces_directo[1])
-    desierto, _ = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
+    directo, enlaces_directo = await evento_con_acuerdos()
+    await proponer(comprador, directo, enlaces_directo[1])
+    desierto, _ = await evento_con_acuerdos()
     await _accion(cliente, comprador, desierto, "desierta", motivo="Sin propuestas viables.")
     assert [(f.accion, f.actor_tipo) for f in await _bitacora(fabrica, directo)] == [
         ("adjudicacion.directa", "comprador")
@@ -1369,12 +1354,12 @@ async def test_la_lista_de_eventos_filtra_por_los_estados_nuevos(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     aprobador: dict[str, str],
-    publicar: Any,
-    ofertar: Any,
     externos: Any,
+    evento_con_acuerdos: Any,
+    proponer: Any,
 ) -> None:
-    evento, enlaces = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
-    otro, _ = await _evento_con_acuerdos(cliente, comprador, publicar, ofertar)
+    evento, enlaces = await evento_con_acuerdos()
+    otro, _ = await evento_con_acuerdos()
 
     async def _folios(estado: str) -> list[str]:
         respuesta = await cliente.get("/eventos", params={"estado": estado}, headers=comprador)
@@ -1382,7 +1367,7 @@ async def test_la_lista_de_eventos_filtra_por_los_estados_nuevos(
         return [e["folio"] for e in respuesta.json()["elementos"]]
 
     externos.umbral = UMBRAL_BAJO
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
     assert await _folios("pendiente_aprobacion") == [evento["folio"]]
     await _aprobar(cliente, aprobador, evento, _id_vigente(propuesta))
     await _accion(cliente, comprador, otro, "desierta", motivo="Sin propuestas viables.")
@@ -1399,17 +1384,18 @@ async def test_una_propuesta_nueva_no_se_decide_con_el_id_de_la_anterior(
     con_acuerdos: Any,
     externos: Any,
     fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = UMBRAL_BAJO
     otro_aprobador = {"Authorization": f"Bearer {claves.token('aprobador', sub='aprobador-2')}"}
     # El aprobador 1 abre la propuesta 1; el aprobador 2 la rechaza; el comprador propone la 2
     # (otro proveedor, otro monto), y el aprobador 1 aprieta «Aprobar» sobre lo que abrió.
-    primera = await _proponer(cliente, comprador, evento, enlaces[1])
+    primera = await proponer(comprador, evento, enlaces[1])
     assert (
         await _rechazar(cliente, otro_aprobador, evento, _id_vigente(primera))
     ).status_code == 200
-    segunda = await _proponer(cliente, comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
+    segunda = await proponer(comprador, evento, enlaces[0], justificacion=JUSTIFICACION)
     assert segunda.status_code == 200, segunda.text
     assert _id_vigente(primera) != _id_vigente(segunda)
 
@@ -1444,10 +1430,11 @@ async def test_aprobar_y_rechazar_exigen_el_id_de_la_propuesta(
     externos: Any,
     ruta: str,
     cuerpo: dict[str, Any] | None,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = UMBRAL_BAJO
-    await _proponer(cliente, comprador, evento, enlaces[1])
+    await proponer(comprador, evento, enlaces[1])
     respuesta = await cliente.post(
         f"/eventos/{evento['id']}/{ruta}",
         json=None if cuerpo is None else cuerpo | {"motivo": "No procede."},
@@ -1469,10 +1456,11 @@ async def test_el_umbral_se_supera_solo_con_un_costo_mayor(
     externos: Any,
     umbral: D,
     estado: str,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     externos.umbral = umbral
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[1])  # cuesta 60,000.00 MXN
+    respuesta = await proponer(comprador, evento, enlaces[1])  # cuesta 60,000.00 MXN
     assert respuesta.status_code == 200, respuesta.text
     vigente = respuesta.json()["vigente"]
     assert D(vigente["costo_total_mxn"]) == D("60000.00")
@@ -1480,7 +1468,11 @@ async def test_el_umbral_se_supera_solo_con_un_costo_mayor(
 
 
 async def test_la_directa_se_inserta_ya_decidida_sin_actualizar_la_fila(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_acuerdos: Any, fabrica: Fabrica
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    con_acuerdos: Any,
+    fabrica: Fabrica,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
     sentencias: list[str] = []
@@ -1491,7 +1483,7 @@ async def test_la_directa_se_inserta_ya_decidida_sin_actualizar_la_fila(
 
     event.listen(motor, "before_cursor_execute", _anotar)
     try:
-        respuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+        respuesta = await proponer(comprador, evento, enlaces[1])
     finally:
         event.remove(motor, "before_cursor_execute", _anotar)
     assert respuesta.status_code == 200, respuesta.text
@@ -1518,9 +1510,10 @@ async def test_las_entradas_largas_se_acotan_antes_de_leerlas(
     externos: Any,
     campo: str,
     valor: str,
+    proponer: Any,
 ) -> None:
     evento, enlaces = con_acuerdos
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[0], **{campo: valor})
+    respuesta = await proponer(comprador, evento, enlaces[0], **{campo: valor})
     assert respuesta.status_code == 422, respuesta.text
     assert respuesta.json()["errores"][0]["campo"] == f"body.{campo}"
     assert externos.recomendaciones() == []
@@ -1528,10 +1521,10 @@ async def test_las_entradas_largas_se_acotan_antes_de_leerlas(
 
 
 async def test_la_justificacion_se_mide_recortada_aunque_se_lea_hasta_2000(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], con_acuerdos: Any
+    cliente: httpx.AsyncClient, comprador: dict[str, str], con_acuerdos: Any, proponer: Any
 ) -> None:
     evento, enlaces = con_acuerdos
     texto = " " * 500 + "a" * 1000 + " " * 500  # 2,000 caracteres, 1,000 sin los espacios
-    respuesta = await _proponer(cliente, comprador, evento, enlaces[0], justificacion=texto)
+    respuesta = await proponer(comprador, evento, enlaces[0], justificacion=texto)
     assert respuesta.status_code == 200, respuesta.text
     assert respuesta.json()["vigente"]["justificacion"] == "a" * 1000

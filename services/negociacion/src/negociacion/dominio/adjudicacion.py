@@ -5,11 +5,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from negociacion.dominio.terminos import Valores
 
+# Lo que un proveedor sabe del resultado de su negociación (nunca quién ganó ni cuánto).
+Resultado = Literal["adjudicada", "no_elegida", "desierta"]
 ZONA_NEGOCIO = ZoneInfo("America/Mexico_City")  # el "hoy" de los contratos es el del negocio
 PLAZO_PAGO_POR_DEFECTO = 30  # días, en una compra donde no se negoció
 HEREDABLES = ("plazo_pago_dias", "sla_disponibilidad", "tope_aumento_pct")  # de la renovación

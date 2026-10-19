@@ -11,7 +11,7 @@ from decimal import Decimal
 from comun.errores import ErrorDominio
 from comun.outbox import registrar_evento
 from fastapi import HTTPException
-from sqlalchemy import case, func, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from negociacion import consultas, textos
@@ -238,8 +238,13 @@ def registrar_desierta(
 async def cerrar_eventos_terminados(
     bd: AsyncSession, momento: datetime, evento_id: uuid.UUID | None = None
 ) -> list[uuid.UUID]:
-    """Cierra los eventos abiertos sin sesiones en curso o con la fecha límite vencida: a
-    evaluación si alguna sesión quedó en acuerdo tentativo y, si ninguna, a desierto (spec §4.7).
+    """Cierra los eventos abiertos que ya no tienen sesiones en curso o que, con la fecha límite
+    vencida, ya tienen un acuerdo: a evaluación si alguna sesión quedó en acuerdo tentativo y, si
+    ninguna, a desierto (spec §4.7).
+
+    Vencido y sin ningún acuerdo, el evento espera a que no quede sesión en curso: una que está a
+    medio turno (bloqueada, sin confirmar) puede terminar en acuerdo, y desierto no tiene vuelta.
+    La tarea de la fecha límite expira esa sesión en su siguiente vuelta y entonces lo cierra.
 
     ponytail: dos turnos que cierran a la vez las dos últimas sesiones no se ven entre sí y ninguno
     cierra el evento; la tarea de la fecha límite (vencimientos.py) lo cierra en menos de un minuto.
@@ -261,7 +266,10 @@ async def cerrar_eventos_terminados(
     )
     consulta = (
         update(Evento)
-        .where(Evento.estado == "abierto", or_(~en_curso, Evento.fecha_limite <= momento))
+        .where(
+            Evento.estado == "abierto",
+            or_(~en_curso, and_(Evento.fecha_limite <= momento, hay_acuerdo)),
+        )
         .values(estado=case((hay_acuerdo, "en_evaluacion"), else_="desierto"), cerrado_en=momento)
         .returning(Evento.id, Evento.estado, Evento.folio, Evento.titulo)
         .execution_options(synchronize_session=False)

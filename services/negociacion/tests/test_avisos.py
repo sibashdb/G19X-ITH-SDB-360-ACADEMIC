@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from collections.abc import Awaitable, Callable
 from decimal import Decimal as D
@@ -19,57 +20,21 @@ Avisar = Callable[[], Awaitable[int]]
 ADJUDICADA = "Su oferta fue adjudicada; el equipo de compras se pondrá en contacto"
 OTRA_PROPUESTA = "La negociación se adjudicó a otra propuesta"
 DESIERTA = "La negociación se declaró desierta"
-
-
-def _linea(evento: dict[str, Any]) -> str:
-    return str(evento["lineas"][0]["id"])
-
-
-async def _acordar(
-    cliente: httpx.AsyncClient,
-    comprador: dict[str, str],
-    ofertar: Any,
-    enlace: dict[str, Any],
-    linea: str,
-    precio: str,
-) -> None:
-    """Deja la sesión en acuerdo tentativo: el comprador toma el control y acepta la oferta."""
-    sesion = enlace["sesion_id"]
-    await cliente.post(f"/sesiones/{sesion}/control", json={"accion": "tomar"}, headers=comprador)
-    await ofertar(enlace, {linea: precio})
-    aceptada = await cliente.post(
-        f"/sesiones/{sesion}/respuestas",
-        json={"tipo": "aceptar"},
-        headers=comprador | {"Idempotency-Key": f"aceptar-{sesion}"},
-    )
-    assert aceptada.json()["estado"] == "acuerdo_tentativo", aceptada.text
-
-
-async def _sin_acuerdo(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], enlace: dict[str, Any]
-) -> None:
-    """Cierra la sesión sin acuerdo: el comprador toma el control y la da por terminada."""
-    sesion = enlace["sesion_id"]
-    await cliente.post(f"/sesiones/{sesion}/control", json={"accion": "tomar"}, headers=comprador)
-    cerrada = await cliente.post(
-        f"/sesiones/{sesion}/respuestas",
-        json={"tipo": "cerrar"},
-        headers=comprador | {"Idempotency-Key": f"cerrar-{sesion}"},
-    )
-    assert cerrada.json()["estado"] == "sin_acuerdo", cerrada.text
-
-
-async def _proponer(
-    cliente: httpx.AsyncClient,
-    comprador: dict[str, str],
-    evento: dict[str, Any],
-    enlace: dict[str, Any],
-) -> httpx.Response:
-    return await cliente.post(
-        f"/eventos/{evento['id']}/adjudicacion",
-        json={"sesion_id": enlace["sesion_id"]},
-        headers=comprador,
-    )
+# Lo que identifica a cada proveedor: nombre, contacto, correo y dominio.
+PROVEEDORES = {
+    "lucia@nubenorte.example": (
+        "Nube Norte",
+        "Lucía Pérez",
+        "lucia@nubenorte.example",
+        "nubenorte.example",
+    ),
+    "ventas@datossur.example": (
+        "Datos del Sur",
+        "Marco Ruiz",
+        "ventas@datossur.example",
+        "datossur.example",
+    ),
+}
 
 
 async def _publicados(fabrica: Fabrica, tipo: str) -> list[dict[str, Any]]:
@@ -119,21 +84,15 @@ def avisar(app: FastAPI, fabrica: Fabrica, buzon: Any, reloj: Any) -> Avisar:
 
 @pytest.fixture
 async def adjudicado(
-    cliente: httpx.AsyncClient,
-    comprador: dict[str, str],
-    publicar: Any,
-    ofertar: Any,
-    buzon: Any,
+    evento_con_acuerdos: Any, proponer: Any, comprador: dict[str, str], buzon: Any
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Un evento adjudicado al segundo proveedor (Datos del Sur, 30.00; el otro ofreció 31.00).
 
     El buzón queda vacío: sin las invitaciones, solo recibirá los avisos del resultado.
     """
-    evento, enlaces = await publicar()
+    evento, enlaces = await evento_con_acuerdos()
     buzon.enviados.clear()
-    await _acordar(cliente, comprador, ofertar, enlaces[0], _linea(evento), "31.00")
-    await _acordar(cliente, comprador, ofertar, enlaces[1], _linea(evento), "30.00")
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
     assert propuesta.json()["vigente"]["estado"] == "directa", propuesta.text
     return evento, enlaces
 
@@ -142,11 +101,12 @@ async def test_cerrar_sin_acuerdos_deja_la_negociacion_desierta(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     publicar: Any,
+    sin_acuerdo: Any,
     ids: dict[str, str],
     fabrica: Fabrica,
 ) -> None:
     evento, enlaces = await publicar(proveedores=[ids["nube_norte"]])
-    await _sin_acuerdo(cliente, comprador, enlaces[0])
+    await sin_acuerdo(enlaces[0])
 
     detalle = (await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()
     assert detalle["estado"] == "desierto"
@@ -193,19 +153,13 @@ async def test_avisos_al_adjudicar(
 
 
 async def test_no_avisa_mientras_la_negociacion_no_se_resuelve(
-    cliente: httpx.AsyncClient,
-    comprador: dict[str, str],
-    publicar: Any,
-    ofertar: Any,
-    avisar: Avisar,
-    buzon: Any,
+    publicar: Any, evento_con_acuerdos: Any, avisar: Avisar, buzon: Any
 ) -> None:
-    evento, enlaces = await publicar()
+    await publicar()  # abierto
+    await evento_con_acuerdos()  # en evaluación
     buzon.enviados.clear()  # las invitaciones
-    assert await avisar() == 0  # abierto
-    await _acordar(cliente, comprador, ofertar, enlaces[0], _linea(evento), "31.00")
-    await _acordar(cliente, comprador, ofertar, enlaces[1], _linea(evento), "30.00")
-    assert await avisar() == 0  # en evaluación
+
+    assert await avisar() == 0
     assert buzon.enviados == []
 
 
@@ -215,14 +169,25 @@ async def test_el_aviso_no_revela_ganador_ni_montos(
     evento, _ = adjudicado
     await avisar()
 
+    assert len(buzon.enviados) == 2
     for mensaje in buzon.enviados:
-        texto = mensaje.as_string()
-        ajeno = "Datos del Sur" if mensaje["To"].startswith("lucia") else "Nube Norte"
-        assert ajeno not in texto
-        assert "#t=" not in texto and "http" not in texto  # el correo no lleva enlace
+        destinatario = str(mensaje["To"])
+        cuerpo = _cuerpo(mensaje)  # ya decodificado: con los acentos y sin cortes de línea
+        encabezados = "\n".join(f"{nombre}: {valor}" for nombre, valor in mensaje.items())
+        visible = f"{encabezados}\n{cuerpo}"
+        # Nada del otro proveedor: ni su nombre, ni su contacto, ni su correo ni su dominio.
+        ajenos = [d for otro, datos in PROVEEDORES.items() if otro != destinatario for d in datos]
+        assert len(ajenos) == 4
+        for dato in ajenos:
+            assert dato not in visible, dato
+        assert f"Estimado(a) {PROVEEDORES[destinatario][1]}:" in cuerpo
+        assert "#t=" not in visible and "http" not in visible  # el correo no lleva enlace
         for monto in ("30.00", "31.00", "3000", "3,000", "3100", "60000", "60,000", "62000"):
-            assert monto not in texto, monto
-        assert evento["folio"] in texto and evento["titulo"] in _cuerpo(mensaje)
+            assert monto not in visible, monto
+        # Los únicos dígitos del cuerpo son los del folio y los del título.
+        assert not re.search(
+            r"\d", cuerpo.replace(evento["folio"], "").replace(evento["titulo"], "")
+        )
 
 
 async def test_correo_caido_queda_fallido(
@@ -299,9 +264,8 @@ async def test_dos_trabajadores_no_envian_dos_veces(
 
 
 async def test_avisos_de_una_negociacion_desierta(
-    cliente: httpx.AsyncClient,
-    comprador: dict[str, str],
     publicar: Any,
+    sin_acuerdo: Any,
     avisar: Avisar,
     buzon: Any,
     fabrica: Fabrica,
@@ -309,7 +273,7 @@ async def test_avisos_de_una_negociacion_desierta(
     _, enlaces = await publicar()
     buzon.enviados.clear()  # las invitaciones
     for enlace in enlaces:
-        await _sin_acuerdo(cliente, comprador, enlace)
+        await sin_acuerdo(enlace)
 
     assert await avisar() == 2
 
@@ -335,8 +299,8 @@ async def test_el_portal_no_da_resultado_hasta_que_se_decide(
     cliente: httpx.AsyncClient,
     comprador: dict[str, str],
     aprobador: dict[str, str],
-    publicar: Any,
-    ofertar: Any,
+    evento_con_acuerdos: Any,
+    proponer: Any,
     externos: Any,
     portal: Any,
 ) -> None:
@@ -346,13 +310,10 @@ async def test_el_portal_no_da_resultado_hasta_que_se_decide(
             for e in enlaces
         ]
 
-    evento, enlaces = await publicar()
-    assert await resultados() == [None, None]  # abierto
-    await _acordar(cliente, comprador, ofertar, enlaces[0], _linea(evento), "31.00")
-    await _acordar(cliente, comprador, ofertar, enlaces[1], _linea(evento), "30.00")
+    evento, enlaces = await evento_con_acuerdos()
     assert await resultados() == [None, None]  # en evaluación
     externos.umbral = D("1000.00")
-    propuesta = await _proponer(cliente, comprador, evento, enlaces[1])
+    propuesta = await proponer(comprador, evento, enlaces[1])
     assert propuesta.json()["vigente"]["estado"] == "pendiente", propuesta.text
     assert await resultados() == [None, None]  # pendiente de aprobación
     aprobada = await cliente.post(
@@ -365,11 +326,11 @@ async def test_el_portal_no_da_resultado_hasta_que_se_decide(
 
 
 async def test_el_portal_muestra_la_desierta(
-    cliente: httpx.AsyncClient, comprador: dict[str, str], publicar: Any, portal: Any
+    cliente: httpx.AsyncClient, publicar: Any, sin_acuerdo: Any, portal: Any
 ) -> None:
     _, enlaces = await publicar()
     for enlace in enlaces:
-        await _sin_acuerdo(cliente, comprador, enlace)
+        await sin_acuerdo(enlace)
     for enlace in enlaces:
         vista = (await cliente.get("/portal/sesion", headers=portal(enlace))).json()
         assert vista["resultado"] == "desierta"

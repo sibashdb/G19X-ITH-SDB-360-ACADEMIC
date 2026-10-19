@@ -7,7 +7,7 @@ from datetime import datetime
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
-from negociacion.api.esquemas import Resultado
+from negociacion.dominio.adjudicacion import Resultado
 
 EnviarCorreo = Callable[[EmailMessage], Awaitable[None]]
 ZONA = ZoneInfo("America/Mexico_City")
