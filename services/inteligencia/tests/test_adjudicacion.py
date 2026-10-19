@@ -196,6 +196,22 @@ def test_sin_peso_que_cambie_al_ganador() -> None:
     assert "Ningún peso del costo cambia al ganador." in r.explicacion
 
 
+def test_un_criterio_plano_no_cambia_al_ganador_ni_se_explica() -> None:
+    # Nadie negoció SLA y el riesgo es igual: todos valen lo mismo en esos criterios. Con peso 100
+    # solo decidiría el desempate (b es el más barato), pero eso no es un cambio por el criterio.
+    pesos = PesosAdjudicacion(costo=20, desempeno=50, riesgo=15, sla=15)
+    r = recomendar([entrada("a", costo="1100", desempeno=90.0), entrada("b", costo="900")], pesos)
+
+    assert r.recomendado == "a"
+    por_criterio = {s.criterio: s for s in r.sensibilidad}
+    for plano in ("riesgo", "sla"):
+        assert por_criterio[plano].peso_necesario is None and por_criterio[plano].ganaria is None
+    assert por_criterio["costo"].ganaria == "b" and por_criterio["desempeno"].ganaria == "b"
+    frases = [t for t in r.explicacion if "pasara" in t or "Ningún peso" in t]
+    assert len(frases) == 2  # solo el costo y el desempeño
+    assert not any("riesgo" in t or "SLA" in t for t in frases)
+
+
 def test_la_sensibilidad_reparte_por_igual_si_los_demas_pesos_son_cero() -> None:
     a = entrada("a", costo="900", desempeno=60.0)
     b = entrada("b", costo="1100", desempeno=80.0)

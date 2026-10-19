@@ -4,7 +4,7 @@ Suma ponderada de cuatro criterios (costo total, desempeño, riesgo y SLA), norm
 candidatos con min-max. Funciones puras: reciben los datos ya cargados y no hacen E/S.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from decimal import Decimal
 from typing import Literal
@@ -100,7 +100,8 @@ class Evaluado:
 class Sensibilidad:
     criterio: str
     peso_actual: int
-    peso_necesario: int | None  # el más cercano al actual con el que gana otro; None si ninguno
+    # el más cercano al actual con el que gana otro; None si ninguno o si el criterio es plano
+    peso_necesario: int | None
     ganaria: str | None  # id del candidato que ganaría
 
 
@@ -222,19 +223,29 @@ def _orden(
     return sorted(resultado, key=clave)
 
 
+def _plano(normalizados: Iterable[Mapping[str, float]], criterio: str) -> bool:
+    """Si todos los candidatos valen igual en el criterio: no decide nada, y con peso 100 solo
+    desempataría, lo que no es un cambio por ese criterio."""
+    return len({n[criterio] for n in normalizados}) == 1
+
+
 def _sensibilidad(
     entradas: Sequence[Entrada],
     normalizados: Sequence[Mapping[str, float]],
     pesos: PesosAdjudicacion,
     ganador: int,
 ) -> list[Sensibilidad]:
-    """Por criterio, el peso más cercano al actual con el que otro candidato queda primero."""
+    """Por criterio, el peso más cercano al actual con el que otro candidato queda primero.
+
+    Un criterio plano (ver `_plano`) no se prueba: ningún peso cambia al ganador.
+    """
     actuales = pesos.como_dict()
     resultado = []
     for criterio in CRITERIOS:
         actual = actuales[criterio]
         necesario = ganaria = None
-        for peso in sorted(range(101), key=lambda p: (abs(p - actual), p)):
+        pesos_a_probar = [] if _plano(normalizados, criterio) else range(101)
+        for peso in sorted(pesos_a_probar, key=lambda p: (abs(p - actual), p)):
             if peso == actual:
                 continue
             primero = _orden(entradas, normalizados, reescalar(actuales, criterio, peso))[0][0]
@@ -283,6 +294,8 @@ def _explicar(
     if len(evaluados) > 1:
         nombres = {x.entrada.candidato.id: x.entrada.candidato.nombre for x in evaluados}
         for s in sensibilidad:
+            if _plano((x.normalizados for x in evaluados), s.criterio):
+                continue  # no decide nada: no se explica su peso
             criterio = NOMBRE_CRITERIO[s.criterio]
             if s.peso_necesario is None or s.ganaria is None:
                 textos.append(TEXTO_NO_CAMBIA.format(criterio=criterio))
