@@ -36,9 +36,10 @@ const MOTIVOS: Record<MotivoAprobacion, ReactNode> = {
 /**
  * La propuesta de adjudicación que espera aprobación: la evaluación guardada al proponer, con la
  * propuesta marcada. Otra persona con el rol de aprobador la aprueba o la rechaza; quien la propuso
- * y es aprobador ve que la aprueba otra persona, y los demás solo ven que espera. `alAvisar` recibe el resultado para el aviso de la página,
- * `alConflicto` el texto de un 409 y `alEmpezar` avisa de que se abrió un diálogo o empezó una
- * decisión (el aviso de un conflicto anterior ya no viene al caso).
+ * y es aprobador ve que la aprueba otra persona, y los demás solo ven que espera. `alAvisar` recibe
+ * el resultado para el aviso de la página, `alConflicto` el texto de un 409 y `alEmpezar` avisa de
+ * que se abrió un diálogo o empezó una decisión (el aviso de un conflicto anterior ya no viene al
+ * caso).
  *
  * Quien aprueba solo decide sobre la propuesta que ha estado revisando. Si la evaluación se
  * actualiza y trae otra, las acciones se reemplazan por un aviso con «Revisar la propuesta nueva»:

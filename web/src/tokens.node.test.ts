@@ -108,3 +108,96 @@ describe("contraste de los tokens", () => {
     )
   }
 })
+
+// El hover del botón destructivo mezcla su fondo con otro token (`color-mix(in oklch, …)`), así que
+// el fondo no es un token y no cabe en PARES: se calcula la mezcla y se lee de button.tsx, para que
+// un cambio de la clase (p. ej. `hover:bg-destructive/90`, que da 4.32:1 en claro) lo detecte.
+const boton = readFileSync(
+  resolve(import.meta.dirname, "components/ui/button.tsx"),
+  "utf8"
+)
+const DESTRUCTIVE = boton.match(/destructive:\s*"([^"]+)"/)?.[1] ?? ""
+const HOVER = DESTRUCTIVE.match(
+  /hover:bg-\[color-mix\(in_oklch,var\(--([\w-]+)\),var\(--([\w-]+)\)_(\d+)%\)\]/
+)
+
+type Lab = [number, number, number]
+
+/** sRGB (#RRGGBB) a OKLab (Ottosson), con los canales en 0-1 lineales. */
+function aOklab(hex: string): Lab {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+function deOklab([L, a, b]: Lab): string {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3
+  const lineal = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ]
+  return (
+    "#" +
+    lineal
+      .map((c) => {
+        const g = c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055
+        return Math.round(Math.min(1, Math.max(0, g)) * 255)
+          .toString(16)
+          .padStart(2, "0")
+      })
+      .join("")
+  )
+}
+
+/** `color-mix(in oklch, a, b p%)`: interpola luminosidad, croma y matiz (por el arco corto). */
+function mezclaOklch(a: string, b: string, porcentaje: number): string {
+  const lch = ([L, x, y]: Lab) => [L, Math.hypot(x, y), Math.atan2(y, x)]
+  const [l1, c1, h1] = lch(aOklab(a))
+  const [l2, c2, h2] = lch(aOklab(b))
+  let dh = h2 - h1
+  if (dh > Math.PI) dh -= 2 * Math.PI
+  if (dh < -Math.PI) dh += 2 * Math.PI
+  const t = porcentaje / 100
+  const [L, C, h] = [l1 + (l2 - l1) * t, c1 + (c2 - c1) * t, h1 + dh * t]
+  return deOklab([L, C * Math.cos(h), C * Math.sin(h)])
+}
+
+describe("contraste del botón destructivo en hover", () => {
+  it("mezcla en OKLCH, como CSS: 0 % es el color base y 100 %, el otro", () => {
+    expect(mezclaOklch("#DC2626", "#020617", 0)).toBe("#dc2626")
+    expect(mezclaOklch("#DC2626", "#020617", 100)).toBe("#020617")
+    expect(mezclaOklch("#000000", "#FFFFFF", 50)).toBe("#636363")
+  })
+
+  it("la variante es un relleno sólido que mezcla su fondo en hover", () => {
+    expect(DESTRUCTIVE).toContain("bg-destructive ")
+    expect(DESTRUCTIVE).toContain("text-destructive-foreground")
+    expect(HOVER).not.toBeNull()
+  })
+
+  for (const [nombre, tema] of Object.entries(TEMAS)) {
+    it(`tema ${nombre}: --destructive-foreground sobre el hover cumple ${TEXTO}:1`, () => {
+      const [, base, otro, porcentaje] = HOVER!
+      const fondo = mezclaOklch(
+        color(tema, base),
+        color(tema, otro),
+        Number(porcentaje)
+      )
+      expect(
+        contraste(color(tema, "destructive-foreground"), fondo)
+      ).toBeGreaterThanOrEqual(TEXTO)
+    })
+  }
+})
