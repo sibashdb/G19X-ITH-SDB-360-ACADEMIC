@@ -2,6 +2,7 @@ import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
 import { useParams } from "react-router"
 import { useRoles } from "@/auth"
+import { ResumenAdjudicacion } from "@/componentes/adjudicacion/ResumenAdjudicacion"
 import { SeccionAprobacion } from "@/componentes/adjudicacion/SeccionAprobacion"
 import { SeccionEvaluacion } from "@/componentes/adjudicacion/SeccionEvaluacion"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
@@ -95,6 +96,10 @@ export function Negociacion() {
                     alConflicto={advertir}
                     alEmpezar={olvidarConflicto}
                   />
+                )}
+                {(evento.estado === "adjudicado" ||
+                  evento.estado === "desierto") && (
+                  <ResumenAdjudicacion evento={evento} />
                 )}
                 {evento.estado !== "borrador" && (
                   <TablaSesiones
