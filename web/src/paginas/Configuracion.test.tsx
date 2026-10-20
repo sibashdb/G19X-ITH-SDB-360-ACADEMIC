@@ -9,6 +9,7 @@ import {
   respuestaDiferida,
   respuestaJson,
   simularApi,
+  simularRutas,
 } from "@/pruebas/utilidades"
 
 vi.mock("react-oidc-context", async () =>
@@ -101,6 +102,34 @@ function cuerpoGuardado(simulado: ReturnType<typeof simularApi>) {
   return llamada
     ? JSON.parse(String((llamada[1] as RequestInit).body))
     : undefined
+}
+
+/**
+ * La configuración con un primer PUT que la prueba resuelve a mano (`terminar` fija lo que el
+ * servidor guardó y responde ese PUT); los PUT que siguen responden enseguida.
+ */
+function guardadoDiferido() {
+  let guardada: object = CONFIGURACION
+  let puts = 0
+  const primero = respuestaDiferida()
+  const simulado = simularRutas({
+    "GET /api/inteligencia/configuracion": () => respuestaJson(guardada),
+    "PUT /api/inteligencia/configuracion": () =>
+      ++puts === 1 ? primero.promesa : respuestaJson(guardada),
+    "GET /api/inteligencia/modelos": () => respuestaJson(MODELOS),
+  })
+  return {
+    simulado,
+    terminar: (nueva: object) => {
+      guardada = nueva
+      primero.resolver(respuestaJson(nueva))
+    },
+    /** Los cuerpos de los PUT enviados, en orden. */
+    guardados: () =>
+      simulado.mock.calls
+        .filter(([, init]) => init?.method === "PUT")
+        .map(([, init]) => JSON.parse(String(init?.body))),
+  }
 }
 
 /** Cuántas veces se pidió una URL (los GET y el PUT comparten la de la configuración). */
@@ -257,6 +286,69 @@ describe("Configuracion", () => {
       adjudicacion_sla: 15,
       umbral_aprobacion: "500000.00",
     })
+  })
+
+  it("mientras la puntuación se guarda, la adjudicación espera y luego manda lo que el servidor guardó", async () => {
+    const { terminar, guardados } = guardadoDiferido()
+    renderizar()
+    const sla = await screen.findByLabelText("Cumplimiento de SLA")
+    await userEvent.clear(sla)
+    await userEvent.type(sla, "35")
+    const satisfaccion = screen.getByLabelText("Satisfacción")
+    await userEvent.clear(satisfaccion)
+    await userEvent.type(satisfaccion, "10")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar cambios" })
+    )
+
+    const adjudicar = screen.getByRole("button", {
+      name: "Guardar adjudicación",
+    })
+    await waitFor(() =>
+      expect(adjudicar).toHaveAttribute("aria-disabled", "true")
+    )
+    await userEvent.click(adjudicar)
+    expect(guardados()).toHaveLength(1)
+
+    terminar({ ...CONFIGURACION, peso_sla: 35, peso_satisfaccion: 10 })
+    // El aviso llega cuando termina también la relectura de la configuración.
+    await screen.findByText(/^Configuración guardada\./)
+    await waitFor(() =>
+      expect(adjudicar).toHaveAttribute("aria-disabled", "false")
+    )
+    await userEvent.click(adjudicar)
+
+    await screen.findByText("Se guardó la configuración de la adjudicación.")
+    expect(guardados()).toHaveLength(2)
+    expect(guardados()[1]).toMatchObject({
+      peso_sla: 35,
+      peso_satisfaccion: 10,
+    })
+  })
+
+  it("mientras la adjudicación se guarda, la puntuación espera", async () => {
+    const { terminar, guardados } = guardadoDiferido()
+    renderizar()
+    await screen.findByLabelText("Cumplimiento de SLA")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar adjudicación" })
+    )
+
+    const puntuar = screen.getByRole("button", { name: "Guardar cambios" })
+    await waitFor(() =>
+      expect(puntuar).toHaveAttribute("aria-disabled", "true")
+    )
+    await userEvent.click(puntuar)
+    expect(guardados()).toHaveLength(1)
+
+    terminar(CONFIGURACION)
+    await screen.findByText("Se guardó la configuración de la adjudicación.")
+    await waitFor(() =>
+      expect(puntuar).toHaveAttribute("aria-disabled", "false")
+    )
+    await userEvent.click(puntuar)
+    await screen.findByText(/^Configuración guardada\./)
+    expect(guardados()).toHaveLength(2)
   })
 
   it("al guardar vuelve a consultar lo que depende de la configuración", async () => {

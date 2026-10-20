@@ -2,6 +2,7 @@ import { CircleCheck, TriangleAlert } from "lucide-react"
 import { useId, useState, type FormEvent } from "react"
 import {
   CRITERIOS,
+  mensajePesos,
   NOMBRES_CRITERIO,
   pesosValidos,
   sonEnteros,
@@ -41,11 +42,9 @@ export function AjustarPesos({
   const validos = pesosValidos(campos)
   // Un campo que no es entero cuenta 0 en el total: se avisa aparte para que el total no engañe.
   const enteros = sonEnteros(campos)
-  const problema = enteros
-    ? `Los pesos deben sumar 100; ahora suman ${total}.`
-    : "Cada peso debe ser un número entero de 0 a 100."
+  const problema = mensajePesos(campos)
   const mensaje =
-    intentado && !validos ? problema : error === corregido ? undefined : error
+    intentado && problema ? problema : error === corregido ? undefined : error
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()

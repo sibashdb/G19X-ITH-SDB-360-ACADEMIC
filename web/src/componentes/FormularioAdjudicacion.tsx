@@ -3,9 +3,9 @@ import { Check, CircleAlert } from "lucide-react"
 import { useId, useState, type FormEvent } from "react"
 import {
   CRITERIOS,
+  mensajePesos,
   NOMBRES_CRITERIO,
   pesosValidos,
-  sonEnteros,
   totalPesos,
   type Criterio,
 } from "@/adjudicacion"
@@ -16,7 +16,12 @@ import { ContenidoConsulta } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { useInteligencia, type ConfiguracionInteligencia } from "@/inteligencia"
+import {
+  GUARDAR_CONFIGURACION,
+  useConfiguracionOcupada,
+  useInteligencia,
+  type ConfiguracionInteligencia,
+} from "@/inteligencia"
 import { cn } from "@/lib/utils"
 
 function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
@@ -37,7 +42,9 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
   const total = totalPesos(pesos)
   const validos = pesosValidos(pesos)
   const monto = umbral.trim()
+  const ocupada = useConfiguracionOcupada()
   const guardar = useMutation({
+    mutationKey: GUARDAR_CONFIGURACION,
     mutationFn: (datos: Record<string, number | string>) =>
       pedir<ConfiguracionInteligencia>(
         "/inteligencia/configuracion",
@@ -49,12 +56,7 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
   })
   const errores = erroresPorCampo(guardar.error)
   const errorTotal =
-    errores.pesos_adjudicacion ??
-    (intentado && !validos
-      ? sonEnteros(pesos)
-        ? `Los pesos deben sumar 100; ahora suman ${total}.`
-        : "Cada peso debe ser un número entero de 0 a 100."
-      : undefined)
+    errores.pesos_adjudicacion ?? (intentado ? mensajePesos(pesos) : undefined)
   const errorUmbral =
     errores.umbral_aprobacion ??
     (intentado && monto === "" ? "Escriba el umbral de aprobación." : undefined)
@@ -67,7 +69,7 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    if (guardar.isPending) return
+    if (ocupada) return
     setIntentado(true)
     if (!validos || monto === "") return
     // El servicio exige también la puntuación: se manda la guardada, no lo que se edite arriba.
@@ -159,7 +161,7 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
         </Alert>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" aria-disabled={guardar.isPending}>
+        <Button type="submit" aria-disabled={ocupada}>
           {guardar.isPending ? "Guardando…" : "Guardar adjudicación"}
         </Button>
         <p

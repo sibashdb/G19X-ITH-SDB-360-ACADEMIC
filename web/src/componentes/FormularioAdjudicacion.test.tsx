@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { FormularioAdjudicacion } from "@/componentes/FormularioAdjudicacion"
@@ -15,15 +15,16 @@ vi.mock("react-oidc-context", async () =>
 )
 
 const URL_CONFIGURACION = "/api/inteligencia/configuracion"
-// Los valores de la puntuación no son los de omisión: así se ve que el PUT los manda sin cambios.
+// La puntuación guardada no es la de omisión (30/20/20/15/15, riesgo 40, inflación 4.50): un PUT
+// que la reescribiera con esos valores en vez de mandar los guardados no pasaría la prueba.
 const CONFIGURACION = {
-  peso_sla: 30,
-  peso_resolucion: 20,
+  peso_sla: 25,
+  peso_resolucion: 25,
   peso_incidentes: 20,
   peso_entregas: 15,
   peso_satisfaccion: 15,
   umbral_riesgo: 45,
-  inflacion_anual: "4.50",
+  inflacion_anual: "6.25",
   adjudicacion_costo: 40,
   adjudicacion_desempeno: 30,
   adjudicacion_riesgo: 15,
@@ -63,6 +64,10 @@ async function escribir(campo: HTMLElement, texto: string) {
   await userEvent.clear(campo)
   await userEvent.type(campo, texto)
 }
+
+/** El grupo de los pesos: el total y el aviso de los pesos viven juntos ahí. */
+const grupoDePesos = () =>
+  screen.getByRole("group", { name: /^Pesos de la recomendación/ })
 
 const guardar = () =>
   userEvent.click(screen.getByRole("button", { name: "Guardar adjudicación" }))
@@ -121,13 +126,13 @@ describe("FormularioAdjudicacion", () => {
 
     expect(await screen.findByText(GUARDADO)).toBeInTheDocument()
     expect(llamadaA(simulado, URL_CONFIGURACION, "PUT").cuerpo).toEqual({
-      peso_sla: 30,
-      peso_resolucion: 20,
+      peso_sla: 25,
+      peso_resolucion: 25,
       peso_incidentes: 20,
       peso_entregas: 15,
       peso_satisfaccion: 15,
       umbral_riesgo: 45,
-      inflacion_anual: "4.50",
+      inflacion_anual: "6.25",
       adjudicacion_costo: 35,
       adjudicacion_desempeno: 35,
       adjudicacion_riesgo: 15,
@@ -155,7 +160,7 @@ describe("FormularioAdjudicacion", () => {
     await escribir(await screen.findByLabelText("Costo total"), "45")
     await guardar()
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect(within(grupoDePesos()).getByRole("alert")).toHaveTextContent(
       "Los pesos deben sumar 100; ahora suman 105."
     )
     expect(hayPut(simulado)).toBe(false)
@@ -169,7 +174,7 @@ describe("FormularioAdjudicacion", () => {
     await escribir(await screen.findByLabelText("Costo total"), "39.5")
     await guardar()
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect(within(grupoDePesos()).getByRole("alert")).toHaveTextContent(
       "Cada peso debe ser un número entero de 0 a 100."
     )
     expect(hayPut(simulado)).toBe(false)
@@ -201,9 +206,14 @@ describe("FormularioAdjudicacion", () => {
 
     await guardar()
 
-    const aviso = await screen.findByRole("alert")
-    expect(aviso).toHaveTextContent("Los pesos deben sumar 100; suman 99.")
-    expect(screen.getByText("Total: 100 de 100")).toBeInTheDocument()
+    // El aviso está siempre montado (vacío): se espera a que llegue el rechazo del servicio.
+    const aviso = within(grupoDePesos()).getByRole("alert")
+    await waitFor(() =>
+      expect(aviso).toHaveTextContent("Los pesos deben sumar 100; suman 99.")
+    )
+    expect(
+      within(grupoDePesos()).getByText("Total: 100 de 100")
+    ).toBeInTheDocument()
     expect(screen.queryByText(GUARDADO)).not.toBeInTheDocument()
 
     // Corregir un peso retira el rechazo del servicio.

@@ -1,4 +1,6 @@
 import {
+  useIsFetching,
+  useIsMutating,
   useQuery,
   type QueryKey,
   type UseQueryOptions,
@@ -244,6 +246,21 @@ export function useInteligencia<T>(
     queryFn: () => pedir<T>(`/inteligencia${ruta}`, token),
     enabled: Boolean(token) && (opciones.enabled ?? true),
   })
+}
+
+/** Clave de las mutaciones que guardan la configuración: con una en camino no se empieza otra. */
+export const GUARDAR_CONFIGURACION = ["configuracion-inteligencia"]
+
+/**
+ * Si algún formulario de la configuración está guardando, o la configuración se relee tras guardar.
+ * Mientras tanto no se guarda otro: el servicio exige la configuración completa y mandaría valores viejos.
+ */
+export function useConfiguracionOcupada(): boolean {
+  const guardando = useIsMutating({ mutationKey: GUARDAR_CONFIGURACION }) > 0
+  // La clave de useInteligencia("/configuracion"); sin crear otro observador, que releería al montar.
+  const leyendo =
+    useIsFetching({ queryKey: ["inteligencia", "/configuracion"] }) > 0
+  return guardando || leyendo
 }
 
 export const UMBRAL_POR_OMISION = 40

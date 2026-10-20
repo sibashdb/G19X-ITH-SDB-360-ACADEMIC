@@ -4,6 +4,7 @@ import { createElement, type ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   CRITERIOS,
+  mensajePesos,
   PESOS_POR_OMISION,
   pesosValidos,
   razonesAprobacion,
@@ -59,6 +60,19 @@ describe("pesos de la adjudicación", () => {
       expect(
         sonEnteros({ costo: malo, desempeno: "30", riesgo: "15", sla: "15" })
       ).toBe(false)
+  })
+
+  it("mensajePesos dice qué corregir y calla si los pesos son válidos", () => {
+    expect(
+      mensajePesos({ costo: "40", desempeno: "30", riesgo: "15", sla: "15" })
+    ).toBeUndefined()
+    expect(
+      mensajePesos({ costo: "45", desempeno: "30", riesgo: "15", sla: "15" })
+    ).toBe("Los pesos deben sumar 100; ahora suman 105.")
+    for (const malo of ["", "-5", "10.5", "1000", "abc"])
+      expect(
+        mensajePesos({ costo: malo, desempeno: "30", riesgo: "15", sla: "15" })
+      ).toBe("Cada peso debe ser un número entero de 0 a 100.")
   })
 
   it("totalPesos suma los enteros y cuenta 0 lo que no lo es", () => {

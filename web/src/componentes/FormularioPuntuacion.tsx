@@ -10,7 +10,12 @@ import { Termino } from "@/componentes/Termino"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { formatoFechaHora } from "@/fechas"
-import { useInteligencia, type ConfiguracionInteligencia } from "@/inteligencia"
+import {
+  GUARDAR_CONFIGURACION,
+  useConfiguracionOcupada,
+  useInteligencia,
+  type ConfiguracionInteligencia,
+} from "@/inteligencia"
 import { cn } from "@/lib/utils"
 
 const PESOS = [
@@ -38,7 +43,9 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
     (suma, [clave]) => suma + (Number(pesos[clave]) || 0),
     0
   )
+  const ocupada = useConfiguracionOcupada()
   const guardar = useMutation({
+    mutationKey: GUARDAR_CONFIGURACION,
     mutationFn: (datos: Record<string, number | string>) =>
       pedir<ConfiguracionInteligencia>(
         "/inteligencia/configuracion",
@@ -57,7 +64,7 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    if (guardar.isPending) return
+    if (ocupada) return
     setIntentado(true)
     if (total !== 100) return
     const datos = new FormData(evento.currentTarget)
@@ -148,7 +155,7 @@ function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
         </Alert>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" aria-disabled={guardar.isPending}>
+        <Button type="submit" aria-disabled={ocupada}>
           {guardar.isPending ? "Guardando…" : "Guardar cambios"}
         </Button>
         <p

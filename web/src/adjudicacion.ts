@@ -151,6 +151,16 @@ export function pesosValidos(campos: Record<Criterio, string>): Pesos | null {
   return totalPesos(campos) === 100 ? pesos : null
 }
 
+/** Qué corregir en los pesos; undefined si son válidos. Es el aviso de todo formulario de pesos. */
+export function mensajePesos(
+  campos: Record<Criterio, string>
+): string | undefined {
+  if (pesosValidos(campos)) return undefined
+  return sonEnteros(campos)
+    ? `Los pesos deben sumar 100; ahora suman ${totalPesos(campos)}.`
+    : "Cada peso debe ser un número entero de 0 a 100."
+}
+
 /**
  * Si el costo supera el umbral, con `>` estricto como el servicio. Solo sirve para anticipar el
  * texto de la confirmación; quien decide es el servicio.
