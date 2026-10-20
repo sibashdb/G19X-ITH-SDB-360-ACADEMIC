@@ -2,8 +2,10 @@
 
 - **Fecha:** 2026-10-20.
 - **Rama y commits:** `feat/adjudicacion`.
-  - Flujos sobre el gateway con la imagen de `7787ede`.
-  - axe sobre el servidor de Vite con el código de la rama, que con recarga en caliente incluyó las correcciones hasta `6eafde4`.
+  - Los flujos corrieron sobre el gateway con la imagen de `7787ede`, anterior a las correcciones.
+  - axe corrió sobre el servidor de Vite con el código de la rama.
+    - Las vistas de negociación, la ayuda y el portal se revisaron con `7787ede`, antes de las correcciones.
+    - Configuración, Actividad, Correos y el botón destructivo se revisaron con `6eafde4`, que ya incluía las correcciones D1 a D5.
   - Las correcciones están en `d7d1c87`, `6b320fc`, `39f291e`, `ffc0784`, `3c2417f`, `a670551`, `6eafde4` y `f1a3c0b`.
 - **Usuarios de prueba:** `comprador1` (rol comprador), `aprobador1` (rol aprobador) y `admin1` (rol admin).
   - Sus contraseñas están en el realm de desarrollo y no se repiten aquí.
@@ -87,5 +89,7 @@ La única excepción fue el botón destructivo de confirmación (defecto D4), en
 
 - **Dos aprobadores sobre una misma propuesta** (el 409 `propuesta_distinta` y «Revisar la propuesta nueva»): no se reprodujo con dos sesiones. Lo cubren las pruebas de la API y de la interfaz.
 - **Quien propuso con los dos roles:** el realm de desarrollo no tiene un usuario con comprador y aprobador a la vez. Lo cubren las pruebas de `SeccionAprobacion`.
-- **El aviso de la propuesta rechazada en la evaluación (D3):** se corrigió después de los flujos 6 y 7. Lo cubren sus pruebas; su ancho de 375 px queda por mirar en la siguiente revisión.
+- **Las correcciones D1, D2, D3, D5 y D6 no se volvieron a ver en el navegador.** Se hicieron después de los flujos y las cubren sus pruebas en jsdom. En particular:
+  - el aviso de la propuesta rechazada en la evaluación (D3) queda por mirar a 375 px;
+  - el texto nuevo de Actividad (D6) es de `f1a3c0b`, posterior a la imagen que servía el gateway.
 - **El foco y el hover del botón destructivo:** el contraste en reposo se comprobó en el navegador; el del hover y el foco se calcularon a partir de los tokens.
