@@ -11,7 +11,7 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "python-multipart>=0.0.18",
-    "tzdata>=2024.1",  # base IANA para ZoneInfo en Windows e imágenes slim
+    "tzdata>=2026.5",  # base IANA para ZoneInfo en Windows e imágenes slim
 ]
 
 [tool.uv.sources]
