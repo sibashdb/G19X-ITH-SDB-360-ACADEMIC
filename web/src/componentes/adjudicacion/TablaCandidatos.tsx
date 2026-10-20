@@ -39,6 +39,10 @@ export function TablaCandidatos({
   const fueraDeLimites = new Set(
     evento.sesiones.filter((s) => s.fuera_de_limites).map((s) => s.id)
   )
+  // El término se define solo en la primera fila que lo lleva: las demás repiten el texto.
+  const primeraFueraDeLimites = recomendacion.candidatos.find((c) =>
+    fueraDeLimites.has(c.id)
+  )?.id
   return (
     <Table aria-label="Candidatos de la evaluación">
       <TableHeader>
@@ -87,7 +91,11 @@ export function TablaCandidatos({
                 {fueraDeLimites.has(c.id) && (
                   <Badge variant="warning" className="bg-card">
                     <TriangleAlert aria-hidden />
-                    Fuera de límites
+                    {c.id === primeraFueraDeLimites ? (
+                      <Termino clave="fuera_de_limites" />
+                    ) : (
+                      "Fuera de límites"
+                    )}
                   </Badge>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
+import { GLOSARIO } from "@/glosario"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
   CON_RECOMENDACION,
@@ -92,6 +93,26 @@ describe("Adjudicar", () => {
     )
     expect(
       within(dialogo).getByRole("button", { name: "Confirmar" })
+    ).toBeInTheDocument()
+  })
+
+  it("define el umbral de aprobación sin cerrar la confirmación", async () => {
+    abrirConEvaluacion()
+    const dialogo = await abrirDialogo("Nube Norte")
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "umbral de aprobación" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Umbral de aprobación" })
+    ).toHaveTextContent(GLOSARIO.umbral_aprobacion.definicion)
+
+    // Escape cierra la definición y deja la confirmación abierta.
+    await userEvent.keyboard("{Escape}")
+    expect(
+      screen.queryByRole("dialog", { name: "Umbral de aprobación" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("dialog", { name: nombreBoton("Nube Norte") })
     ).toBeInTheDocument()
   })
 
@@ -491,6 +512,22 @@ describe("Adjudicar", () => {
     await waitFor(() =>
       expect(document.getElementById("contenido")).toHaveFocus()
     )
+  })
+
+  it("«Declarar desierta» define qué es una negociación desierta", async () => {
+    abrirConEvaluacion()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "desierta" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Desierta" })
+    ).toHaveTextContent(GLOSARIO.desierta.definicion)
   })
 
   it("declarar desierta manda el motivo y avisa", async () => {

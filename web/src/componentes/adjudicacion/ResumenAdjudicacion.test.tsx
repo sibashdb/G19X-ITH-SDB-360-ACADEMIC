@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
 import { ResumenAdjudicacion } from "@/componentes/adjudicacion/ResumenAdjudicacion"
 import { formatoFechaHora } from "@/fechas"
+import { GLOSARIO } from "@/glosario"
 import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
@@ -25,6 +26,7 @@ import {
   respuestaDiferida,
   respuestaJson,
   simularRutas,
+  sinEspaciosDuros,
 } from "@/pruebas/utilidades"
 import { formatoMoneda } from "@/tipos"
 
@@ -34,8 +36,6 @@ vi.mock("react-oidc-context", async () =>
 
 const APROBAR = `${RUTA}/adjudicacion/aprobar`
 
-/** Testing Library compara con los espacios duros de Intl ya convertidos en espacios. */
-const sinEspaciosDuros = (texto: string) => texto.replace(/\s+/g, " ")
 const fecha = (iso: string) => sinEspaciosDuros(formatoFechaHora(iso))
 const dinero = (valor: string, moneda: string) =>
   sinEspaciosDuros(formatoMoneda(valor, moneda))
@@ -98,6 +98,11 @@ function abrirResumen(evento: object, evaluacion: Evaluacion) {
   )
 }
 
+/** Un párrafo por su texto completo, aunque lleve dentro un término del glosario. */
+const parrafo = (texto: string) => (_: string, elemento: Element | null) =>
+  elemento?.tagName === "P" && elemento.textContent === texto
+const DECLARADA = "La negociación se declaró desierta."
+
 /** La definición de un dato del resumen («Proveedor», «Folio del contrato»…). */
 const dato = async (nombre: string) =>
   (await screen.findByText(nombre, { selector: "dt" })).nextElementSibling
@@ -126,9 +131,7 @@ describe("Resumen de la adjudicada o la desierta", () => {
     )
     expect(screen.getByText("CTR-2026-0042")).toHaveClass("font-mono")
     // Ni la desierta ni las rechazadas: no hubo.
-    expect(
-      screen.queryByText("La negociación se declaró desierta.")
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(parrafo(DECLARADA))).not.toBeInTheDocument()
     expect(
       screen.queryByRole("heading", { name: "Propuestas rechazadas" })
     ).not.toBeInTheDocument()
@@ -173,14 +176,38 @@ describe("Resumen de la adjudicada o la desierta", () => {
 
   it("la desierta automática explica que no hubo acuerdos", async () => {
     abrirResumen(DESIERTO, SIN_ACUERDOS)
-    expect(
-      await screen.findByText("La negociación se declaró desierta.")
-    ).toBeInTheDocument()
+    expect(await screen.findByText(parrafo(DECLARADA))).toBeInTheDocument()
     expect(
       screen.getByText("Ningún proveedor llegó a un acuerdo tentativo.")
     ).toBeInTheDocument()
     expect(screen.queryByText(/Motivo:/)).not.toBeInTheDocument()
     expect(screen.queryByRole("term")).not.toBeInTheDocument()
+  })
+
+  it("define qué es una negociación desierta", async () => {
+    abrirResumen(DESIERTO, SIN_ACUERDOS)
+    await userEvent.click(
+      await screen.findByRole("button", { name: "desierta" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Desierta" })
+    ).toHaveTextContent(GLOSARIO.desierta.definicion)
+  })
+
+  it("el motivo de la desierta y cada propuesta rechazada parten las palabras largas para no ensanchar la tarjeta a 375 px", async () => {
+    // jsdom no calcula el diseño: se fija la clase. El motivo del rechazo va dentro de la propuesta
+    // y hereda `overflow-wrap`.
+    abrirResumen(
+      { ...DESIERTO, motivo_desierta: "x".repeat(300) },
+      { ...SIN_ACUERDOS, historial: [RECHAZADA, RECHAZADA_ANTERIOR] }
+    )
+    expect(await screen.findByText(/^Motivo: x+$/)).toHaveClass("break-words")
+    const rechazadas = within(
+      screen.getByRole("list", { name: "Propuestas rechazadas" })
+    ).getAllByRole("listitem")
+    expect(rechazadas).toHaveLength(2)
+    for (const rechazada of rechazadas)
+      expect(rechazada).toHaveClass("break-words")
   })
 
   it("la desierta manual muestra el motivo", async () => {
@@ -243,7 +270,7 @@ describe("Resumen de la adjudicada o la desierta", () => {
       { ...DESIERTO, motivo_desierta: "El presupuesto se congeló." },
       { ...SIN_ACUERDOS, historial: [RECHAZADA] }
     )
-    await screen.findByText("La negociación se declaró desierta.")
+    await screen.findByText(parrafo(DECLARADA))
     await esperarSinViolaciones(desierta.container)
   })
 

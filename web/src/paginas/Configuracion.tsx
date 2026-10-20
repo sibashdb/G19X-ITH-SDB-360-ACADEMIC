@@ -13,8 +13,11 @@ export function Configuracion() {
           titulo="Configuración"
           descripcion={
             <>
-              Ajuste cómo se califica a los proveedores y cómo se calcula el{" "}
-              <Termino clave="precioReferencia">precio de referencia</Termino>.
+              Ajuste cómo se califica a los proveedores, cómo se calcula el{" "}
+              <Termino clave="precioReferencia">precio de referencia</Termino>,
+              los pesos con que se recomienda una{" "}
+              <Termino clave="adjudicacion">adjudicación</Termino> y su{" "}
+              <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>.
             </>
           }
         />

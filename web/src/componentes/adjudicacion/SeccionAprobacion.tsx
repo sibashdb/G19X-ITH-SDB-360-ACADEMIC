@@ -4,12 +4,12 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import { TriangleAlert } from "lucide-react"
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import {
   DECISION,
-  NOMBRES_MOTIVO,
   useEvaluacion,
   type Evaluacion,
+  type MotivoAprobacion,
 } from "@/adjudicacion"
 import { ErrorApi, enviarJson, pedir } from "@/api"
 import { useRoles, useToken, useUsuarioId } from "@/auth"
@@ -18,9 +18,21 @@ import { Explicacion } from "@/componentes/adjudicacion/Explicacion"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
+import { Termino } from "@/componentes/Termino"
 import { Button } from "@/components/ui/button"
 import { formatoFechaHora } from "@/fechas"
 import type { Evento } from "@/negociacion"
+
+/** Por qué una propuesta necesita aprobación, con sus términos del glosario. */
+const MOTIVOS: Record<MotivoAprobacion, ReactNode> = {
+  umbral: (
+    <>
+      Supera el{" "}
+      <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>
+    </>
+  ),
+  fuera_de_limites: <Termino clave="fuera_de_limites" />,
+}
 
 /**
  * La propuesta de adjudicación que espera aprobación: la evaluación guardada al proponer, con la
@@ -196,7 +208,7 @@ export function SeccionAprobacion({
               </p>
               <ul aria-labelledby={idMotivos} className="list-disc pl-5">
                 {vigente.motivo_aprobacion.map((motivo) => (
-                  <li key={motivo}>{NOMBRES_MOTIVO[motivo]}</li>
+                  <li key={motivo}>{MOTIVOS[motivo]}</li>
                 ))}
               </ul>
             </div>

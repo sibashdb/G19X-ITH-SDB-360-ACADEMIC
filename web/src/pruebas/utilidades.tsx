@@ -72,6 +72,9 @@ export async function esperarSinEnMutaciones(
   })
 }
 
+/** Testing Library compara con los espacios duros de Intl ya convertidos en espacios. */
+export const sinEspaciosDuros = (texto: string) => texto.replace(/\s+/g, " ")
+
 /** URL de una llamada a fetch simulada (por defecto, la última), para revisar sus parámetros. */
 export function urlDeLlamada(
   simulado: { mock: { calls: unknown[][] } },

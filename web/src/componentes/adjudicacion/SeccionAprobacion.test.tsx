@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
 import { SeccionAprobacion } from "@/componentes/adjudicacion/SeccionAprobacion"
 import { formatoFechaHora } from "@/fechas"
+import { GLOSARIO } from "@/glosario"
 import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
@@ -154,6 +155,28 @@ afterEach(() => {
 })
 
 describe("Pendiente de aprobación", () => {
+  it("define los términos de la regla: el umbral de aprobación y fuera de límites", async () => {
+    abrirPendiente()
+    await seccion()
+    const motivos = within(
+      screen.getByRole("list", { name: "Por qué requiere aprobación" })
+    )
+    await userEvent.click(
+      motivos.getByRole("button", { name: "umbral de aprobación" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Umbral de aprobación" })
+    ).toHaveTextContent(GLOSARIO.umbral_aprobacion.definicion)
+    await userEvent.keyboard("{Escape}")
+
+    await userEvent.click(
+      motivos.getByRole("button", { name: "Fuera de límites" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Fuera de límites" })
+    ).toHaveTextContent(GLOSARIO.fuera_de_limites.definicion)
+  })
+
   it("la propuesta pendiente se muestra con la foto guardada", async () => {
     const { api } = abrirPendiente()
     const tabla = await seccion()

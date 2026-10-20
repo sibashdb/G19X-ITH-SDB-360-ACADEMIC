@@ -124,7 +124,7 @@ function ContenidoCorreos() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Correos del sistema"
-        descripcion="Invitaciones y correos para restablecer la contraseña que envió la plataforma, y si salieron bien."
+        descripcion="Invitaciones, restablecimientos de contraseña, invitaciones a negociar y sus resultados que envió la plataforma, y si salieron bien."
         acciones={
           buzon && (
             <Button asChild variant="outline">

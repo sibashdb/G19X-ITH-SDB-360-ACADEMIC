@@ -1,4 +1,5 @@
 import { DialogoMotivo } from "@/componentes/adjudicacion/DialogoMotivo"
+import { Termino } from "@/componentes/Termino"
 import type { Evento } from "@/negociacion"
 
 /** «Declarar desierta» la negociación en evaluación, con el motivo que queda en la bitácora. */
@@ -20,7 +21,13 @@ export function DialogoDesierta({
       textoAbrir="Declarar desierta"
       textoEnviar="Declarar desierta"
       titulo="Declarar desierta la negociación"
-      descripcion="La negociación termina sin adjudicar a ningún proveedor y se les avisa por correo. No se puede deshacer."
+      descripcion={
+        <>
+          Al declararla <Termino clave="desierta">desierta</Termino>, la
+          negociación termina sin adjudicar a ningún proveedor y se les avisa
+          por correo. No se puede deshacer.
+        </>
+      }
       etiqueta="Motivo"
       ayuda="Queda en la bitácora y en la Actividad."
       alTerminar={alDeclarar}

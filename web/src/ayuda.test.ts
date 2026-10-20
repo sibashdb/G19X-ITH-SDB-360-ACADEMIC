@@ -8,6 +8,7 @@ import {
   PREGUNTAS,
   TEMAS,
 } from "@/ayuda"
+import { GLOSARIO } from "@/glosario"
 
 describe("contenido de la ayuda", () => {
   it("cada artículo tiene un slug único, un tema conocido y enlaces internos", () => {
@@ -102,6 +103,61 @@ describe("contenido de la ayuda", () => {
       "El agente empieza pidiendo casi su ideal y, ronda tras ronda, se conforma con un poco menos, hasta llegar a su límite en la última. El estilo decide el ritmo: firme cede muy poco hasta las últimas rondas, balanceado cede poco al principio y más hacia el final, y flexible cede de forma pareja desde la primera ronda.",
       "Nunca pide algo peor para usted que lo que el proveedor ya ofreció, no revela su límite antes de la última ronda y casi nunca vuelve a pedir más de lo que pidió en la ronda anterior.",
     ])
+  })
+
+  it("el artículo Adjudicar y aprobar existe y se encuentra al buscar", () => {
+    const articulo = articuloPorSlug("adjudicar-y-aprobar")
+    expect(articulo?.titulo).toBe("Adjudicar y aprobar")
+    expect(articulo?.tema).toBe("negociacion")
+    // Lo ve quien no administra: es de quien compra y de quien aprueba.
+    expect(esSoloAdmin(articulo!)).toBe(false)
+    for (const consulta of ["aprobador", "desierta", "umbral de aprobación"])
+      expect(
+        buscarArticulos(consulta, false).map((a) => a.slug),
+        consulta
+      ).toContain("adjudicar-y-aprobar")
+  })
+
+  it("Adjudicar y aprobar explica la regla, la separación de funciones y el aviso a los proveedores", () => {
+    const texto = JSON.stringify(
+      articuloPorSlug("adjudicar-y-aprobar")?.secciones
+    )
+    for (const frase of [
+      "Ajustar pesos",
+      "500,000 MXN",
+      "administración lo cambie en Configuración",
+      "fuera de sus límites",
+      "Quien propone no aprueba",
+      "Revisar la propuesta nueva",
+      "Declarar desierta",
+      "se declara desierta sola",
+      "ni se les muestra ningún monto",
+    ])
+      expect(texto, frase).toContain(frase)
+  })
+
+  it("los artículos de negociación llevan al de Adjudicar y aprobar", () => {
+    for (const slug of ["negociar-con-proveedores", "como-negocia-el-agente"])
+      expect(articuloPorSlug(slug)?.enlaces?.map((e) => e.ruta)).toContain(
+        "/ayuda/adjudicar-y-aprobar"
+      )
+  })
+
+  it("Cómo usar PluriOne ya no promete la aprobación para después", () => {
+    const texto = JSON.stringify(articuloPorSlug("como-usar-pluri-one"))
+    expect(texto).not.toContain("próxima versión")
+    expect(texto).toContain("un aprobador")
+  })
+
+  it("los términos nuevos de la adjudicación están en el glosario", () => {
+    expect(GLOSARIO.adjudicacion.termino).toBe("Adjudicación")
+    expect(GLOSARIO.adjudicacion.definicion).toContain("contrato")
+    expect(GLOSARIO.umbral_aprobacion.termino).toBe("Umbral de aprobación")
+    expect(GLOSARIO.umbral_aprobacion.definicion).toContain("500,000")
+    expect(GLOSARIO.desierta.termino).toBe("Desierta")
+    expect(GLOSARIO.desierta.definicion).toContain("sin adjudicar")
+    expect(GLOSARIO.fuera_de_limites.termino).toBe("Fuera de límites")
+    expect(GLOSARIO.fuera_de_limites.definicion).toContain("aprobador")
   })
 
   it("para reenviar una invitación manda al botón «Reenviar» de la tabla de sesiones", () => {

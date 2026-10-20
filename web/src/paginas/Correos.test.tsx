@@ -109,6 +109,16 @@ describe("Correos", () => {
     ).toBeInTheDocument()
   })
 
+  it("la descripción de la página menciona las invitaciones a negociar y sus resultados", async () => {
+    simularApi(() => respuestaJson(CORREOS))
+    renderizarPagina(<Correos />, { ruta: "/sistema/correos" })
+    expect(
+      await screen.findByText(
+        "Invitaciones, restablecimientos de contraseña, invitaciones a negociar y sus resultados que envió la plataforma, y si salieron bien."
+      )
+    ).toBeInTheDocument()
+  })
+
   it("estado vacío sin buzón", async () => {
     simularApi(() =>
       respuestaJson({ total: 0, elementos: [], buzon_url: null })

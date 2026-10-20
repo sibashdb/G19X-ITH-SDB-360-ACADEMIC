@@ -99,10 +99,6 @@ export const NOMBRES_NIVEL_RIESGO: Record<Riesgo["nivel"], string> = {
 /** Clave de las mutaciones que deciden sobre la negociación: con una en camino no se empieza otra. */
 export const DECISION = ["adjudicacion", "decision"]
 
-export const NOMBRES_MOTIVO: Record<MotivoAprobacion, string> = {
-  umbral: "Supera el umbral de aprobación",
-  fuera_de_limites: "Fuera de límites",
-}
 // Copia de services/negociacion/src/negociacion/correo.py (spec §4.6): si cambia allá, cambia aquí.
 export const TEXTOS_RESULTADO: Record<
   NonNullable<VistaPortal["resultado"]>,

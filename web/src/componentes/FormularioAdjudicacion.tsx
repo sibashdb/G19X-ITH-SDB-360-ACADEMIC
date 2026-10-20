@@ -14,6 +14,7 @@ import { useToken } from "@/auth"
 import { CampoNumero } from "@/componentes/CampoNumero"
 import { ContenidoConsulta } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
+import { Termino } from "@/componentes/Termino"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -187,7 +188,14 @@ export function FormularioAdjudicacion() {
   return (
     <Seccion
       titulo="Adjudicación"
-      descripcion="Cuánto pesa cada criterio al recomendar a quién adjudicar, y desde qué costo total (el umbral de aprobación) una adjudicación necesita un aprobador."
+      descripcion={
+        <>
+          Cuánto pesa cada criterio al recomendar a quién adjudicar, y desde qué
+          costo total (el{" "}
+          <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>) una
+          adjudicación necesita un aprobador.
+        </>
+      }
     >
       <ContenidoConsulta consulta={configuracion}>
         {(datos) => <Formulario inicial={datos} />}

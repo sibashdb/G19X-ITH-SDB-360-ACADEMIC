@@ -2,6 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { FormularioAdjudicacion } from "@/componentes/FormularioAdjudicacion"
+import { GLOSARIO } from "@/glosario"
 import {
   esperarSinViolaciones,
   llamadaA,
@@ -98,6 +99,18 @@ describe("FormularioAdjudicacion", () => {
     expect(umbral).toHaveAccessibleDescription(
       "Una adjudicación con un costo total mayor necesita un aprobador."
     )
+  })
+
+  it("define el umbral de aprobación en la descripción de la sección", async () => {
+    api()
+    renderizarPagina(<FormularioAdjudicacion />)
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "umbral de aprobación" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Umbral de aprobación" })
+    ).toHaveTextContent(GLOSARIO.umbral_aprobacion.definicion)
   })
 
   it("el total se actualiza al escribir", async () => {

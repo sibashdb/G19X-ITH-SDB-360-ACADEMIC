@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react"
 import { useEvaluacion, type Adjudicacion } from "@/adjudicacion"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
+import { Termino } from "@/componentes/Termino"
 import { formatoFechaHora } from "@/fechas"
 import type { Evento } from "@/negociacion"
 import { formatoMoneda } from "@/tipos"
@@ -113,8 +114,11 @@ export function ResumenAdjudicacion({ evento }: { evento: Evento }) {
       <div className="space-y-6">
         {desierto ? (
           <div className="space-y-1 text-sm">
-            <p className="font-medium">La negociación se declaró desierta.</p>
-            <p>
+            <p className="font-medium">
+              La negociación se declaró{" "}
+              <Termino clave="desierta">desierta</Termino>.
+            </p>
+            <p className="break-words">
               {evento.motivo_desierta
                 ? `Motivo: ${evento.motivo_desierta}`
                 : "Ningún proveedor llegó a un acuerdo tentativo."}
@@ -130,7 +134,10 @@ export function ResumenAdjudicacion({ evento }: { evento: Evento }) {
             </h3>
             <ul aria-labelledby={idRechazadas} className="space-y-3 text-sm">
               {evaluacion.historial.map((p) => (
-                <li key={p.id} className="space-y-0.5 rounded-lg border p-3">
+                <li
+                  key={p.id}
+                  className="space-y-0.5 rounded-lg border p-3 break-words"
+                >
                   <p className="font-medium">{proveedorDe(p, evento)}</p>
                   <p>
                     Propuso{" "}

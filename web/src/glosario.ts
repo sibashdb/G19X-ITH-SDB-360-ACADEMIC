@@ -84,6 +84,26 @@ export const GLOSARIO = {
     definicion:
       "El proveedor aceptó o propuso una oferta que se registró como acuerdo. No es vinculante hasta que se adjudique y se apruebe; si sale de sus límites, se marca para el aprobador.",
   },
+  adjudicacion: {
+    termino: "Adjudicación",
+    definicion:
+      "Elegir el acuerdo que se convierte en contrato. Si el costo es alto o el acuerdo salió de los límites, antes debe aprobarlo un aprobador.",
+  },
+  umbral_aprobacion: {
+    termino: "Umbral de aprobación",
+    definicion:
+      "El costo total, en pesos mexicanos (MXN), a partir del cual decide un aprobador: una adjudicación que lo supera necesita su aprobación. Por defecto es de 500,000 MXN y administración puede cambiarlo.",
+  },
+  desierta: {
+    termino: "Desierta",
+    definicion:
+      "La negociación termina sin adjudicar a ningún proveedor. Compras la declara con un motivo, o queda así sola si ninguna sesión llegó a un acuerdo.",
+  },
+  fuera_de_limites: {
+    termino: "Fuera de límites",
+    definicion:
+      "El acuerdo salió de los límites que fijó el comprador, por ejemplo porque se aceptó o propuso a mano. Siempre lo decide un aprobador, sin importar su costo.",
+  },
 } as const satisfies Record<string, { termino: string; definicion: string }>
 
 export type ClaveGlosario = keyof typeof GLOSARIO

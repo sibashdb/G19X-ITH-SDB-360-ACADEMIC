@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useId, useRef, useState, type FormEvent } from "react"
+import { Fragment, useId, useRef, useState, type FormEvent } from "react"
 import {
   razonesAprobacion,
   textoPesos,
@@ -10,6 +10,7 @@ import {
 import { ErrorApi, enviarJson, erroresPorCampo, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { Campo } from "@/componentes/negociacion/Campo"
+import { Termino } from "@/componentes/Termino"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -115,13 +116,34 @@ export function DialogoAdjudicar({
   )
   const costo = formatoMoneda(candidato.costo_total_mxn, "MXN")
   const umbral = formatoMoneda(recomendacion.umbral_aprobacion, "MXN")
+  const termino = (
+    <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>
+  )
   const textoRazon = {
-    umbral: `el costo total (${costo}) supera el umbral de aprobación (${umbral})`,
-    fuera_de_limites: "el acuerdo está fuera de sus límites",
+    umbral: (
+      <>
+        el costo total ({costo}) supera el {termino} ({umbral})
+      </>
+    ),
+    fuera_de_limites: <>el acuerdo está fuera de sus límites</>,
   }
-  const regla = razones.length
-    ? `Irá a un aprobador porque ${razones.map((r) => textoRazon[r]).join(" y ")}.`
-    : `Se adjudicará directamente: el costo total (${costo}) no supera el umbral de aprobación (${umbral}) y el acuerdo está dentro de sus límites.`
+  const regla = razones.length ? (
+    <>
+      Irá a un aprobador porque{" "}
+      {razones.map((r, i) => (
+        <Fragment key={r}>
+          {i > 0 && " y "}
+          {textoRazon[r]}
+        </Fragment>
+      ))}
+      .
+    </>
+  ) : (
+    <>
+      Se adjudicará directamente: el costo total ({costo}) no supera el{" "}
+      {termino} ({umbral}) y el acuerdo está dentro de sus límites.
+    </>
+  )
 
   // El 422 de la justificación va junto al campo (si se pide); cualquier otro error, en el aviso del diálogo.
   const delServicio = erroresPorCampo(adjudicar.error)

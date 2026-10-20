@@ -145,7 +145,8 @@ export function SeccionEvaluacion({
           Los acuerdos tentativos, del mejor al peor. Cada uno se califica con
           su costo total, el <Termino clave="desempeno">desempeño</Termino> del
           proveedor, su riesgo y el <Termino clave="sla">SLA</Termino>. La
-          recomendación es una guía: la decisión es suya.
+          recomendación es una guía: la{" "}
+          <Termino clave="adjudicacion">adjudicación</Termino> es decisión suya.
         </>
       }
     >

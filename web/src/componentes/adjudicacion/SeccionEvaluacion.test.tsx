@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import type { Evento } from "@/negociacion"
+import { GLOSARIO } from "@/glosario"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
   CON_RECOMENDACION,
@@ -16,6 +17,7 @@ import {
   RECOMENDACION,
   RUTA,
   SIN_ACUERDOS,
+  sesion,
 } from "@/pruebas/evaluacion"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
@@ -24,6 +26,7 @@ import {
   respuestaDiferida,
   respuestaJson,
   simularRutas,
+  sinEspaciosDuros,
 } from "@/pruebas/utilidades"
 import { formatoMoneda } from "@/tipos"
 
@@ -62,9 +65,6 @@ function abrir() {
 const tablaCandidatos = () =>
   screen.getByRole("table", { name: "Candidatos de la evaluación" })
 
-/** Testing Library compara con los espacios duros de Intl ya convertidos en espacios. */
-const sinEspaciosDuros = (texto: string) => texto.replace(/\s+/g, " ")
-
 /** Los datos de la fila de un proveedor en la tabla de candidatos. */
 function fila(proveedor: string) {
   const celda = within(tablaCandidatos()).getByText(proveedor)
@@ -91,6 +91,28 @@ afterEach(() => {
 })
 
 describe("Sección «Evaluación»", () => {
+  it("define la adjudicación y «fuera de límites» con sus términos", async () => {
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+      [`GET ${EVALUACION}`]: () => respuestaJson(CON_RECOMENDACION),
+    })
+    abrir()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "adjudicación" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Adjudicación" })
+    ).toHaveTextContent(GLOSARIO.adjudicacion.definicion)
+    await userEvent.keyboard("{Escape}")
+
+    await userEvent.click(
+      fila("Datos del Sur").getByRole("button", { name: "Fuera de límites" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Fuera de límites" })
+    ).toHaveTextContent(GLOSARIO.fuera_de_limites.definicion)
+  })
+
   it("muestra los candidatos en orden, con el recomendado marcado con texto", async () => {
     simularRutas({
       [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
@@ -486,8 +508,33 @@ describe("TablaCandidatos", () => {
       />
     )
     expect(fila("Nube Norte").getByText("Recomendado")).toHaveClass("bg-card")
-    expect(fila("Datos del Sur").getByText("Fuera de límites")).toHaveClass(
-      "bg-card"
+    // El texto es el término del glosario; el fondo es el de la etiqueta que lo contiene.
+    expect(
+      fila("Datos del Sur")
+        .getByText("Fuera de límites")
+        .closest("[data-slot=badge]")
+    ).toHaveClass("bg-card")
+  })
+
+  it("define «fuera de límites» solo en la primera fila que lo lleva", () => {
+    const dos = {
+      ...EVENTO,
+      sesiones: [
+        sesion("s1", "Nube Norte", "acuerdo_tentativo", true),
+        sesion("s2", "Datos del Sur", "acuerdo_tentativo", true),
+      ],
+    }
+    renderizarPagina(
+      <TablaCandidatos
+        recomendacion={RECOMENDACION}
+        evento={dos as unknown as Evento}
+      />
     )
+    expect(screen.getAllByText("Fuera de límites")).toHaveLength(2)
+    const terminos = screen.getAllByRole("button", { name: "Fuera de límites" })
+    expect(terminos).toHaveLength(1)
+    expect(
+      fila("Nube Norte").getByRole("button", { name: "Fuera de límites" })
+    ).toBe(terminos[0])
   })
 })

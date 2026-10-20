@@ -1,6 +1,7 @@
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { GLOSARIO } from "@/glosario"
 import { Configuracion } from "@/paginas/Configuracion"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
@@ -175,6 +176,32 @@ describe("Configuracion", () => {
         "Son los valores iniciales: nadie los ha cambiado todavía."
       )
     ).toBeInTheDocument()
+  })
+
+  it("su descripción menciona la adjudicación y su umbral de aprobación, con sus definiciones", async () => {
+    api()
+    renderizar()
+    const descripcion = screen.getByText(
+      (_, elemento) =>
+        elemento?.tagName === "P" &&
+        elemento.textContent ===
+          "Ajuste cómo se califica a los proveedores, cómo se calcula el precio de referencia, los pesos con que se recomienda una adjudicación y su umbral de aprobación."
+    )
+    for (const termino of [
+      "precio de referencia",
+      "adjudicación",
+      "umbral de aprobación",
+    ])
+      expect(
+        within(descripcion).getByRole("button", { name: termino })
+      ).toBeInTheDocument()
+
+    await userEvent.click(
+      within(descripcion).getByRole("button", { name: "umbral de aprobación" })
+    )
+    expect(
+      await screen.findByRole("dialog", { name: "Umbral de aprobación" })
+    ).toHaveTextContent(GLOSARIO.umbral_aprobacion.definicion)
   })
 
   it("bloquea a quien no es administrador", () => {

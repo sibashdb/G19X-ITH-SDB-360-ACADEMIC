@@ -71,7 +71,7 @@ export const ARTICULOS: Articulo[] = [
           "Administración importa del ERP el catálogo, los proveedores, los contratos y el desempeño.",
           "Usted revisa en Proveedores quién le vende, sus contratos y cómo rinde.",
           "En Precios compara lo que paga con el precio de referencia del mercado.",
-          "En Negociaciones crea una negociación y fija sus límites; un agente negocia por usted con cada proveedor, y usted supervisa y puede intervenir. La aprobación de cada cierre llegará en una próxima versión.",
+          "En Negociaciones crea una negociación y fija sus límites; un agente negocia por usted con cada proveedor, y usted supervisa y puede intervenir. Al terminar, usted adjudica el acuerdo que elija; si su costo supera el umbral de aprobación o el acuerdo sale de sus límites, un aprobador lo aprueba antes de que sea el contrato.",
         ],
       },
       {
@@ -206,7 +206,13 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
     ],
-    enlaces: [{ texto: "Ir a Negociaciones", ruta: "/negociaciones" }],
+    enlaces: [
+      { texto: "Ir a Negociaciones", ruta: "/negociaciones" },
+      {
+        texto: "Leer «Adjudicar y aprobar»",
+        ruta: "/ayuda/adjudicar-y-aprobar",
+      },
+    ],
   },
   {
     slug: "como-negocia-el-agente",
@@ -240,6 +246,84 @@ export const ARTICULOS: Articulo[] = [
         parrafos: [
           "No acepta nada fuera de sus límites, y nunca muestra al proveedor sus límites, sus pesos ni las ofertas de otros proveedores. Si otro proveedor ofreció algo mejor, solo dice que hay propuestas más competitivas.",
           "Si un precio parece un error de captura (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, su límite), le pide al proveedor confirmarlo antes de responder, y esa respuesta no cuenta como ronda.",
+        ],
+      },
+    ],
+    enlaces: [
+      { texto: "Ir a Negociaciones", ruta: "/negociaciones" },
+      {
+        texto: "Leer «Adjudicar y aprobar»",
+        ruta: "/ayuda/adjudicar-y-aprobar",
+      },
+    ],
+  },
+  {
+    slug: "adjudicar-y-aprobar",
+    tema: "negociacion",
+    titulo: "Adjudicar y aprobar",
+    resumen:
+      "Elegir al proveedor, cuándo lo aprueba otra persona y qué pasa si nadie gana.",
+    secciones: [
+      {
+        titulo: "La evaluación",
+        parrafos: [
+          "Cuando vence la fecha límite o todas las sesiones terminan, la negociación pasa a «En evaluación». Si hay acuerdos tentativos, la sección «Evaluación» los muestra del mejor al peor, con «Recomendado» en el primero, y explica con texto por qué quedó cada uno donde está.",
+          "Cada acuerdo se califica con su costo total, el desempeño del proveedor, su riesgo y el SLA. Los pesos que reparten 100 puntos entre esos cuatro criterios (por defecto, 40 al costo, 30 al desempeño, 15 al riesgo y 15 al SLA) los fija administración en Configuración. Si quiere probar otro reparto, use «Ajustar pesos», escriba cuatro pesos que sumen 100 y pulse «Recalcular»: es una prueba suya y no cambia la configuración, aunque si adjudica con esos pesos, la propuesta guarda los que usó.",
+          "La recomendación es una guía: la decisión es suya.",
+        ],
+      },
+      {
+        titulo: "Adjudicar",
+        pasos: [
+          "En la tabla de candidatos, pulse «Adjudicar» en la fila del proveedor que elija. Solo el rol de compras adjudica.",
+          "Si elige a uno que no es el recomendado, escriba la justificación (de 10 a 1,000 caracteres): queda con la propuesta para quien la apruebe.",
+          "Lea en la confirmación si la adjudicación será directa o irá a un aprobador, y por qué. Después pulse «Confirmar».",
+        ],
+      },
+      {
+        titulo: "Cuándo decide un aprobador",
+        parrafos: [
+          "La adjudicación va a un aprobador si el costo total del acuerdo supera el umbral de aprobación o si el acuerdo quedó fuera de sus límites (por ejemplo, porque se aceptó o se propuso a mano). El umbral es de 500,000 MXN, salvo que administración lo cambie en Configuración. El costo total incluye la cuota de implementación y se compara en pesos mexicanos (los dólares, al tipo de cambio más reciente); un costo igual al umbral no lo supera.",
+          "Si no se da ninguna de las dos razones, la adjudicación es directa: la negociación queda «Adjudicada» en ese momento. La regla se aplica al proponer, así que un cambio posterior del umbral no mueve una propuesta que ya espera aprobación.",
+          "Al adjudicarse, la plataforma crea el contrato con lo acordado; su folio aparece en el resumen.",
+        ],
+      },
+      {
+        titulo: "Aprobar o rechazar",
+        parrafos: [
+          "Si la propuesta necesita aprobación, la negociación queda «Pendiente de aprobación». Quien tiene el rol de aprobación ve la misma evaluación con la propuesta resaltada, la justificación, las marcas «Fuera de límites» y el motivo por el que requiere aprobación. Compras y el resto del equipo ven la propuesta, pero no deciden: quien la propuso ve «Usted propuso esta adjudicación; la aprueba otra persona», y los demás, «Esperando aprobación de un aprobador». La lista de Negociaciones de quien aprueba empieza en «Por aprobar» si hay propuestas esperando.",
+        ],
+        pasos: [
+          "Revise la propuesta, su justificación y el motivo.",
+          "Pulse «Aprobar» para adjudicar, o «Rechazar» y escriba el motivo; queda en la bitácora.",
+        ],
+      },
+      {
+        titulo: "Reglas de la aprobación",
+        parrafos: [
+          "Quien propone no aprueba: aunque tenga también el rol de aprobación, en su propia propuesta no ve «Aprobar» ni «Rechazar». Así, quien elige y quien autoriza siempre son personas distintas.",
+          "Si la propuesta cambia mientras la revisa, la plataforma se lo dice y reemplaza los botones por «Revisar la propuesta nueva»: solo se aprueba o se rechaza lo que ya leyó.",
+          "Al aprobar, la negociación queda «Adjudicada». Al rechazar, vuelve a «En evaluación» y Compras puede proponer el mismo acuerdo u otro, o declarar desierta la negociación. Las propuestas rechazadas quedan en el resumen, con su motivo.",
+        ],
+      },
+      {
+        titulo: "Declarar desierta",
+        parrafos: [
+          "Si ningún acuerdo le conviene, pulse «Declarar desierta» en la sección «Evaluación», escriba el motivo y confirme. La negociación termina sin adjudicar a ningún proveedor, y eso no se puede deshacer. Solo se puede declarar desierta mientras está «En evaluación»: si hay una propuesta esperando aprobación, primero debe aprobarse o rechazarse.",
+          "Una negociación que termina sin ningún acuerdo tentativo se declara desierta sola, sin motivo.",
+        ],
+      },
+      {
+        titulo: "El aviso a los proveedores",
+        parrafos: [
+          "Cuando la negociación se adjudica o se declara desierta, cada proveedor recibe un correo con el resultado que le toca: que su oferta fue adjudicada y Compras se pondrá en contacto, que la negociación se adjudicó a otra propuesta, o que se declaró desierta. También lo ve en su portal mientras su enlace siga vigente. Nunca se les dice quién ganó ni se les muestra ningún monto.",
+          "Administración ve estos correos en Correos, como «Resultado de negociación».",
+        ],
+      },
+      {
+        titulo: "El resultado",
+        parrafos: [
+          "Con la negociación «Adjudicada» o «Desierta», la sección «Resultado» resume quién propuso y quién aprobó (o que fue una adjudicación directa), el proveedor, el costo total, el folio del contrato, el motivo si quedó desierta y las propuestas rechazadas. Cada paso queda en la bitácora de Actividad.",
         ],
       },
     ],
