@@ -19,13 +19,22 @@ export function unoDe<T extends string>(
   return permitidos.includes(valor as T) ? (valor as T) : null
 }
 
-/** Parámetros de búsqueda de la URL y una función para cambiarlos (`null` borra la clave). */
+/**
+ * Parámetros de búsqueda de la URL y una función para cambiarlos (`null` borra la clave). Con
+ * `replace` el cambio sustituye la entrada actual del historial en vez de agregar otra.
+ */
 export function useParametros(): [
   URLSearchParams,
-  (cambios: Record<string, string | null>) => void,
+  (
+    cambios: Record<string, string | null>,
+    opciones?: { replace?: boolean }
+  ) => void,
 ] {
   const [parametros, setParametros] = useSearchParams()
-  function actualizar(cambios: Record<string, string | null>) {
+  function actualizar(
+    cambios: Record<string, string | null>,
+    opciones?: { replace?: boolean }
+  ) {
     setParametros((previos) => {
       const siguientes = new URLSearchParams(previos)
       for (const [clave, valor] of Object.entries(cambios)) {
@@ -33,7 +42,7 @@ export function useParametros(): [
         else siguientes.delete(clave)
       }
       return siguientes
-    })
+    }, opciones)
   }
   return [parametros, actualizar]
 }

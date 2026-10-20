@@ -1,11 +1,13 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useNavigate } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Negociaciones } from "@/paginas/Negociaciones"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
   renderizarPagina,
+  respuestaDiferida,
   respuestaJson,
   simularApi,
   ubicacionActual,
@@ -35,6 +37,36 @@ const PAGINA = {
       creado_en: "2026-10-14T18:00:00Z",
     },
   ],
+}
+
+// La consulta de una sola fila con la que el aprobador sabe si tiene propuestas por aprobar.
+const PENDIENTES =
+  "/api/negociacion/eventos?estado=pendiente_aprobacion&pagina=1&tamano=1"
+
+const POR_APROBAR = {
+  total: 2,
+  elementos: [{ ...PAGINA.elementos[0], estado: "pendiente_aprobacion" }],
+}
+
+/** «Atrás» del navegador: si la redirección hubiera agregado una entrada, volvería a la URL sin filtro. */
+function Atras() {
+  const navegar = useNavigate()
+  return (
+    <button type="button" onClick={() => void navegar(-1)}>
+      Atrás
+    </button>
+  )
+}
+
+/** Responde la consulta de una fila con `pendientes`, la lista filtrada por las pendientes y, si no, la lista completa. */
+function simularAprobador(pendientes: () => Response | Promise<Response>) {
+  return simularApi((url) =>
+    url === PENDIENTES
+      ? pendientes()
+      : respuestaJson(
+          url.includes("estado=pendiente_aprobacion") ? POR_APROBAR : PAGINA
+        )
+  )
 }
 
 beforeEach(() => {
@@ -132,6 +164,144 @@ describe("Negociaciones", () => {
     expect(
       within(estados).getByRole("button", { name: "Abierta" })
     ).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("los filtros dicen Por aprobar, Adjudicada y Desierta, y Por aprobar filtra por las pendientes", async () => {
+    const api = simularApi(() => respuestaJson(PAGINA))
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    await screen.findByRole("link", { name: "NEG-2026-0001" })
+    const estados = screen.getByRole("group", { name: "Estado" })
+    for (const nombre of ["Por aprobar", "Adjudicada", "Desierta"])
+      expect(
+        within(estados).getByRole("button", { name: nombre })
+      ).toBeInTheDocument()
+    // El filtro se llama «Por aprobar»; la etiqueta de la fila sigue diciendo «Pendiente de aprobación».
+    expect(
+      within(estados).queryByRole("button", { name: "Pendiente de aprobación" })
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      within(estados).getByRole("button", { name: "Por aprobar" })
+    )
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+    await waitFor(() =>
+      expect(urlDeLlamada(api).searchParams.get("estado")).toBe(
+        "pendiente_aprobacion"
+      )
+    )
+  })
+
+  it("el aprobador entra con Por aprobar si hay alguna, sin agregar historial", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const api = simularAprobador(() => respuestaJson(POR_APROBAR))
+    renderizarPagina(
+      <>
+        <Negociaciones />
+        <Atras />
+      </>,
+      { ruta: "/negociaciones?pagina=2" }
+    )
+    expect(
+      await within(await screen.findByRole("table")).findByText(
+        "Pendiente de aprobación"
+      )
+    ).toBeInTheDocument()
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+    expect(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        { name: "Por aprobar" }
+      )
+    ).toHaveAttribute("aria-pressed", "true")
+    // Solo se pidió la consulta de una fila y la lista ya filtrada: nunca la lista completa.
+    expect(api.mock.calls.map(([url]) => String(url))).toEqual([
+      PENDIENTES,
+      "/api/negociacion/eventos?pagina=1&tamano=25&estado=pendiente_aprobacion",
+    ])
+    // Con `replace`, «Atrás» no tiene a dónde volver: la URL sigue filtrada.
+    await userEvent.click(screen.getByRole("button", { name: "Atrás" }))
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+  })
+
+  it("mientras revisa si hay propuestas por aprobar muestra la carga, no la lista completa", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const revision = respuestaDiferida()
+    const api = simularAprobador(() => revision.promesa)
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    expect(await screen.findByRole("status")).toHaveTextContent("Cargando…")
+    expect(api.mock.calls.map(([url]) => String(url))).toEqual([PENDIENTES])
+    revision.resolver(respuestaJson(POR_APROBAR))
+    await screen.findByRole("table")
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+  })
+
+  it("sin propuestas por aprobar el aprobador ve todas", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    simularAprobador(() => respuestaJson({ total: 0, elementos: [] }))
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    await screen.findByRole("link", { name: "NEG-2026-0001" })
+    expect(ubicacionActual()).toBe("/negociaciones")
+    expect(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        { name: "Todas" }
+      )
+    ).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("si no se puede saber si hay propuestas por aprobar, el aprobador ve todas", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    simularAprobador(() =>
+      respuestaJson(
+        { title: "Servicio no disponible", detail: "Intente más tarde." },
+        503
+      )
+    )
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    await screen.findByRole("link", { name: "NEG-2026-0001" })
+    expect(ubicacionActual()).toBe("/negociaciones")
+  })
+
+  it("quien no es aprobador no es redirigido ni consulta las pendientes", async () => {
+    const api = simularAprobador(() => respuestaJson(POR_APROBAR))
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    await screen.findByRole("link", { name: "NEG-2026-0001" })
+    expect(ubicacionActual()).toBe("/negociaciones")
+    expect(api.mock.calls.map(([url]) => String(url))).toEqual([
+      "/api/negociacion/eventos?pagina=1&tamano=25",
+    ])
+  })
+
+  it("si la URL ya trae un estado, el aprobador no es redirigido", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const api = simularAprobador(() => respuestaJson(POR_APROBAR))
+    renderizarPagina(<Negociaciones />, {
+      ruta: "/negociaciones?estado=abierto",
+    })
+    await screen.findByRole("link", { name: "NEG-2026-0001" })
+    expect(ubicacionActual()).toBe("/negociaciones?estado=abierto")
+    expect(api.mock.calls.some(([url]) => String(url) === PENDIENTES)).toBe(
+      false
+    )
+  })
+
+  it("después de entrar, elegir Todas se respeta y no regresa a Por aprobar", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const api = simularAprobador(() => respuestaJson(POR_APROBAR))
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    await screen.findByRole("table")
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        { name: "Todas" }
+      )
+    )
+    await within(screen.getByRole("table")).findByText("Abierta")
+    expect(ubicacionActual()).toBe("/negociaciones")
+    expect(urlDeLlamada(api).searchParams.get("estado")).toBeNull()
+    expect(
+      api.mock.calls.filter(([url]) => String(url) === PENDIENTES)
+    ).toHaveLength(1)
   })
 
   it("ignora filtros inválidos de la URL", async () => {

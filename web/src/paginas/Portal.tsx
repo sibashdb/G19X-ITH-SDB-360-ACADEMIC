@@ -4,8 +4,18 @@ import {
   useQueryClient,
   type QueryKey,
 } from "@tanstack/react-query"
-import { CircleOff, Handshake, Link2Off, Send, UserRound } from "lucide-react"
+import {
+  BadgeCheck,
+  CircleOff,
+  FileX,
+  Handshake,
+  Link2Off,
+  Send,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react"
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import { TEXTOS_RESULTADO } from "@/adjudicacion"
 import { ErrorApi, erroresPorCampo } from "@/api"
 import { SelectorTema } from "@/componentes/BarraSuperior"
 import { ConfirmarAccion } from "@/componentes/ConfirmarAccion"
@@ -47,6 +57,15 @@ const AUTORES: Record<Autor, string> = {
   agente: "Agente de compras",
   comprador: "Equipo de compras",
   sistema: "Aviso",
+}
+
+const ICONOS_RESULTADO: Record<
+  NonNullable<VistaPortal["resultado"]>,
+  LucideIcon
+> = {
+  adjudicada: BadgeCheck,
+  no_elegida: CircleOff,
+  desierta: FileX,
 }
 
 /** El portal del proveedor (spec §10.2): fuera del Layout, sin inicio de sesión. */
@@ -150,11 +169,13 @@ function SesionPortal({ token, clave }: { token: string; clave: QueryKey }) {
   // «Se envió su oferta.») desaparezca. El desenlace va oculto: la alerta visible dice lo mismo.
   const aviso = consulta.isRefetchError
     ? "No se pudo actualizar; se muestran los últimos datos recibidos."
-    : vista.estado === "acuerdo_tentativo"
-      ? "La negociación terminó con un acuerdo tentativo."
-      : vista.estado === "sin_acuerdo" || vista.estado === "expirada"
-        ? "La negociación terminó sin acuerdo."
-        : ""
+    : vista.resultado
+      ? `${TEXTOS_RESULTADO[vista.resultado]}.`
+      : vista.estado === "acuerdo_tentativo"
+        ? "La negociación terminó con un acuerdo tentativo."
+        : vista.estado === "sin_acuerdo" || vista.estado === "expirada"
+          ? "La negociación terminó sin acuerdo."
+          : ""
   return (
     <>
       <p
@@ -206,7 +227,8 @@ function Resumen({ vista }: { vista: VistaPortal }) {
         titulo={vista.titulo}
         descripcion={`${vista.folio} · Fecha límite: ${formatoFechaHora(vista.fecha_limite)} (hora de la Ciudad de México)${esFinal(vista.estado) ? "" : ` · ${restantes}`}`}
       />
-      {vista.estado === "acuerdo_tentativo" && (
+      {vista.resultado && <AvisoDeResultado resultado={vista.resultado} />}
+      {!vista.resultado && vista.estado === "acuerdo_tentativo" && (
         <Alert role="status">
           <Handshake aria-hidden />
           <AlertTitle>Acuerdo tentativo</AlertTitle>
@@ -217,16 +239,17 @@ function Resumen({ vista }: { vista: VistaPortal }) {
           </AlertDescription>
         </Alert>
       )}
-      {(vista.estado === "sin_acuerdo" || vista.estado === "expirada") && (
-        <Alert role="status">
-          <CircleOff aria-hidden />
-          <AlertTitle>La negociación terminó sin acuerdo</AlertTitle>
-          <AlertDescription>
-            Gracias por participar. Si tiene dudas, comuníquese con el equipo de
-            compras.
-          </AlertDescription>
-        </Alert>
-      )}
+      {!vista.resultado &&
+        (vista.estado === "sin_acuerdo" || vista.estado === "expirada") && (
+          <Alert role="status">
+            <CircleOff aria-hidden />
+            <AlertTitle>La negociación terminó sin acuerdo</AlertTitle>
+            <AlertDescription>
+              Gracias por participar. Si tiene dudas, comuníquese con el equipo
+              de compras.
+            </AlertDescription>
+          </Alert>
+        )}
       {vista.atendido_por === "persona" && !esFinal(vista.estado) && (
         <Alert role="status">
           <UserRound aria-hidden />
@@ -254,6 +277,24 @@ function Resumen({ vista }: { vista: VistaPortal }) {
         </ul>
       </Seccion>
     </div>
+  )
+}
+
+/**
+ * Lo que el proveedor sabe del desenlace (spec §4.6): el mismo texto del correo, sin el nombre del
+ * ganador ni ningún monto. Reemplaza al aviso de «acuerdo tentativo» y al de «sin acuerdo».
+ */
+function AvisoDeResultado({
+  resultado,
+}: {
+  resultado: NonNullable<VistaPortal["resultado"]>
+}) {
+  const Icono = ICONOS_RESULTADO[resultado]
+  return (
+    <Alert role="status">
+      <Icono aria-hidden />
+      <AlertTitle>{TEXTOS_RESULTADO[resultado]}</AlertTitle>
+    </Alert>
   )
 }
 

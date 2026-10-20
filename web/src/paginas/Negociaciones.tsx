@@ -1,6 +1,6 @@
 import { keepPreviousData } from "@tanstack/react-query"
 import { Hand, Handshake, Plus, X } from "lucide-react"
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { useRoles } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
@@ -23,6 +23,7 @@ import {
 import { formatoFechaHora } from "@/fechas"
 import {
   NOMBRES_ESTADO_EVENTO,
+  NOMBRES_FILTRO_ESTADO,
   NOMBRES_TIPO,
   useNegociacion,
   type EstadoEvento,
@@ -32,17 +33,42 @@ import {
 import { enteroPositivo, unoDe, useParametros } from "@/parametros"
 
 const POR_PAGINA = 25
+// Basta una fila: solo importa el total de propuestas por aprobar.
+const PENDIENTES = "/eventos?estado=pendiente_aprobacion&pagina=1&tamano=1"
 const ESTADOS = Object.keys(NOMBRES_ESTADO_EVENTO) as EstadoEvento[]
 const TIPOS = Object.keys(NOMBRES_TIPO) as TipoEvento[]
 
 export function Negociaciones() {
-  const esComprador = useRoles().includes("comprador")
+  const roles = useRoles()
+  const esComprador = roles.includes("comprador")
   const [parametros, actualizar] = useParametros()
   const filtros = useRef<HTMLDivElement>(null)
   // Los valores de la URL se validan: uno inválido cuenta como "sin filtro" y no llega a la API.
   const estado = unoDe(parametros.get("estado"), ESTADOS)
   const tipo = unoDe(parametros.get("tipo"), TIPOS)
   const pagina = enteroPositivo(parametros.get("pagina"), 1, 1000)
+  // Al entrar, el aprobador va a «Por aprobar» si hay alguna (spec §7.2). Se revisa una sola vez por
+  // visita: después se respeta lo que elija, y mientras tanto la lista espera en vez de saltar.
+  const [revisando, setRevisando] = useState(
+    () => roles.includes("aprobador") && !estado
+  )
+  const pendientes = useNegociacion<PaginaEventos>(PENDIENTES, {
+    enabled: revisando,
+  })
+  // Si la revisión falló no hay total, y se muestran todas.
+  const porAprobar = (pendientes.data?.total ?? 0) > 0
+  const respondio = !pendientes.isFetching
+  // La revisión termina con un estado en la URL (el de la redirección o uno elegido a mano) o sin
+  // nada por aprobar. Se espera a ver el estado en la URL: el enrutador la cambia en una transición
+  // y, si la revisión terminara antes, la lista pediría un instante todas las negociaciones.
+  if (revisando && (estado || (respondio && !porAprobar))) setRevisando(false)
+  useEffect(() => {
+    if (revisando && !estado && respondio && porAprobar)
+      actualizar(
+        { estado: "pendiente_aprobacion", pagina: null },
+        { replace: true }
+      )
+  }, [revisando, estado, respondio, porAprobar, actualizar])
   const busqueda = new URLSearchParams({
     pagina: String(pagina),
     tamano: String(POR_PAGINA),
@@ -51,6 +77,8 @@ export function Negociaciones() {
   if (tipo) busqueda.set("tipo", tipo)
   const consulta = useNegociacion<PaginaEventos>(`/eventos?${busqueda}`, {
     placeholderData: keepPreviousData,
+    // Sin datos y sin consulta, la lista muestra «Cargando…» hasta que termine la revisión.
+    enabled: !revisando,
   })
   const nueva = esComprador ? (
     <Button asChild>
@@ -213,7 +241,7 @@ export function Negociaciones() {
                   activo={estado === e}
                   onClick={() => actualizar({ estado: e, pagina: null })}
                 >
-                  {NOMBRES_ESTADO_EVENTO[e]}
+                  {NOMBRES_FILTRO_ESTADO[e]}
                 </Filtro>
               ))}
             </div>

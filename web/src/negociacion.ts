@@ -261,6 +261,12 @@ export const NOMBRES_ESTADO_EVENTO: Record<EstadoEvento, string> = {
   cancelado: "Cancelada",
 }
 
+/** Los chips de filtro: igual que las etiquetas, salvo que lo «pendiente de aprobación» se pide como «Por aprobar». */
+export const NOMBRES_FILTRO_ESTADO: Record<EstadoEvento, string> = {
+  ...NOMBRES_ESTADO_EVENTO,
+  pendiente_aprobacion: "Por aprobar",
+}
+
 export const NOMBRES_ESTADO_SESION: Record<EstadoSesion, string> = {
   invitada: "Invitada",
   activa: "Activa",

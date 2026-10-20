@@ -424,6 +424,89 @@ describe("Portal", () => {
     ).toHaveAttribute("role", "status")
   })
 
+  it.each([
+    [
+      "adjudicada",
+      "acuerdo_tentativo",
+      "Su oferta fue adjudicada; el equipo de compras se pondrá en contacto",
+    ],
+    [
+      "no_elegida",
+      "acuerdo_tentativo",
+      "La negociación se adjudicó a otra propuesta",
+    ],
+    ["desierta", "sin_acuerdo", "La negociación se declaró desierta"],
+  ])(
+    "el portal muestra el resultado %s en lugar del acuerdo tentativo",
+    async (resultado, estado, texto) => {
+      simularRutas({
+        [`GET ${SESION}`]: () =>
+          respuestaJson({
+            ...VISTA,
+            estado,
+            resultado,
+            ultima_propuesta: null,
+          }),
+      })
+      const { container } = abrirCon()
+      const aviso = (await screen.findByText(texto)).closest("[role=status]")
+      // Solo el texto del resultado: ni el nombre de otro proveedor ni ningún monto.
+      expect(aviso).toHaveTextContent(new RegExp(`^${texto}$`))
+      // La región fija lo anuncia, aunque el aviso visible aparezca de golpe.
+      expect(screen.getByText(`${texto}.`)).toHaveAttribute("role", "status")
+      expect(screen.queryByText("Acuerdo tentativo")).not.toBeInTheDocument()
+      expect(screen.queryByText(/No es vinculante/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "Enviar oferta" })
+      ).not.toBeInTheDocument()
+      await esperarSinViolaciones(container)
+    }
+  )
+
+  it("sin resultado el portal no muestra el aviso", async () => {
+    simularRutas({
+      [`GET ${SESION}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          estado: "acuerdo_tentativo",
+          ultima_propuesta: null,
+        }),
+    })
+    abrirCon()
+    expect(await screen.findByText("Acuerdo tentativo")).toBeInTheDocument()
+    expect(screen.queryByText(/fue adjudicada/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/se adjudicó a otra/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/se declaró desierta/)).not.toBeInTheDocument()
+  })
+
+  it("al llegar el resultado con la página abierta, la región fija lo anuncia", async () => {
+    let resuelta = false
+    simularRutas({
+      [`GET ${SESION}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          estado: "acuerdo_tentativo",
+          resultado: resuelta ? "no_elegida" : null,
+          ultima_propuesta: null,
+        }),
+    })
+    const { cliente } = abrirCon()
+    const region = (
+      await screen.findByText(
+        "La negociación terminó con un acuerdo tentativo."
+      )
+    ).closest("[role=status]")
+    resuelta = true
+    act(() => {
+      void cliente.invalidateQueries({ queryKey: ["portal"] })
+    })
+    await waitFor(() =>
+      expect(region).toHaveTextContent(
+        "La negociación se adjudicó a otra propuesta."
+      )
+    )
+  })
+
   it("al enviar la oferta que cierra con un acuerdo tentativo, lo anuncia en una región de estado", async () => {
     simularRutas({
       [`GET ${SESION}`]: () => respuestaJson(VISTA),
