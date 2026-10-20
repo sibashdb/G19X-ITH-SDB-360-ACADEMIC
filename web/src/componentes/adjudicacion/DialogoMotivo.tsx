@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useId, useRef, useState, type FormEvent, type ReactNode } from "react"
-import type { Evaluacion } from "@/adjudicacion"
+import { DECISION, type Evaluacion } from "@/adjudicacion"
 import { ErrorApi, enviarJson, erroresPorCampo, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { Campo } from "@/componentes/negociacion/Campo"
@@ -21,12 +21,13 @@ const MOTIVO_VACIO = "Escriba el motivo."
 
 /**
  * Un diálogo que pide un motivo (de 1 a 500 caracteres) y lo manda con un POST a `ruta`; lo usan
- * «Declarar desierta» y «Rechazar». `datos` va en el mismo cuerpo, con los valores que había al
- * abrir el diálogo: lo que la pantalla muestre detrás después no cambia lo que se decide.
+ * «Declarar desierta» y «Rechazar». `datos` va en el mismo cuerpo. `ocupado` es que hay otra
+ * decisión en camino: el botón que abre el diálogo no abre mientras tanto.
  */
 export function DialogoMotivo({
   ruta,
   datos,
+  ocupado = false,
   textoAbrir,
   textoEnviar,
   titulo,
@@ -40,6 +41,7 @@ export function DialogoMotivo({
   /** Ruta completa del POST, p. ej. `/negociacion/eventos/{id}/desierta`. */
   ruta: string
   datos?: Record<string, unknown>
+  ocupado?: boolean
   /** El botón que abre el diálogo. */
   textoAbrir: string
   /** El botón que envía el motivo. */
@@ -61,18 +63,18 @@ export function DialogoMotivo({
   const [motivo, setMotivo] = useState("")
   const [intentado, setIntentado] = useState(false)
   const terminada = useRef(false)
-  const vistos = useRef(datos)
   const campo = useRef<HTMLTextAreaElement>(null)
   const abridor = useRef<HTMLButtonElement>(null)
   const enviarMotivo = useMutation({
     // Sin red, que falle de inmediato y se pueda cerrar el diálogo: por omisión la solicitud
     // se quedaría en espera y el diálogo, sin poder cerrarse.
     networkMode: "always",
+    mutationKey: DECISION,
     mutationFn: () =>
       pedir<Evaluacion>(
         ruta,
         token,
-        enviarJson("POST", { ...vistos.current, motivo: motivo.trim() })
+        enviarJson("POST", { ...datos, motivo: motivo.trim() })
       ),
     onSuccess: async () => {
       terminada.current = true
@@ -119,11 +121,12 @@ export function DialogoMotivo({
       onOpenChange={(valor) => {
         // Cerrar con la solicitud en camino borraría su estado y permitiría enviar otra.
         if (!valor && enviarMotivo.isPending) return
+        // Con otra decisión en camino no se abre: se decidirían dos cosas a la vez.
+        if (valor && ocupado) return
         setAbierto(valor)
         // Se limpia al abrir y no al cerrar: así nada cambia mientras el diálogo se desvanece.
         if (valor) {
           terminada.current = false
-          vistos.current = datos
           setMotivo("")
           setIntentado(false)
           enviarMotivo.reset()
@@ -132,7 +135,12 @@ export function DialogoMotivo({
       }}
     >
       <DialogTrigger asChild>
-        <Button ref={abridor} type="button" variant="outline">
+        <Button
+          ref={abridor}
+          type="button"
+          variant="outline"
+          aria-disabled={ocupado}
+        >
           {textoAbrir}
         </Button>
       </DialogTrigger>
@@ -144,7 +152,10 @@ export function DialogoMotivo({
           // no existe. En un cierre normal, el foco vuelve al botón.
           if (!terminada.current && abridor.current?.isConnected) return
           cierre.preventDefault()
-          document.getElementById("contenido")?.focus()
+          // Si la sección ya puso el foco en otra parte (p. ej. en su aviso de que la propuesta
+          // cambió), se queda ahí: solo se rescata el foco que quedó en <body>.
+          if (document.activeElement === document.body)
+            document.getElementById("contenido")?.focus()
         }}
       >
         {/* noValidate: el aviso lo da la página, en español y junto al campo, no el navegador. */}

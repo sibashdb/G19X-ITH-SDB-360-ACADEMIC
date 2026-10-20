@@ -96,6 +96,9 @@ export const NOMBRES_NIVEL_RIESGO: Record<Riesgo["nivel"], string> = {
   medio: "Medio",
   alto: "Alto",
 }
+/** Clave de las mutaciones que deciden sobre la negociación: con una en camino no se empieza otra. */
+export const DECISION = ["adjudicacion", "decision"]
+
 export const NOMBRES_MOTIVO: Record<MotivoAprobacion, string> = {
   umbral: "Supera el umbral de aprobación",
   fuera_de_limites: "Fuera de límites",

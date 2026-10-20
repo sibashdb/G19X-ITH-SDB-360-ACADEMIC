@@ -105,6 +105,8 @@ const seccion = async () => {
 }
 const aprobar = () => screen.getByRole("button", { name: "Aprobar" })
 const rechazar = () => screen.getByRole("button", { name: "Rechazar" })
+const revisarNueva = () =>
+  screen.getByRole("button", { name: "Revisar la propuesta nueva" })
 
 /** Las llamadas POST que llegaron a una ruta. */
 const envios = (api: ReturnType<typeof simularRutas>, url: string) =>
@@ -365,11 +367,10 @@ describe("Pendiente de aprobación", () => {
     )
   })
 
-  it("rechazar manda el id de la propuesta que se vio al abrir, aunque la pantalla cambie detrás", async () => {
+  it("si la propuesta cambia detrás del diálogo, el diálogo desaparece con las acciones y no se decide nada", async () => {
     let cambio = false
     const { api, cliente } = abrirPendiente(DE_LUIS, {
       [`GET ${EVALUACION}`]: () => respuestaJson(cambio ? DE_MARTA : DE_LUIS),
-      [`POST ${RECHAZAR}`]: () => problema(409, "propuesta_distinta", DISTINTA),
     })
     await seccion()
     const dialogo = await abrirRechazo()
@@ -377,17 +378,21 @@ describe("Pendiente de aprobación", () => {
       within(dialogo).getByLabelText("Motivo del rechazo"),
       "El costo es alto"
     )
-    // La evaluación se actualiza con el diálogo abierto: la propuesta de Marta aún no se revisó.
+    // La evaluación se actualiza con el diálogo abierto y trae la propuesta de Marta, que nadie revisó.
     cambio = true
     await act(async () => {
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     })
-    await userEvent.click(confirmarRechazo(dialogo))
-    await waitFor(() => expect(envios(api, RECHAZAR)).toHaveLength(1))
-    expect(llamadaA(api, RECHAZAR, "POST").cuerpo).toEqual({
-      adjudicacion_id: "a1",
-      motivo: "El costo es alto",
-    })
+    await screen.findByText(/Propuesta de Marta Ruiz/)
+    // Las acciones se reemplazan por el aviso del cambio y el diálogo se va con ellas.
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    expect(
+      screen.queryByRole("button", { name: "Rechazar" })
+    ).not.toBeInTheDocument()
+    expect(revisarNueva()).toBeInTheDocument()
+    expect(envios(api, RECHAZAR)).toHaveLength(0)
   })
 
   it("un 409 de propuesta distinta explica, recarga la evaluación y no decide", async () => {
@@ -415,12 +420,48 @@ describe("Pendiente de aprobación", () => {
     expect(lecturas(api, EVALUACION)).toBe(2)
     expect(envios(api, APROBAR)).toHaveLength(1)
     expect(envios(api, RECHAZAR)).toHaveLength(0)
-    await waitFor(() =>
-      expect(document.getElementById("contenido")).toHaveFocus()
+    // Las acciones se reemplazan por el aviso del cambio, y ahí recibe el foco el aprobador.
+    expect(
+      screen.queryByRole("button", { name: "Aprobar" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Rechazar" })
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(revisarNueva()).toHaveFocus())
+    expect(revisarNueva()).toHaveAccessibleDescription(
+      /La propuesta cambió mientras usted la revisaba/
     )
   })
 
-  it("tras un conflicto, aprobar de nuevo manda la propuesta nueva y el aviso se sustituye", async () => {
+  it("un segundo clic apresurado tras el 409 no aprueba la propuesta nueva", async () => {
+    let cambio = false
+    const { api } = abrirPendiente(DE_LUIS, {
+      [`GET ${EVALUACION}`]: () => respuestaJson(cambio ? DE_MARTA : DE_LUIS),
+      [`POST ${APROBAR}`]: () => {
+        cambio = true
+        return problema(409, "propuesta_distinta", DISTINTA)
+      },
+    })
+    await seccion()
+    const boton = aprobar()
+    // Dos clics seguidos: la segunda aprobación no sale mientras la primera está en camino.
+    await userEvent.dblClick(boton)
+    await screen.findByText(/Propuesta de Marta Ruiz/)
+    // Con la propuesta nueva a la vista, nada ofrece decidir en el lugar de «Aprobar»: un clic más
+    // (del dedo que seguía ahí) no llega a ninguna acción.
+    await userEvent.click(boton)
+    expect(
+      screen.queryByRole("button", { name: "Aprobar" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Rechazar" })
+    ).not.toBeInTheDocument()
+    expect(
+      envios(api, APROBAR).map(([, init]) => JSON.parse(String(init?.body)))
+    ).toEqual([{ adjudicacion_id: "a1" }])
+  })
+
+  it("tras un conflicto, «Revisar la propuesta nueva» devuelve las acciones y aprobar manda la propuesta nueva", async () => {
     let cambio = false
     let intentos = 0
     const { api } = abrirPendiente(DE_LUIS, {
@@ -437,15 +478,23 @@ describe("Pendiente de aprobación", () => {
     await seccion()
     await userEvent.click(aprobar())
     await screen.findByText(DISTINTA)
-    await screen.findByText(/Propuesta de Marta Ruiz/)
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Revisar la propuesta nueva" })
+    )
 
+    // El aviso del cambio se va, las acciones vuelven y el foco pasa al título (no a <body>).
+    expect(
+      screen.queryByRole("button", { name: "Revisar la propuesta nueva" })
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: TITULO })).toHaveFocus()
+    // El conflicto anterior ya no viene al caso.
+    expect(screen.queryByText(DISTINTA)).not.toBeInTheDocument()
     await userEvent.click(aprobar())
     await screen.findByText("Se aprobó la adjudicación.")
     expect(llamadaA(api, APROBAR, "POST").cuerpo).toEqual({
       adjudicacion_id: "a2",
     })
-    // El aviso nuevo sustituye al anterior.
-    expect(screen.queryByText(DISTINTA)).not.toBeInTheDocument()
+    expect(envios(api, APROBAR)).toHaveLength(2)
   })
 
   it("un 409 de propuesta distinta al rechazar cierra el diálogo, explica y recarga", async () => {
@@ -476,8 +525,13 @@ describe("Pendiente de aprobación", () => {
     expect(lecturas(api, EVALUACION)).toBe(2)
     expect(envios(api, RECHAZAR)).toHaveLength(1)
     expect(envios(api, APROBAR)).toHaveLength(0)
-    // El botón sigue ahí: recupera el foco. Al reabrir, el diálogo está limpio.
-    await waitFor(() => expect(rechazar()).toHaveFocus())
+    // Las acciones se reemplazan por el aviso del cambio, que recibe el foco.
+    expect(
+      screen.queryByRole("button", { name: "Rechazar" })
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(revisarNueva()).toHaveFocus())
+    // Tras revisarla, «Rechazar» vuelve y el diálogo abre limpio.
+    await userEvent.click(revisarNueva())
     const otro = await abrirRechazo()
     expect(within(otro).getByLabelText("Motivo del rechazo")).toHaveValue("")
     expect(within(otro).getByRole("alert")).toBeEmptyDOMElement()
@@ -613,6 +667,195 @@ describe("Pendiente de aprobación", () => {
     expect(envios(api, RECHAZAR)).toHaveLength(0)
   })
 
+  it("mientras se aprueba, «Rechazar» no abre", async () => {
+    const lenta = respuestaDiferida()
+    abrirPendiente(DE_LUIS, { [`POST ${APROBAR}`]: () => lenta.promesa })
+    await seccion()
+    await userEvent.click(aprobar())
+    // aria-disabled y no disabled: el botón conserva su lugar en el orden del teclado.
+    expect(rechazar()).toHaveAttribute("aria-disabled", "true")
+    expect(rechazar()).not.toBeDisabled()
+    await userEvent.click(rechazar())
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    await act(async () =>
+      lenta.resolver(respuestaJson(propuesta("s2", "aprobada")))
+    )
+    await screen.findByText("Se aprobó la adjudicación.")
+    await waitFor(() =>
+      expect(rechazar()).toHaveAttribute("aria-disabled", "false")
+    )
+  })
+
+  it("mientras una decisión sigue en camino, «Aprobar» no manda otra", async () => {
+    const lenta = respuestaDiferida()
+    let rechazada = false
+    const { api } = abrirPendiente(DE_LUIS, {
+      [`GET ${RUTA}`]: () =>
+        rechazada ? lenta.promesa : respuestaJson(PENDIENTE),
+      [`POST ${RECHAZAR}`]: () => {
+        rechazada = true
+        return respuestaJson({
+          recomendacion: null,
+          vigente: null,
+          historial: [],
+        })
+      },
+    })
+    await seccion()
+    const dialogo = await abrirRechazo()
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo del rechazo"),
+      "El costo es alto"
+    )
+    await userEvent.click(confirmarRechazo(dialogo))
+    await screen.findByText(
+      "Se rechazó la propuesta; la negociación vuelve a evaluación."
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    // El diálogo ya se cerró, pero la decisión sigue hasta que la negociación se actualiza.
+    expect(aprobar()).toHaveAttribute("aria-disabled", "true")
+    await userEvent.click(aprobar())
+    expect(envios(api, APROBAR)).toHaveLength(0)
+    await act(async () =>
+      lenta.resolver(respuestaJson({ ...EVENTO, estado: "en_evaluacion" }))
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: TITULO })
+      ).not.toBeInTheDocument()
+    )
+  })
+
+  it("una propuesta que ya no está pendiente no ofrece acciones ni dice que hay que actualizar", async () => {
+    for (const roles of [["aprobador"], ["comprador"]]) {
+      for (const estado of ["aprobada", "directa", "rechazada"] as const) {
+        sesionDePrueba.roles = roles
+        abrirPendiente(
+          propuesta("s2", estado, {
+            propuesta_por_id: "luis-2",
+            propuesta_por_nombre: "Luis Pérez",
+          })
+        )
+        await seccion()
+        const caso = `${roles} / ${estado}`
+        expect(
+          screen.queryByRole("button", { name: /Aprobar|Rechazar|Revisar/ }),
+          caso
+        ).not.toBeInTheDocument()
+        for (const texto of [
+          "Esperando aprobación de un aprobador.",
+          "Usted propuso esta adjudicación; la aprueba otra persona.",
+          "No hay una propuesta pendiente.",
+        ])
+          expect(screen.queryByText(texto), caso).not.toBeInTheDocument()
+        expect(screen.getByText(/Propuesta de Luis Pérez/)).toBeInTheDocument()
+        cleanup()
+      }
+    }
+  })
+
+  it("al aprobar, mientras la negociación se actualiza, la propuesta aprobada no ofrece decidir otra vez", async () => {
+    const lenta = respuestaDiferida()
+    let aprobada = false
+    abrirPendiente(DE_LUIS, {
+      [`GET ${RUTA}`]: () =>
+        aprobada ? lenta.promesa : respuestaJson(PENDIENTE),
+      [`GET ${EVALUACION}`]: () =>
+        respuestaJson(
+          aprobada
+            ? propuesta("s2", "aprobada", {
+                propuesta_por_id: "luis-2",
+                propuesta_por_nombre: "Luis Pérez",
+              })
+            : DE_LUIS
+        ),
+      [`POST ${APROBAR}`]: () => {
+        aprobada = true
+        return respuestaJson(propuesta("s2", "aprobada"))
+      },
+    })
+    await seccion()
+    await userEvent.click(aprobar())
+    await screen.findByText("Se aprobó la adjudicación.")
+    // La evaluación ya dice «aprobada», pero la negociación aún no se actualizó: la sección sigue
+    // a la vista, sin botones y sin pedir que se actualice la página.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Aprobar" })
+      ).not.toBeInTheDocument()
+    )
+    expect(
+      screen.queryByRole("button", { name: "Rechazar" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("No hay una propuesta pendiente.")
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: TITULO })).toBeInTheDocument()
+    await act(async () =>
+      lenta.resolver(respuestaJson({ ...EVENTO, estado: "adjudicado" }))
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: TITULO })
+      ).not.toBeInTheDocument()
+    )
+  })
+
+  it("tras rechazar, la foto de la propuesta no se ofrece como evaluación mientras llega la viva", async () => {
+    // Quien compra y aprueba: sus botones «Adjudicar» saldrían en la foto de la propuesta rechazada.
+    sesionDePrueba.roles = ["comprador", "aprobador"]
+    const viva = respuestaDiferida()
+    let rechazada = false
+    let pedidas = 0
+    abrirPendiente(DE_LUIS, {
+      [`GET ${RUTA}`]: () =>
+        respuestaJson({
+          ...EVENTO,
+          estado: rechazada ? "en_evaluacion" : "pendiente_aprobacion",
+        }),
+      [`GET ${EVALUACION}`]: () => {
+        if (!rechazada) return respuestaJson(DE_LUIS)
+        pedidas += 1
+        return pedidas === 1 ? viva.promesa : respuestaJson(CON_RECOMENDACION)
+      },
+      [`POST ${RECHAZAR}`]: () => {
+        rechazada = true
+        return respuestaJson({
+          recomendacion: null,
+          vigente: null,
+          historial: [],
+        })
+      },
+    })
+    await seccion()
+    const dialogo = await abrirRechazo()
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo del rechazo"),
+      "El costo es alto"
+    )
+    await userEvent.click(confirmarRechazo(dialogo))
+    await screen.findByRole("heading", { name: "Evaluación" })
+    // La evaluación viva todavía no llega: lo que hay en caché es la foto de la propuesta rechazada.
+    expect(
+      screen.queryByRole("table", { name: "Candidatos de la evaluación" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /Adjudicar/ })
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Cargando…")).toBeInTheDocument()
+
+    await act(async () => viva.resolver(respuestaJson(CON_RECOMENDACION)))
+    const tabla = await screen.findByRole("table", {
+      name: "Candidatos de la evaluación",
+    })
+    expect(
+      within(tabla).getAllByRole("button", { name: /Adjudicar/ })
+    ).toHaveLength(2)
+    expect(within(tabla).queryByText("Propuesta")).not.toBeInTheDocument()
+  })
+
   it("no tiene violaciones de axe en claro ni en oscuro", async () => {
     const { container } = abrirPendiente()
     await seccion()
@@ -627,9 +870,33 @@ describe("Pendiente de aprobación", () => {
   })
 
   it("quien propuso o espera tampoco tiene violaciones de axe", async () => {
-    sesionDePrueba.roles = ["comprador"]
-    const { container } = abrirPendiente(DE_LUIS)
+    const PROPUSO = "Usted propuso esta adjudicación; la aprueba otra persona."
+    const ESPERA = "Esperando aprobación de un aprobador."
+    for (const [evaluacion, texto] of [
+      [DE_ANA, PROPUSO],
+      [DE_LUIS, ESPERA],
+    ] as const) {
+      sesionDePrueba.roles = ["comprador"]
+      const { container } = abrirPendiente(evaluacion)
+      await seccion()
+      expect(screen.getByText(texto)).toBeInTheDocument()
+      await esperarSinViolaciones(container)
+      cleanup()
+    }
+  })
+
+  it("el aviso de que la propuesta cambió tampoco tiene violaciones de axe", async () => {
+    let cambio = false
+    const { container } = abrirPendiente(DE_LUIS, {
+      [`GET ${EVALUACION}`]: () => respuestaJson(cambio ? DE_MARTA : DE_LUIS),
+      [`POST ${APROBAR}`]: () => {
+        cambio = true
+        return problema(409, "propuesta_distinta", DISTINTA)
+      },
+    })
     await seccion()
+    await userEvent.click(aprobar())
+    await screen.findByRole("button", { name: "Revisar la propuesta nueva" })
     await esperarSinViolaciones(container)
   })
 })

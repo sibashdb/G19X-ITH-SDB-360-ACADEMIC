@@ -9,12 +9,15 @@ import type { Evento } from "@/negociacion"
 export function DialogoRechazar({
   evento,
   adjudicacionId,
+  ocupado,
   alRechazar,
   alConflicto,
   alEmpezar,
 }: {
   evento: Evento
   adjudicacionId: string
+  /** Hay otra decisión en camino: «Rechazar» no abre mientras tanto. */
+  ocupado: boolean
   alRechazar: () => void
   /** El texto del servicio ante un 409: la página lo conserva si la propuesta o la negociación cambiaron. */
   alConflicto: (mensaje: string) => void
@@ -24,6 +27,7 @@ export function DialogoRechazar({
     <DialogoMotivo
       ruta={`/negociacion/eventos/${encodeURIComponent(evento.id)}/adjudicacion/rechazar`}
       datos={{ adjudicacion_id: adjudicacionId }}
+      ocupado={ocupado}
       textoAbrir="Rechazar"
       textoEnviar="Rechazar propuesta"
       titulo="Rechazar la propuesta"

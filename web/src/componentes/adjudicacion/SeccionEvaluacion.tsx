@@ -41,6 +41,9 @@ export function SeccionEvaluacion({
   const consulta = useEvaluacion(evento.id, pesos, {
     // Al recalcular, la tabla anterior se queda a la vista hasta que llegue la nueva.
     placeholderData: keepPreviousData,
+    // Una evaluación en caché con propuesta vigente es la foto de una propuesta pendiente (la
+    // misma clave la guarda): siempre se vuelve a pedir la viva.
+    refetchOnMount: (q) => (q.state.data?.vigente ? "always" : true),
   })
   // La última evaluación que llegó. Si el servicio rechaza otros pesos, la consulta nueva no tiene
   // datos (el marcador de posición solo sirve mientras carga): esta copia mantiene la tabla a la vista.
@@ -48,6 +51,9 @@ export function SeccionEvaluacion({
   if (consulta.data && consulta.data !== ultima) setUltima(consulta.data)
   const evaluacion = consulta.data ?? ultima
   const recomendacion = evaluacion?.recomendacion
+  // La evaluación viva nunca trae propuesta vigente. Si la que se tiene la trae, es la foto de la
+  // propuesta que se acaba de rechazar: no se muestra ni ofrece acciones hasta que llegue la viva.
+  const obsoleta = Boolean(evaluacion?.vigente)
   // El servicio rechazó los pesos: se dice junto a los campos y la tabla anterior se queda.
   const errorPesos = consulta.isLoadingError
     ? erroresPorCampo(consulta.error).pesos
@@ -61,9 +67,12 @@ export function SeccionEvaluacion({
         : ""
 
   let cuerpo
-  if (consulta.isPending) {
+  if (consulta.isPending || (obsoleta && consulta.isFetching)) {
     cuerpo = <EstadoCarga />
-  } else if (consulta.isLoadingError && !errorPesos) {
+  } else if (
+    (consulta.isLoadingError && !errorPesos) ||
+    (obsoleta && consulta.isError)
+  ) {
     cuerpo = (
       <EstadoError
         error={consulta.error}

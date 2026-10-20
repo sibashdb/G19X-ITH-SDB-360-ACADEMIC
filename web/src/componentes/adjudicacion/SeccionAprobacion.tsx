@@ -1,6 +1,16 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useId } from "react"
-import { NOMBRES_MOTIVO, useEvaluacion, type Evaluacion } from "@/adjudicacion"
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query"
+import { TriangleAlert } from "lucide-react"
+import { useEffect, useId, useRef, useState } from "react"
+import {
+  DECISION,
+  NOMBRES_MOTIVO,
+  useEvaluacion,
+  type Evaluacion,
+} from "@/adjudicacion"
 import { ErrorApi, enviarJson, pedir } from "@/api"
 import { useRoles, useToken, useUsuarioId } from "@/auth"
 import { DialogoRechazar } from "@/componentes/adjudicacion/DialogoRechazar"
@@ -18,6 +28,10 @@ import type { Evento } from "@/negociacion"
  * y los demás solo ven que espera. `alAvisar` recibe el resultado para el aviso de la página,
  * `alConflicto` el texto de un 409 y `alEmpezar` avisa de que se abrió un diálogo o empezó una
  * decisión (el aviso de un conflicto anterior ya no viene al caso).
+ *
+ * Quien aprueba solo decide sobre la propuesta que ha estado revisando. Si la evaluación se
+ * actualiza y trae otra, las acciones se reemplazan por un aviso con «Revisar la propuesta nueva»:
+ * así un segundo clic apresurado no aprueba, en el mismo lugar, lo que nadie revisó.
  */
 export function SeccionAprobacion({
   evento,
@@ -33,15 +47,48 @@ export function SeccionAprobacion({
   const token = useToken()
   const cliente = useQueryClient()
   const idMotivos = useId()
+  const idCambio = useId()
   const esAprobador = useRoles().includes("aprobador")
   const usuarioId = useUsuarioId()
   // Fuera de «En evaluación» el servicio devuelve la foto de la propuesta y no usa `pesos`.
   const consulta = useEvaluacion(evento.id, null)
   const vigente = consulta.data?.vigente
+  // El id de la propuesta que el aprobador está revisando: la primera que llega completa.
+  const [revisada, setRevisada] = useState<string | null>(null)
+  if (
+    vigente?.estado === "pendiente" &&
+    revisada === null &&
+    !consulta.isFetching
+  )
+    setRevisada(vigente.id)
+  const encabezado = useRef<HTMLHeadingElement>(null)
+  const revisar = useRef<HTMLButtonElement>(null)
+  const conAcciones = useRef(false)
+  // Con una decisión en camino (esta u otra) no se empieza otra.
+  const ocupado = useIsMutating({ mutationKey: DECISION }) > 0
+
+  const decide =
+    vigente?.estado === "pendiente" &&
+    esAprobador &&
+    vigente.propuesta_por_id !== usuarioId &&
+    revisada !== null
+  const hayCambio = decide && vigente.id !== revisada
+  const hayAcciones = decide && !hayCambio
+
+  useEffect(() => {
+    const habia = conAcciones.current
+    conAcciones.current = hayAcciones
+    // Si las acciones desaparecen estando el foco en ellas, pasa al aviso del cambio o al contenido
+    // y no a <body>.
+    if (habia && !hayAcciones && document.activeElement === document.body)
+      (revisar.current ?? document.getElementById("contenido"))?.focus()
+  }, [hayAcciones])
+
   const aprobar = useMutation({
     // Sin red, que falle de inmediato y el botón quede libre: por omisión la solicitud se
     // quedaría en espera.
     networkMode: "always",
+    mutationKey: DECISION,
     mutationFn: (adjudicacionId: string) =>
       pedir<Evaluacion>(
         `/negociacion/eventos/${encodeURIComponent(evento.id)}/adjudicacion/aprobar`,
@@ -57,10 +104,13 @@ export function SeccionAprobacion({
     },
     onError: (error) => {
       // Un 409 es que la propuesta o la negociación ya cambiaron: no se decidió nada y se
-      // actualiza lo que se ve. Si la sección desaparece, el foco ya está en el contenido.
+      // actualiza lo que se ve.
       if (error instanceof ErrorApi && error.estado === 409) {
         alConflicto(error.message)
-        document.getElementById("contenido")?.focus()
+        // Si la propuesta es otra, las acciones se reemplazan por el aviso del cambio y ahí
+        // recibe el foco. Si la negociación cambió de estado, la sección desaparece: al contenido.
+        if (error.codigo !== "propuesta_distinta")
+          document.getElementById("contenido")?.focus()
         void cliente.invalidateQueries({ queryKey: ["negociacion"] })
       }
     },
@@ -93,9 +143,37 @@ export function SeccionAprobacion({
       />
     )
   } else {
-    const propuso = vigente.propuesta_por_id === usuarioId
     cuerpo = (
       <div className="space-y-6">
+        {hayCambio && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning p-3 text-sm">
+            <p id={idCambio} className="flex items-start gap-2">
+              <TriangleAlert
+                aria-hidden
+                className="mt-0.5 size-4 shrink-0 text-warning"
+              />
+              <span>
+                La propuesta cambió mientras usted la revisaba. Lo que ve abajo
+                es la propuesta de {vigente.propuesta_por_nombre}; revísela
+                antes de decidir.
+              </span>
+            </p>
+            <Button
+              ref={revisar}
+              type="button"
+              variant="outline"
+              aria-describedby={idCambio}
+              onClick={() => {
+                alEmpezar()
+                setRevisada(vigente.id)
+                // El botón desaparece: el foco pasa al título, desde donde se lee lo nuevo.
+                encabezado.current?.focus()
+              }}
+            >
+              Revisar la propuesta nueva
+            </Button>
+          </div>
+        )}
         <div className="space-y-2 text-sm">
           <p>
             Propuesta de {vigente.propuesta_por_nombre},{" "}
@@ -126,15 +204,25 @@ export function SeccionAprobacion({
           destacada={vigente.sesion_id}
         />
         <Explicacion recomendacion={vigente.recomendacion} />
-        {propuso ? (
-          <p className="text-sm text-muted-foreground">
-            Usted propuso esta adjudicación; la aprueba otra persona.
-          </p>
-        ) : esAprobador ? (
+        {vigente.estado === "pendiente" &&
+          vigente.propuesta_por_id === usuarioId && (
+            <p className="text-sm text-muted-foreground">
+              Usted propuso esta adjudicación; la aprueba otra persona.
+            </p>
+          )}
+        {vigente.estado === "pendiente" &&
+          vigente.propuesta_por_id !== usuarioId &&
+          !esAprobador && (
+            <p className="text-sm text-muted-foreground">
+              Esperando aprobación de un aprobador.
+            </p>
+          )}
+        {hayAcciones && (
           <div className="flex flex-wrap justify-end gap-2">
             <DialogoRechazar
               evento={evento}
               adjudicacionId={vigente.id}
+              ocupado={ocupado}
               alConflicto={alConflicto}
               alEmpezar={alEmpezar}
               alRechazar={() =>
@@ -145,9 +233,9 @@ export function SeccionAprobacion({
             />
             <Button
               type="button"
-              aria-disabled={aprobar.isPending}
+              aria-disabled={ocupado}
               onClick={() => {
-                if (aprobar.isPending) return
+                if (ocupado) return
                 alEmpezar()
                 aprobar.mutate(vigente.id)
               }}
@@ -155,10 +243,6 @@ export function SeccionAprobacion({
               Aprobar
             </Button>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Esperando aprobación de un aprobador.
-          </p>
         )}
         <p
           role="alert"
@@ -173,6 +257,7 @@ export function SeccionAprobacion({
   return (
     <Seccion
       titulo="Propuesta pendiente de aprobación"
+      refTitulo={encabezado}
       descripcion="Un aprobador revisa la propuesta del comprador y la aprueba o la rechaza."
     >
       {cuerpo}
