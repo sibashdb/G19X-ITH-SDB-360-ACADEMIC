@@ -224,6 +224,19 @@ describe("Adjudicar", () => {
     ).toBeInTheDocument()
   })
 
+  it("un costo igual al umbral se adjudica directamente", async () => {
+    abrirConEvaluacion({
+      ...CON_RECOMENDACION,
+      recomendacion: { ...RECOMENDACION, umbral_aprobacion: "480000.00" },
+    })
+    const dialogo = await abrirDialogo("Nube Norte")
+    const monto = formatoMoneda("480000.00", "MXN")
+    // Solo lo que lo supera pide aprobación (comparación estricta, como el servicio).
+    expect(dialogo).toHaveTextContent(
+      `Se adjudicará directamente: el costo total (${monto}) no supera el umbral de aprobación (${monto})`
+    )
+  })
+
   it("anticipa el aprobador por el umbral, por los límites o por los dos", async () => {
     const costo = formatoMoneda("510000.00", "MXN")
     const umbral = formatoMoneda("500000.00", "MXN")
@@ -463,13 +476,15 @@ describe("Adjudicar", () => {
         422
       ),
     ]
-    abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+    const { api } = abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
       [`POST ${ADJUDICACION}`]: () => errores.shift()!,
     })
     const dialogo = await abrirDialogo("Nube Norte")
     const confirmar = within(dialogo).getByRole("button", { name: "Confirmar" })
     const alerta = within(dialogo).getByRole("alert")
     expect(alerta).toBeEmptyDOMElement()
+    const lecturas = () => api.mock.calls.filter(([url]) => url === RUTA).length
+    const antes = lecturas()
 
     await userEvent.click(confirmar)
     await waitFor(() =>
@@ -477,6 +492,8 @@ describe("Adjudicar", () => {
         "La negociación ya no está en evaluación."
       )
     )
+    // El 409 dice que la negociación cambió: la página de atrás se actualiza.
+    await waitFor(() => expect(lecturas()).toBe(antes + 1))
     await userEvent.click(confirmar)
     await waitFor(() =>
       expect(alerta).toHaveTextContent(
@@ -490,6 +507,8 @@ describe("Adjudicar", () => {
       )
     )
     expect(screen.getByRole("dialog")).toBe(dialogo)
+    // El 503 y el 422 no cambian nada en el servicio: no hay nada que actualizar.
+    expect(lecturas()).toBe(antes + 1)
     // Al cerrar y volver a abrir, el error anterior ya no está.
     await userEvent.keyboard("{Escape}")
     await waitFor(() =>
@@ -511,6 +530,13 @@ describe("Adjudicar", () => {
     // aria-disabled y no disabled: el botón conserva el foco mientras se envía.
     expect(confirmar).toHaveAttribute("aria-disabled", "true")
     expect(confirmar).not.toBeDisabled()
+    // Cerrar con la propuesta en camino reiniciaría el envío y dejaría mandar otra: no se cierra.
+    await userEvent.keyboard("{Escape}")
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Volver" })
+    )
+    expect(screen.getByRole("dialog")).toBe(dialogo)
+    expect(confirmar).toHaveAttribute("aria-disabled", "true")
     await act(async () =>
       lenta.resolver(respuestaJson(propuesta("s1", "directa")))
     )
@@ -613,12 +639,93 @@ describe("Adjudicar", () => {
     const dialogo = await screen.findByRole("dialog", {
       name: "Declarar desierta la negociación",
     })
-    await userEvent.type(within(dialogo).getByLabelText("Motivo"), "   ")
+    const motivo = within(dialogo).getByLabelText("Motivo")
+    await userEvent.type(motivo, "   ")
     await userEvent.click(
       within(dialogo).getByRole("button", { name: "Declarar desierta" })
     )
-    expect(await within(dialogo).findByText("Escriba el motivo.")).toBeVisible()
-    expect(within(dialogo).getByLabelText("Motivo")).toBeInvalid()
+    const mensaje = await within(dialogo).findByText("Escriba el motivo.")
+    expect(mensaje).toBeVisible()
+    expect(motivo).toBeInvalid()
+    expect(motivo.getAttribute("aria-describedby")).toContain(mensaje.id)
+    // El error del campo no es una región viva: el foco pasa al campo para que se lea.
+    expect(motivo).toHaveFocus()
+  })
+
+  it("un doble clic en Declarar desierta manda una sola solicitud y no deja cerrar mientras tanto", async () => {
+    const lenta = respuestaDiferida()
+    const { api } = abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`POST ${DESIERTA}`]: () => lenta.promesa,
+    })
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo"),
+      "Sin ofertas"
+    )
+    const confirmar = within(dialogo).getByRole("button", {
+      name: "Declarar desierta",
+    })
+    await userEvent.click(confirmar)
+    await userEvent.click(confirmar)
+    expect(confirmar).toHaveAttribute("aria-disabled", "true")
+    expect(confirmar).not.toBeDisabled()
+    await userEvent.keyboard("{Escape}")
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Volver" })
+    )
+    expect(screen.getByRole("dialog")).toBe(dialogo)
+    await act(async () =>
+      lenta.resolver(
+        respuestaJson({ recomendacion: null, vigente: null, historial: [] })
+      )
+    )
+    await screen.findByText("Se declaró desierta la negociación.")
+    expect(
+      api.mock.calls.filter(
+        ([url, init]) => url === DESIERTA && init?.method === "POST"
+      )
+    ).toHaveLength(1)
+  })
+
+  it("un 409 al declarar desierta actualiza la página y deja el mensaje en el diálogo", async () => {
+    const { api } = abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`POST ${DESIERTA}`]: () =>
+        respuestaJson(
+          {
+            title: "Conflicto",
+            detail: "La negociación ya no está en evaluación.",
+            codigo: "estado_invalido",
+          },
+          409
+        ),
+    })
+    const lecturas = () => api.mock.calls.filter(([url]) => url === RUTA).length
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    const antes = lecturas()
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo"),
+      "Sin ofertas"
+    )
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Declarar desierta" })
+    )
+    await waitFor(() =>
+      expect(within(dialogo).getByRole("alert")).toHaveTextContent(
+        "La negociación ya no está en evaluación."
+      )
+    )
+    await waitFor(() => expect(lecturas()).toBe(antes + 1))
+    expect(screen.getByRole("dialog")).toBe(dialogo)
   })
 
   it("quien no es comprador no ve Adjudicar ni Declarar desierta", async () => {

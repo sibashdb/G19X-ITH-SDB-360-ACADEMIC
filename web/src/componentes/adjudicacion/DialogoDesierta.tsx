@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useId, useRef, useState, type FormEvent } from "react"
 import type { Evaluacion } from "@/adjudicacion"
-import { enviarJson, erroresPorCampo, pedir } from "@/api"
+import { ErrorApi, enviarJson, erroresPorCampo, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { Campo } from "@/componentes/negociacion/Campo"
 import { Button } from "@/components/ui/button"
@@ -32,6 +32,7 @@ export function DialogoDesierta({
   const [abierto, setAbierto] = useState(false)
   const [motivo, setMotivo] = useState("")
   const declarada = useRef(false)
+  const campo = useRef<HTMLTextAreaElement>(null)
   const declarar = useMutation({
     mutationFn: () =>
       pedir<Evaluacion>(
@@ -45,6 +46,14 @@ export function DialogoDesierta({
       alDeclarar()
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
+    onError: (error) => {
+      // El error del campo no es una región viva: con el foco en el campo, se lee junto a él.
+      if (erroresPorCampo(error).motivo) campo.current?.focus()
+      // Un 409 es que la negociación ya cambió: se actualiza lo que hay detrás del diálogo, sin
+      // esperar a la consulta para mostrar el mensaje.
+      if (error instanceof ErrorApi && error.estado === 409)
+        void cliente.invalidateQueries({ queryKey: ["negociacion"] })
+    },
   })
   const error = erroresPorCampo(declarar.error).motivo
 
@@ -57,6 +66,8 @@ export function DialogoDesierta({
     <Dialog
       open={abierto}
       onOpenChange={(valor) => {
+        // Cerrar con la solicitud en camino borraría su estado y permitiría enviar otra.
+        if (!valor && declarar.isPending) return
         setAbierto(valor)
         if (!valor) {
           setMotivo("")
@@ -95,6 +106,7 @@ export function DialogoDesierta({
             {(control) => (
               <Textarea
                 {...control}
+                ref={campo}
                 required
                 maxLength={500}
                 value={motivo}

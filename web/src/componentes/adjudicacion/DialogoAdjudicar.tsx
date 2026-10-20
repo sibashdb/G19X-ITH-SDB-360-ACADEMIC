@@ -7,7 +7,7 @@ import {
   type Evaluacion,
   type Recomendacion,
 } from "@/adjudicacion"
-import { enviarJson, erroresPorCampo, pedir } from "@/api"
+import { ErrorApi, enviarJson, erroresPorCampo, pedir } from "@/api"
 import { useToken } from "@/auth"
 import { Campo } from "@/componentes/negociacion/Campo"
 import { Button } from "@/components/ui/button"
@@ -84,9 +84,13 @@ export function DialogoAdjudicar({
       alAdjudicar(resultado)
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
-    // El error del campo no es una región viva: con el foco en el campo, se lee junto a él.
     onError: (error) => {
+      // El error del campo no es una región viva: con el foco en el campo, se lee junto a él.
       if (erroresPorCampo(error).justificacion) campo.current?.focus()
+      // Un 409 es que la negociación ya cambió: se actualiza lo que hay detrás del diálogo, sin
+      // esperar a la consulta para mostrar el mensaje.
+      if (error instanceof ErrorApi && error.estado === 409)
+        void cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
   })
 
@@ -132,6 +136,8 @@ export function DialogoAdjudicar({
     <Dialog
       open={abierto}
       onOpenChange={(valor) => {
+        // Cerrar con la propuesta en camino borraría su estado y permitiría enviar otra.
+        if (!valor && adjudicar.isPending) return
         setAbierto(valor)
         if (!valor) {
           setJustificacion("")
