@@ -1,6 +1,5 @@
 import { keepPreviousData } from "@tanstack/react-query"
-import { TriangleAlert } from "lucide-react"
-import { useId, useState } from "react"
+import { useState } from "react"
 import {
   PESOS_POR_OMISION,
   useEvaluacion,
@@ -13,7 +12,7 @@ import { AjustarPesos } from "@/componentes/adjudicacion/AjustarPesos"
 import { DialogoAdjudicar } from "@/componentes/adjudicacion/DialogoAdjudicar"
 import { DialogoDesierta } from "@/componentes/adjudicacion/DialogoDesierta"
 import { Explicacion } from "@/componentes/adjudicacion/Explicacion"
-import { PropuestaRechazada } from "@/componentes/adjudicacion/PropuestaRechazada"
+import { AvisoRechazo } from "@/componentes/adjudicacion/PropuestaRechazada"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
@@ -39,9 +38,11 @@ export function SeccionEvaluacion({
   alEmpezar: () => void
 }) {
   const esComprador = useRoles().includes("comprador")
-  const idRechazo = useId()
   // Los pesos que se pidieron al recalcular; null, los configurados.
   const [pesos, setPesos] = useState<Pesos | null>(null)
+  // Tras adjudicar o declarar desierta, lo que hay en caché es anterior a la decisión hasta que la
+  // negociación se actualiza y esta sección desaparece: no se ofrece decidir otra vez.
+  const [decidida, setDecidida] = useState(false)
   const consulta = useEvaluacion(evento.id, pesos, {
     // Al recalcular, la tabla anterior se queda a la vista hasta que llegue la nueva.
     placeholderData: keepPreviousData,
@@ -57,9 +58,11 @@ export function SeccionEvaluacion({
   const recomendacion = evaluacion?.recomendacion
   // Las rechazadas vienen de la más reciente a la más antigua.
   const rechazada = evaluacion?.historial[0]
-  // La evaluación viva nunca trae propuesta vigente. Si la que se tiene la trae, es la foto de la
-  // propuesta que se acaba de rechazar: no se muestra ni ofrece acciones hasta que llegue la viva.
+  // La evaluación viva nunca trae propuesta vigente. Si la que se tiene la trae, es la foto de una
+  // propuesta ya decidida (p. ej. la que se acaba de rechazar): mientras llega la viva no se
+  // muestra y, si la consulta no la trae, se ve sin acciones.
   const obsoleta = Boolean(evaluacion?.vigente)
+  const conAcciones = esComprador && !obsoleta && !decidida
   // El servicio rechazó los pesos: se dice junto a los campos y la tabla anterior se queda.
   const errorPesos = consulta.isLoadingError
     ? erroresPorCampo(consulta.error).pesos
@@ -86,7 +89,10 @@ export function SeccionEvaluacion({
       />
     )
   } else if (evaluacion && !recomendacion) {
-    cuerpo = (
+    // Tras declarar desierta, la evaluación sin acuerdos puede llegar antes que la negociación.
+    cuerpo = decidida ? (
+      <EstadoCarga />
+    ) : (
       <EstadoVacio
         titulo="No hay acuerdos tentativos para evaluar."
         descripcion="Ninguna sesión terminó en un acuerdo tentativo, así que no hay propuestas que comparar."
@@ -96,29 +102,18 @@ export function SeccionEvaluacion({
     cuerpo = (
       <div className="space-y-6">
         {rechazada && (
-          <section
-            aria-labelledby={idRechazo}
-            className="space-y-0.5 rounded-lg border border-warning p-3 text-sm break-words"
-          >
-            <h3
-              id={idRechazo}
-              className="mb-1 flex items-start gap-2 font-semibold"
-            >
-              <TriangleAlert
-                aria-hidden
-                className="mt-0.5 size-4 shrink-0 text-warning"
-              />
-              Se rechazó la última propuesta
-            </h3>
-            <PropuestaRechazada propuesta={rechazada} evento={evento} />
-          </section>
+          <AvisoRechazo
+            titulo="Se rechazó la última propuesta"
+            propuesta={rechazada}
+            evento={evento}
+          />
         )}
         {recomendacion && (
           <TablaCandidatos
             recomendacion={recomendacion}
             evento={evento}
             accion={
-              esComprador
+              conAcciones
                 ? (candidato) => (
                     <DialogoAdjudicar
                       evento={evento}
@@ -129,6 +124,7 @@ export function SeccionEvaluacion({
                       alAdjudicar={(resultado) => {
                         // Los pesos rechazados no deben quedar pedidos al invalidar las consultas.
                         setPesos(null)
+                        setDecidida(true)
                         alAvisar(
                           resultado.vigente?.estado === "directa"
                             ? conPuntoFinal(
@@ -157,12 +153,15 @@ export function SeccionEvaluacion({
     <Seccion
       titulo="Evaluación"
       acciones={
-        esComprador && (
+        conAcciones && (
           <DialogoDesierta
             evento={evento}
             alConflicto={alConflicto}
             alEmpezar={alEmpezar}
-            alDeclarar={() => alAvisar("Se declaró desierta la negociación.")}
+            alDeclarar={() => {
+              setDecidida(true)
+              alAvisar("Se declaró desierta la negociación.")
+            }}
           />
         )
       }

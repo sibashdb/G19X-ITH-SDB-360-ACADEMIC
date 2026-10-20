@@ -11,9 +11,11 @@ import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
   CON_RECOMENDACION,
+  DATOS_DEL_SUR,
   EVALUACION,
   EVENTO,
   ID,
+  NUBE_NORTE,
   RECOMENDACION,
   RUTA,
   propuesta,
@@ -26,7 +28,9 @@ import {
   respuestaDiferida,
   respuestaJson,
   simularRutas,
+  sinEspaciosDuros,
 } from "@/pruebas/utilidades"
+import { formatoMoneda } from "@/tipos"
 
 vi.mock("react-oidc-context", async () =>
   (await import("@/pruebas/sesion")).oidcSimulado()
@@ -66,7 +70,30 @@ const DE_MARTA = propuesta("s1", "pendiente", {
   motivo_aprobacion: ["umbral"],
 })
 
+/** Las rechazadas antes de la de Luis, de la más reciente a la más antigua; la primera guarda otro nombre del proveedor. */
+const RECHAZADA = propuesta("s1", "rechazada", {
+  id: "a0",
+  propuesta_por_nombre: "Ana López",
+  propuesta_en: "2026-10-21T10:00:00Z",
+  decidida_por_nombre: "Marta Ruiz",
+  decidida_en: "2026-10-21T15:00:00Z",
+  motivo_rechazo: "Falta la cotización firmada.",
+  recomendacion: {
+    ...RECOMENDACION,
+    candidatos: [{ ...NUBE_NORTE, nombre: "Nube Norte, S.A." }, DATOS_DEL_SUR],
+  },
+}).vigente!
+const RECHAZADA_ANTERIOR = propuesta("s2", "rechazada", {
+  id: "a00",
+  propuesta_por_nombre: "Sofía Díaz",
+  propuesta_en: "2026-10-20T10:00:00Z",
+  decidida_por_nombre: "Pablo Gil",
+  decidida_en: "2026-10-20T18:00:00Z",
+  motivo_rechazo: "El proveedor no cumple los límites.",
+}).vigente!
+
 const PENDIENTE = { ...EVENTO, estado: "pendiente_aprobacion" }
+const fecha = (iso: string) => sinEspaciosDuros(formatoFechaHora(iso))
 
 const problema = (estado: number, codigo: string, detalle: string) =>
   respuestaJson(
@@ -126,21 +153,30 @@ async function abrirRechazo() {
 const confirmarRechazo = (dialogo: HTMLElement) =>
   within(dialogo).getByRole("button", { name: "Rechazar propuesta" })
 
-/** Monta a sus hijos con la evaluación de `evaluacion` ya en caché (y vencida): lo que queda de una visita anterior. */
+/**
+ * Monta a sus hijos con la evaluación de `evaluacion` ya en caché: lo que queda de una visita
+ * anterior. Vencida, salvo que se indique `staleTime`, como en producción (main.tsx).
+ */
 function ConCache({
   evaluacion,
+  staleTime,
   children,
 }: {
   evaluacion: Evaluacion
+  staleTime?: number
   children: ReactNode
 }) {
   const cliente = useQueryClient()
-  useState(() =>
+  useState(() => {
+    if (staleTime)
+      cliente.setDefaultOptions({
+        queries: { ...cliente.getDefaultOptions().queries, staleTime },
+      })
     cliente.setQueryData(
       ["negociacion", `/eventos/${ID}/evaluacion`],
       evaluacion
     )
-  )
+  })
   return children
 }
 
@@ -990,6 +1026,181 @@ describe("Pendiente de aprobación", () => {
     await screen.findByRole("heading", { name: "Evaluación" })
     expect(
       screen.queryByRole("heading", { name: TITULO })
+    ).not.toBeInTheDocument()
+  })
+
+  describe("propuesta rechazada antes", () => {
+    const AVISO = "Se rechazó la propuesta anterior"
+
+    it("avisa de la más reciente arriba de la tabla, con su proveedor, quién la propuso y la rechazó y el motivo", async () => {
+      abrirPendiente({ ...DE_LUIS, historial: [RECHAZADA, RECHAZADA_ANTERIOR] })
+      const tabla = await seccion()
+      const aviso = screen.getByRole("region", { name: AVISO })
+      // El proveedor sale de la foto de esa propuesta, no de la evaluación de ahora.
+      expect(aviso).toHaveTextContent("Nube Norte, S.A.")
+      expect(aviso).toHaveTextContent(
+        `Propuso Ana López, ${fecha("2026-10-21T10:00:00Z")}`
+      )
+      expect(aviso).toHaveTextContent(
+        `Rechazó Marta Ruiz, ${fecha("2026-10-21T15:00:00Z")}`
+      )
+      expect(aviso).toHaveTextContent(
+        "Motivo del rechazo: Falta la cotización firmada."
+      )
+      // Solo la más reciente.
+      expect(aviso).not.toHaveTextContent("El proveedor no cumple los límites.")
+      expect(aviso).not.toHaveTextContent("Sofía Díaz")
+      // Arriba de la tabla, no debajo.
+      expect(
+        aviso.compareDocumentPosition(tabla) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+    })
+
+    it("lo ven también quien no aprueba y quien propuso, y no quita las acciones de quien aprueba", async () => {
+      for (const [roles, evaluacion] of [
+        [["comprador"], DE_LUIS],
+        [["aprobador"], DE_ANA],
+        [["aprobador"], DE_LUIS],
+      ] as const) {
+        sesionDePrueba.roles = [...roles]
+        abrirPendiente({ ...evaluacion, historial: [RECHAZADA] })
+        await seccion()
+        const caso = `${roles} / ${evaluacion.vigente?.propuesta_por_nombre}`
+        expect(
+          screen.getByRole("region", { name: AVISO }),
+          caso
+        ).toHaveTextContent("Motivo del rechazo: Falta la cotización firmada.")
+        // Solo a quien aprueba una propuesta ajena le tocan los botones, con o sin aviso.
+        expect(
+          screen.queryAllByRole("button", { name: /^(Aprobar|Rechazar)$/ }),
+          caso
+        ).toHaveLength(
+          roles[0] === "aprobador" && evaluacion === DE_LUIS ? 2 : 0
+        )
+        cleanup()
+      }
+    })
+
+    it("sin propuestas rechazadas no hay aviso", async () => {
+      abrirPendiente()
+      await seccion()
+      expect(
+        screen.queryByRole("region", { name: AVISO })
+      ).not.toBeInTheDocument()
+    })
+
+    it("no tiene violaciones de axe en claro ni en oscuro", async () => {
+      const { container } = abrirPendiente({
+        ...DE_LUIS,
+        historial: [RECHAZADA],
+      })
+      await seccion()
+      await esperarSinViolaciones(container)
+    })
+  })
+
+  describe("qué se aprueba", () => {
+    it("dice a qué proveedor y por cuánto se adjudica, sin pedir otra confirmación", async () => {
+      const { api } = abrirPendiente(DE_LUIS, {
+        [`POST ${APROBAR}`]: () => respuestaJson(propuesta("s2", "aprobada")),
+      })
+      await seccion()
+      expect(
+        screen.getByText(
+          `Propuesta: adjudicar a Datos del Sur por ${sinEspaciosDuros(formatoMoneda("510000.00", "MXN"))}`
+        )
+      ).toBeInTheDocument()
+      // «Aprobar» decide con un clic: el texto es la confirmación.
+      await userEvent.click(aprobar())
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      await waitFor(() => expect(envios(api, APROBAR)).toHaveLength(1))
+    })
+
+    it("en USD agrega el equivalente en MXN", async () => {
+      sesionDePrueba.roles = ["comprador"]
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson({ ...PENDIENTE, moneda: "USD" }),
+        [`GET ${EVALUACION}`]: () =>
+          respuestaJson(
+            propuesta("s2", "pendiente", {
+              propuesta_por_id: "luis-2",
+              costo_total: "26000.00",
+              costo_total_mxn: "510000.00",
+            })
+          ),
+      })
+      abrir()
+      await seccion()
+      expect(
+        screen.getByText(
+          `Propuesta: adjudicar a Datos del Sur por ${sinEspaciosDuros(formatoMoneda("26000.00", "USD"))} (≈ ${sinEspaciosDuros(formatoMoneda("510000.00", "MXN"))})`
+        )
+      ).toBeInTheDocument()
+    })
+  })
+
+  it("si no se pudo actualizar la evaluación, lo dice, conserva lo último recibido y ofrece reintentar", async () => {
+    let caida = false
+    let cambio = false
+    abrirPendiente(DE_LUIS, {
+      [`GET ${EVALUACION}`]: () =>
+        caida
+          ? respuestaJson(
+              {
+                title: "Servicio no disponible",
+                detail: "No se pudo consultar la evaluación; intente de nuevo.",
+              },
+              503
+            )
+          : respuestaJson(cambio ? DE_MARTA : DE_LUIS),
+      [`POST ${APROBAR}`]: () => {
+        caida = true
+        cambio = true
+        return problema(409, "propuesta_distinta", DISTINTA)
+      },
+    })
+    await seccion()
+    await userEvent.click(aprobar())
+    const aviso = await screen.findByText(
+      "No se pudo actualizar; se muestran los últimos datos recibidos."
+    )
+    expect(aviso).toHaveAttribute("role", "status")
+    // Lo último recibido sigue a la vista y no se ofrece como nuevo.
+    expect(screen.getByText(/Propuesta de Luis Pérez/)).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Revisar la propuesta nueva" })
+    ).not.toBeInTheDocument()
+
+    caida = false
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }))
+    await screen.findByText(/Propuesta de Marta Ruiz/)
+    expect(revisarNueva()).toBeInTheDocument()
+    // La región es la misma, siempre montada, y queda vacía.
+    expect(aviso).toBeEmptyDOMElement()
+    expect(
+      screen.queryByRole("button", { name: "Reintentar" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("con una evaluación sin propuesta en caché que aún no vence, pide la viva antes de decir que no hay propuesta", async () => {
+    // Producción guarda 30 s lo que llega: sin «always», la sección se montaría sobre esa caché sin pedir.
+    const api = simularRutas({
+      [`GET ${EVALUACION}`]: () => respuestaJson(DE_LUIS),
+    })
+    renderizarPagina(
+      <ConCache evaluacion={CON_RECOMENDACION} staleTime={30_000}>
+        <SeccionAprobacion
+          evento={PENDIENTE as unknown as Evento}
+          alAvisar={vi.fn()}
+          alConflicto={vi.fn()}
+          alEmpezar={vi.fn()}
+        />
+      </ConCache>
+    )
+    await screen.findByText(/Propuesta de Luis Pérez/)
+    expect(lecturas(api, EVALUACION)).toBe(1)
+    expect(
+      screen.queryByText("No hay una propuesta pendiente.")
     ).not.toBeInTheDocument()
   })
 

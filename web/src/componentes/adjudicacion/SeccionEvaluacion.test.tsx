@@ -616,6 +616,145 @@ describe("Sección «Evaluación»", () => {
       await esperarSinViolaciones(container)
     })
   })
+  describe("acciones solo sobre la evaluación viva", () => {
+    const ADJUDICACION = `${RUTA}/adjudicacion`
+    const DESIERTA = `${RUTA}/desierta`
+    const lecturas = (api: ReturnType<typeof simularRutas>, url: string) =>
+      api.mock.calls.filter(([u, init]) => u === url && !init?.method).length
+
+    it("la foto de una propuesta vigente se ve sin acciones, aunque ya no se esté actualizando", async () => {
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () =>
+          respuestaJson(propuesta("s2", "rechazada")),
+      })
+      abrir()
+      const tabla = await screen.findByRole("table", {
+        name: "Candidatos de la evaluación",
+      })
+      expect(
+        within(tabla).queryAllByRole("button", { name: /Adjudicar/ })
+      ).toHaveLength(0)
+      expect(
+        within(tabla).queryByRole("columnheader", { name: "Acción" })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: "Declarar desierta" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("tras adjudicar desde una tabla recalculada, la caché anterior no ofrece decidir otra vez mientras se actualiza", async () => {
+      const viva = respuestaDiferida()
+      const negociacion = respuestaDiferida()
+      let adjudicada = false
+      simularRutas({
+        [`GET ${RUTA}`]: () =>
+          adjudicada ? negociacion.promesa : respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () =>
+          adjudicada ? viva.promesa : respuestaJson(CON_RECOMENDACION),
+        [`GET ${PESOS_25}`]: () => respuestaJson(CON_PESOS_25),
+        [`POST ${ADJUDICACION}`]: () => {
+          adjudicada = true
+          return respuestaJson(propuesta("s2", "pendiente"))
+        },
+      })
+      abrir()
+      await screen.findByRole("table", { name: "Candidatos de la evaluación" })
+      await escribirPesos("25", "25", "25", "25")
+      await userEvent.click(screen.getByRole("button", { name: "Recalcular" }))
+      await screen.findByText("Con pesos parejos, Datos del Sur queda primero.")
+
+      await userEvent.click(
+        within(tablaCandidatos()).getByRole("button", {
+          name: "Adjudicar a Datos del Sur",
+        })
+      )
+      const dialogo = await screen.findByRole("dialog", {
+        name: "Adjudicar a Datos del Sur",
+      })
+      await userEvent.click(
+        within(dialogo).getByRole("button", { name: "Confirmar" })
+      )
+      await screen.findByText("Se envió la propuesta a un aprobador.")
+
+      // Los pesos vuelven a los configurados y su evaluación en caché es anterior a la propuesta:
+      // mientras llega la viva, no se ofrece adjudicar ni declarar desierta.
+      expect(
+        screen.queryAllByRole("button", { name: /Adjudicar/ })
+      ).toHaveLength(0)
+      expect(
+        screen.queryByRole("button", { name: "Declarar desierta" })
+      ).not.toBeInTheDocument()
+
+      await act(async () =>
+        viva.resolver(respuestaJson(propuesta("s2", "pendiente")))
+      )
+      await act(async () =>
+        negociacion.resolver(
+          respuestaJson({ ...EVENTO, estado: "pendiente_aprobacion" })
+        )
+      )
+      await screen.findByRole("heading", {
+        name: "Propuesta pendiente de aprobación",
+      })
+      expect(
+        screen.queryByRole("heading", { name: "Evaluación" })
+      ).not.toBeInTheDocument()
+    })
+
+    it("tras declarar desierta, no parpadea «No hay acuerdos tentativos» mientras la negociación se actualiza", async () => {
+      const negociacion = respuestaDiferida()
+      let desierta = false
+      const api = simularRutas({
+        [`GET ${RUTA}`]: () =>
+          desierta ? negociacion.promesa : respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () =>
+          respuestaJson(desierta ? SIN_ACUERDOS : CON_RECOMENDACION),
+        [`POST ${DESIERTA}`]: () => {
+          desierta = true
+          return respuestaJson(SIN_ACUERDOS)
+        },
+      })
+      const { cliente } = abrir()
+      await userEvent.click(
+        await screen.findByRole("button", { name: "Declarar desierta" })
+      )
+      const dialogo = await screen.findByRole("dialog", {
+        name: "Declarar desierta la negociación",
+      })
+      await userEvent.type(
+        within(dialogo).getByLabelText("Motivo"),
+        "Ninguna propuesta conviene"
+      )
+      await userEvent.click(
+        within(dialogo).getByRole("button", { name: "Declarar desierta" })
+      )
+      await screen.findByText("Se declaró desierta la negociación.")
+
+      // La evaluación, ya sin acuerdos, llega antes que la negociación.
+      await waitFor(() => expect(lecturas(api, EVALUACION)).toBe(2))
+      await waitFor(() =>
+        expect(
+          cliente.getQueryState(["negociacion", `/eventos/${ID}/evaluacion`])
+            ?.fetchStatus
+        ).toBe("idle")
+      )
+      await act(async () => {})
+      expect(
+        screen.queryByText("No hay acuerdos tentativos para evaluar.")
+      ).not.toBeInTheDocument()
+      expect(screen.getByText("Cargando…")).toBeInTheDocument()
+
+      await act(async () =>
+        negociacion.resolver(respuestaJson({ ...EVENTO, estado: "desierto" }))
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("heading", { name: "Evaluación" })
+        ).not.toBeInTheDocument()
+      )
+    })
+  })
 })
 
 describe("TablaCandidatos", () => {

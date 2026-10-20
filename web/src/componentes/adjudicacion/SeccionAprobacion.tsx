@@ -3,7 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
-import { TriangleAlert } from "lucide-react"
+import { RefreshCw, TriangleAlert } from "lucide-react"
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import {
   DECISION,
@@ -15,6 +15,10 @@ import { ErrorApi, enviarJson, pedir } from "@/api"
 import { useRoles, useToken, useUsuarioId } from "@/auth"
 import { DialogoRechazar } from "@/componentes/adjudicacion/DialogoRechazar"
 import { Explicacion } from "@/componentes/adjudicacion/Explicacion"
+import {
+  AvisoRechazo,
+  proveedorDe,
+} from "@/componentes/adjudicacion/PropuestaRechazada"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
@@ -22,6 +26,7 @@ import { Termino } from "@/componentes/Termino"
 import { Button } from "@/components/ui/button"
 import { formatoFechaHora } from "@/fechas"
 import type { Evento } from "@/negociacion"
+import { formatoMoneda } from "@/tipos"
 
 /** Por qué una propuesta necesita aprobación, con sus términos del glosario. */
 const MOTIVOS: Record<MotivoAprobacion, ReactNode> = {
@@ -63,8 +68,15 @@ export function SeccionAprobacion({
   const esAprobador = useRoles().includes("aprobador")
   const usuarioId = useUsuarioId()
   // Fuera de «En evaluación» el servicio devuelve la foto de la propuesta y no usa `pesos`.
-  const consulta = useEvaluacion(evento.id, null)
+  const consulta = useEvaluacion(evento.id, null, {
+    // Una evaluación en caché sin propuesta pendiente es anterior a la propuesta: aunque no haya
+    // vencido, se pide la viva antes de decir que no hay propuesta.
+    refetchOnMount: (q) =>
+      q.state.data?.vigente?.estado === "pendiente" ? true : "always",
+  })
   const vigente = consulta.data?.vigente
+  // Las rechazadas vienen de la más reciente a la más antigua.
+  const rechazada = consulta.data?.historial[0]
   // El id de la propuesta que el aprobador está revisando: la primera que llega completa.
   const [revisada, setRevisada] = useState<string | null>(null)
   if (
@@ -134,6 +146,7 @@ export function SeccionAprobacion({
       ? aprobar.error.message
       : ""
 
+  const noActualizo = consulta.isRefetchError
   let cuerpo
   // Una propuesta en caché no se muestra mientras llega la viva: la primera que se adopta es siempre
   // la vigente, y no la que el servicio ya reemplazó.
@@ -214,12 +227,25 @@ export function SeccionAprobacion({
             </div>
           )}
         </div>
+        {rechazada && (
+          <AvisoRechazo
+            titulo="Se rechazó la propuesta anterior"
+            propuesta={rechazada}
+            evento={evento}
+          />
+        )}
         <TablaCandidatos
           recomendacion={vigente.recomendacion}
           evento={evento}
           destacada={vigente.sesion_id}
         />
         <Explicacion recomendacion={vigente.recomendacion} />
+        {/* Ruling R13: «Aprobar» decide con un clic; esta línea dice qué se aprueba. */}
+        <p className="text-sm font-medium">
+          {`Propuesta: adjudicar a ${proveedorDe(vigente, evento)} por ${formatoMoneda(vigente.costo_total, evento.moneda)}`}
+          {evento.moneda === "USD" &&
+            ` (≈ ${formatoMoneda(vigente.costo_total_mxn, "MXN")})`}
+        </p>
         {/* Spec §7.1: «Usted propuso…» es solo para quien propuso y también es aprobador (los botones
             no le tocan); cualquiera que no sea aprobador, aunque haya propuesto, solo espera. */}
         {vigente.estado === "pendiente" &&
@@ -277,6 +303,31 @@ export function SeccionAprobacion({
       refTitulo={encabezado}
       descripcion="Un aprobador revisa la propuesta del comprador y la aprueba o la rechaza."
     >
+      {/* La región siempre montada: el aviso se anuncia al aparecer. */}
+      <div
+        className={
+          noActualizo
+            ? "mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+            : undefined
+        }
+      >
+        <p role="status" className={noActualizo ? undefined : "sr-only"}>
+          {noActualizo
+            ? "No se pudo actualizar; se muestran los últimos datos recibidos."
+            : ""}
+        </p>
+        {noActualizo && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void consulta.refetch()}
+          >
+            <RefreshCw aria-hidden />
+            Reintentar
+          </Button>
+        )}
+      </div>
       {cuerpo}
     </Seccion>
   )

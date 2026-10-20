@@ -1,3 +1,5 @@
+import { TriangleAlert } from "lucide-react"
+import { useId } from "react"
 import type { Adjudicacion } from "@/adjudicacion"
 import { formatoFechaHora } from "@/fechas"
 import type { Evento } from "@/negociacion"
@@ -43,5 +45,36 @@ export function PropuestaRechazada({
         <p>Motivo del rechazo: {propuesta.motivo_rechazo}</p>
       )}
     </>
+  )
+}
+
+/**
+ * El aviso de la propuesta rechazada más reciente, con su `titulo`: lo muestran la evaluación (a
+ * quien tiene que proponer de nuevo) y la propuesta que espera aprobación (a quien la aprueba).
+ */
+export function AvisoRechazo({
+  titulo,
+  propuesta,
+  evento,
+}: {
+  titulo: string
+  propuesta: Adjudicacion
+  evento: Evento
+}) {
+  const id = useId()
+  return (
+    <section
+      aria-labelledby={id}
+      className="space-y-0.5 rounded-lg border border-warning p-3 text-sm break-words"
+    >
+      <h3 id={id} className="mb-1 flex items-start gap-2 font-semibold">
+        <TriangleAlert
+          aria-hidden
+          className="mt-0.5 size-4 shrink-0 text-warning"
+        />
+        {titulo}
+      </h3>
+      <PropuestaRechazada propuesta={propuesta} evento={evento} />
+    </section>
   )
 }
