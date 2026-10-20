@@ -52,6 +52,7 @@ export function DialogoAdjudicar({
   recomendacion,
   alAdjudicar,
   alConflicto,
+  alEmpezar,
 }: {
   evento: Evento
   candidato: Candidato
@@ -60,6 +61,8 @@ export function DialogoAdjudicar({
   alAdjudicar: (resultado: Evaluacion) => void
   /** El texto del servicio ante un 409: la página lo conserva si la negociación ya no está en evaluación. */
   alConflicto: (mensaje: string) => void
+  /** Se llama al abrir la confirmación: el aviso de un conflicto anterior ya no viene al caso. */
+  alEmpezar: () => void
 }) {
   const token = useToken()
   const cliente = useQueryClient()
@@ -72,6 +75,9 @@ export function DialogoAdjudicar({
   const abridor = useRef<HTMLButtonElement>(null)
   const pideJustificacion = candidato.id !== recomendacion.recomendado
   const adjudicar = useMutation({
+    // Sin red, que falle de inmediato y se pueda cerrar el diálogo: por omisión la solicitud
+    // se quedaría en espera y el diálogo, sin poder cerrarse.
+    networkMode: "always",
     mutationFn: () =>
       pedir<Evaluacion>(
         `/negociacion/eventos/${encodeURIComponent(evento.id)}/adjudicacion`,
@@ -146,7 +152,8 @@ export function DialogoAdjudicar({
         // Cerrar con la propuesta en camino borraría su estado y permitiría enviar otra.
         if (!valor && adjudicar.isPending) return
         setAbierto(valor)
-        if (!valor) {
+        if (valor) alEmpezar()
+        else {
           setJustificacion("")
           setIntentado(false)
           adjudicar.reset()

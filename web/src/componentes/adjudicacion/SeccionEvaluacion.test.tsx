@@ -2,10 +2,21 @@ import { focusManager } from "@tanstack/react-query"
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { Candidato, Evaluacion, Recomendacion } from "@/adjudicacion"
+import type { Evaluacion } from "@/adjudicacion"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
+import {
+  CON_RECOMENDACION,
+  DATOS_DEL_SUR,
+  EVALUACION,
+  EVENTO,
+  ID,
+  NUBE_NORTE,
+  RECOMENDACION,
+  RUTA,
+  SIN_ACUERDOS,
+} from "@/pruebas/evaluacion"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
@@ -20,135 +31,7 @@ vi.mock("react-oidc-context", async () =>
   (await import("@/pruebas/sesion")).oidcSimulado()
 )
 
-const ID = "5d1c2b0e-6f4a-4a8e-9f61-3c2a7e0b9d42"
-const RUTA = `/api/negociacion/eventos/${ID}`
-const EVALUACION = `${RUTA}/evaluacion`
 const PESOS_25 = `${EVALUACION}?pesos=25,25,25,25`
-
-const sesion = (
-  id: string,
-  proveedor: string,
-  estado: string,
-  fueraDeLimites = false
-) => ({
-  id,
-  proveedor_id: `p-${id}`,
-  proveedor_nombre: proveedor,
-  estado,
-  modo: "agente",
-  ronda: 3,
-  utilidad: 0.62,
-  correo_estado: "enviado",
-  correo_error: null,
-  fuera_de_limites: fueraDeLimites,
-  actualizado_en: "2026-10-14T18:30:00Z",
-})
-
-const EVENTO = {
-  id: ID,
-  folio: "NEG-2026-0001",
-  tipo: "compra",
-  titulo: "Licencias de correo 2027",
-  moneda: "MXN",
-  plazo_meses: 12,
-  estado: "en_evaluacion",
-  fecha_limite: "2026-10-21T23:00:00Z",
-  rondas_max: 6,
-  estilo: "balanceado",
-  contrato_origen_id: null,
-  proveedor_vigente_id: null,
-  invitados: [
-    { id: "p-s1", nombre: "Nube Norte" },
-    { id: "p-s2", nombre: "Datos del Sur" },
-    { id: "p-s3", nombre: "Cielo Azul" },
-  ],
-  lineas: [],
-  palancas: [],
-  referencia_fecha: null,
-  creado_por_nombre: "Ana López",
-  creado_en: "2026-10-14T18:00:00Z",
-  publicado_en: "2026-10-14T18:00:00Z",
-  cerrado_en: "2026-10-21T23:00:00Z",
-  motivo_cancelacion: null,
-  motivo_desierta: null,
-  version: 5,
-  errores: [],
-  avisos: [],
-  sesiones: [
-    sesion("s1", "Nube Norte", "acuerdo_tentativo"),
-    sesion("s2", "Datos del Sur", "acuerdo_tentativo", true),
-    sesion("s3", "Cielo Azul", "sin_acuerdo"),
-  ],
-}
-
-const NORMALIZADOS = { costo: 1, desempeno: 1, riesgo: 1, sla: 1 }
-
-const NUBE_NORTE: Candidato = {
-  id: "s1",
-  proveedor_id: "p-s1",
-  nombre: "Nube Norte",
-  costo_total: "480000.00",
-  costo_total_mxn: "480000.00",
-  desempeno: 82.4,
-  riesgo: {
-    valor: 0.2,
-    nivel: "bajo",
-    concentracion: 0.35,
-    tendencia: 0.1,
-    sin_historial: false,
-  },
-  sla: "99.90",
-  normalizados: NORMALIZADOS,
-  aportes: { costo: 40, desempeno: 24, riesgo: 12, sla: 12 },
-  puntaje: 78.3,
-  lugar: 1,
-}
-const DATOS_DEL_SUR: Candidato = {
-  id: "s2",
-  proveedor_id: "p-s2",
-  nombre: "Datos del Sur",
-  costo_total: "510000.00",
-  costo_total_mxn: "510000.00",
-  desempeno: 75,
-  riesgo: {
-    valor: 0.5,
-    nivel: "medio",
-    concentracion: 0.6,
-    tendencia: 0.25,
-    sin_historial: true,
-  },
-  sla: null,
-  normalizados: NORMALIZADOS,
-  aportes: { costo: 20, desempeno: 20, riesgo: 6, sla: 0 },
-  puntaje: 66.1,
-  lugar: 2,
-}
-
-const RECOMENDACION: Recomendacion = {
-  pesos: { costo: 40, desempeno: 30, riesgo: 15, sla: 15 },
-  umbral_aprobacion: "500000.00",
-  tipo_cambio: null,
-  candidatos: [NUBE_NORTE, DATOS_DEL_SUR],
-  recomendado: "s1",
-  margen: 12.2,
-  explicacion: [
-    "Nube Norte obtiene el mejor puntaje: 78.3 contra 66.1 de Datos del Sur.",
-    "Costo: $480,000.00 aporta 40.0 puntos con un peso de 40.",
-    "Si el peso del costo bajara a 10, Datos del Sur quedaría primero.",
-  ],
-  sensibilidad: [],
-}
-
-const CON_RECOMENDACION: Evaluacion = {
-  recomendacion: RECOMENDACION,
-  vigente: null,
-  historial: [],
-}
-const SIN_ACUERDOS: Evaluacion = {
-  recomendacion: null,
-  vigente: null,
-  historial: [],
-}
 
 /** Lo que devuelve el servicio con otros pesos: el orden de los candidatos cambia. */
 const CON_PESOS_25: Evaluacion = {

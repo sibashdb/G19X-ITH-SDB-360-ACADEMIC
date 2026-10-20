@@ -21,14 +21,19 @@ import type { Evento } from "@/negociacion"
 /**
  * Los acuerdos tentativos ordenados y explicados, con los pesos que el comprador quiera probar. El
  * comprador también adjudica a un candidato o declara desierta la negociación; `alAvisar` recibe el
- * resultado para el aviso de la página.
+ * resultado para el aviso de la página, `alConflicto` el texto de un 409 y `alEmpezar` avisa de que
+ * se abrió un diálogo (el aviso de un conflicto anterior ya no viene al caso).
  */
 export function SeccionEvaluacion({
   evento,
   alAvisar,
+  alConflicto,
+  alEmpezar,
 }: {
   evento: Evento
   alAvisar: (texto: string) => void
+  alConflicto: (texto: string) => void
+  alEmpezar: () => void
 }) {
   const esComprador = useRoles().includes("comprador")
   // Los pesos que se pidieron al recalcular; null, los configurados.
@@ -86,7 +91,8 @@ export function SeccionEvaluacion({
                       evento={evento}
                       candidato={candidato}
                       recomendacion={recomendacion}
-                      alConflicto={alAvisar}
+                      alConflicto={alConflicto}
+                      alEmpezar={alEmpezar}
                       alAdjudicar={(resultado) => {
                         // Los pesos rechazados no deben quedar pedidos al invalidar las consultas.
                         setPesos(null)
@@ -119,7 +125,8 @@ export function SeccionEvaluacion({
         esComprador && (
           <DialogoDesierta
             evento={evento}
-            alConflicto={alAvisar}
+            alConflicto={alConflicto}
+            alEmpezar={alEmpezar}
             alDeclarar={() => alAvisar("Se declaró desierta la negociación.")}
           />
         )

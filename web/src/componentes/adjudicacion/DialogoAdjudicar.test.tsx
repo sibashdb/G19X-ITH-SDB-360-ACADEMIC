@@ -1,13 +1,19 @@
+import { onlineManager } from "@tanstack/react-query"
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type {
-  Adjudicacion,
-  Candidato,
-  Evaluacion,
-  Recomendacion,
-} from "@/adjudicacion"
+import type { Evaluacion } from "@/adjudicacion"
 import { Negociacion } from "@/paginas/Negociacion"
+import {
+  CON_RECOMENDACION,
+  EVALUACION,
+  EVENTO,
+  ID,
+  RECOMENDACION,
+  RUTA,
+  propuesta,
+  sesion,
+} from "@/pruebas/evaluacion"
 import { sesionDePrueba } from "@/pruebas/sesion"
 import {
   esperarSinViolaciones,
@@ -23,144 +29,8 @@ vi.mock("react-oidc-context", async () =>
   (await import("@/pruebas/sesion")).oidcSimulado()
 )
 
-const ID = "5d1c2b0e-6f4a-4a8e-9f61-3c2a7e0b9d42"
-const RUTA = `/api/negociacion/eventos/${ID}`
-const EVALUACION = `${RUTA}/evaluacion`
 const ADJUDICACION = `${RUTA}/adjudicacion`
 const DESIERTA = `${RUTA}/desierta`
-
-const sesion = (
-  id: string,
-  proveedor: string,
-  estado: string,
-  fueraDeLimites = false
-) => ({
-  id,
-  proveedor_id: `p-${id}`,
-  proveedor_nombre: proveedor,
-  estado,
-  modo: "agente",
-  ronda: 3,
-  utilidad: 0.62,
-  correo_estado: "enviado",
-  correo_error: null,
-  fuera_de_limites: fueraDeLimites,
-  actualizado_en: "2026-10-14T18:30:00Z",
-})
-
-const EVENTO = {
-  id: ID,
-  folio: "NEG-2026-0001",
-  tipo: "compra",
-  titulo: "Licencias de correo 2027",
-  moneda: "MXN",
-  plazo_meses: 12,
-  estado: "en_evaluacion",
-  fecha_limite: "2026-10-21T23:00:00Z",
-  rondas_max: 6,
-  estilo: "balanceado",
-  contrato_origen_id: null,
-  proveedor_vigente_id: null,
-  invitados: [
-    { id: "p-s1", nombre: "Nube Norte" },
-    { id: "p-s2", nombre: "Datos del Sur" },
-  ],
-  lineas: [],
-  palancas: [],
-  referencia_fecha: null,
-  creado_por_nombre: "Ana López",
-  creado_en: "2026-10-14T18:00:00Z",
-  publicado_en: "2026-10-14T18:00:00Z",
-  cerrado_en: "2026-10-21T23:00:00Z",
-  motivo_cancelacion: null,
-  motivo_desierta: null,
-  version: 5,
-  errores: [],
-  avisos: [],
-  sesiones: [
-    sesion("s1", "Nube Norte", "acuerdo_tentativo"),
-    sesion("s2", "Datos del Sur", "acuerdo_tentativo", true),
-  ],
-}
-
-const NORMALIZADOS = { costo: 1, desempeno: 1, riesgo: 1, sla: 1 }
-
-const NUBE_NORTE: Candidato = {
-  id: "s1",
-  proveedor_id: "p-s1",
-  nombre: "Nube Norte",
-  costo_total: "480000.00",
-  costo_total_mxn: "480000.00",
-  desempeno: 82.4,
-  riesgo: {
-    valor: 0.2,
-    nivel: "bajo",
-    concentracion: 0.35,
-    tendencia: 0.1,
-    sin_historial: false,
-  },
-  sla: "99.90",
-  normalizados: NORMALIZADOS,
-  aportes: { costo: 40, desempeno: 24, riesgo: 12, sla: 12 },
-  puntaje: 78.3,
-  lugar: 1,
-}
-const DATOS_DEL_SUR: Candidato = {
-  ...NUBE_NORTE,
-  id: "s2",
-  proveedor_id: "p-s2",
-  nombre: "Datos del Sur",
-  costo_total: "510000.00",
-  costo_total_mxn: "510000.00",
-  puntaje: 66.1,
-  lugar: 2,
-}
-
-const RECOMENDACION: Recomendacion = {
-  pesos: { costo: 40, desempeno: 30, riesgo: 15, sla: 15 },
-  umbral_aprobacion: "500000.00",
-  tipo_cambio: null,
-  candidatos: [NUBE_NORTE, DATOS_DEL_SUR],
-  recomendado: "s1",
-  margen: 12.2,
-  explicacion: ["Nube Norte obtiene el mejor puntaje: 78.3 contra 66.1."],
-  sensibilidad: [],
-}
-const CON_RECOMENDACION: Evaluacion = {
-  recomendacion: RECOMENDACION,
-  vigente: null,
-  historial: [],
-}
-
-/** Lo que devuelve el servicio al proponer: la evaluación con la propuesta ya vigente. */
-const propuesta = (
-  sesionId: string,
-  estado: Adjudicacion["estado"]
-): Evaluacion => ({
-  recomendacion: RECOMENDACION,
-  historial: [],
-  vigente: {
-    id: "a1",
-    sesion_id: sesionId,
-    propuesta_por_id: "ana-1",
-    propuesta_por_nombre: "Ana López",
-    propuesta_en: "2026-10-22T16:00:00Z",
-    recomendada_sesion_id: "s1",
-    se_aparta: sesionId !== "s1",
-    justificacion: null,
-    costo_total: "480000.00",
-    costo_total_mxn: "480000.00",
-    requiere_aprobacion: estado === "pendiente",
-    motivo_aprobacion: [],
-    recomendacion: RECOMENDACION,
-    estado,
-    decidida_por_nombre: null,
-    decidida_en: null,
-    motivo_rechazo: null,
-    contrato_folio: null,
-  },
-})
-
 const JUSTIFICACION = "El costo es mayor, pero ofrece soporte local."
 const MENSAJE_OBLIGATORIA =
   "Para elegir un proveedor distinto del recomendado, escriba la justificación (de 10 a 1,000 caracteres)."
@@ -210,6 +80,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  onlineManager.setOnline(true)
 })
 
 describe("Adjudicar", () => {
@@ -669,7 +540,7 @@ describe("Adjudicar", () => {
           {
             title: "Solicitud inválida",
             detail: "Revise los datos marcados.",
-            errores: [{ campo: "motivo", mensaje: "Escriba el motivo." }],
+            errores: [{ campo: "motivo", mensaje: "El motivo no es válido." }],
           },
           422
         ),
@@ -681,16 +552,156 @@ describe("Adjudicar", () => {
       name: "Declarar desierta la negociación",
     })
     const motivo = within(dialogo).getByLabelText("Motivo")
-    await userEvent.type(motivo, "   ")
+    // Un motivo en blanco ya no llega al servicio (lo detiene la página): este sí.
+    await userEvent.type(motivo, "Sin ofertas")
     await userEvent.click(
       within(dialogo).getByRole("button", { name: "Declarar desierta" })
     )
-    const mensaje = await within(dialogo).findByText("Escriba el motivo.")
+    const mensaje = await within(dialogo).findByText("El motivo no es válido.")
     expect(mensaje).toBeVisible()
     expect(motivo).toBeInvalid()
     expect(motivo.getAttribute("aria-describedby")).toContain(mensaje.id)
     // El error del campo no es una región viva: el foco pasa al campo para que se lea.
     expect(motivo).toHaveFocus()
+    expect(within(dialogo).getByRole("alert")).toBeEmptyDOMElement()
+  })
+
+  it("un motivo en blanco al declarar desierta no se envía y se dice junto al campo", async () => {
+    const { api } = abrirConEvaluacion()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    const motivo = within(dialogo).getByLabelText("Motivo")
+    const confirmar = within(dialogo).getByRole("button", {
+      name: "Declarar desierta",
+    })
+    // Sin motivo, y con solo espacios, se avisa en español y no se manda nada.
+    await userEvent.click(confirmar)
+    const mensaje = within(dialogo).getByText("Escriba el motivo.")
+    expect(motivo).toBeInvalid()
+    expect(motivo.getAttribute("aria-describedby")).toContain(mensaje.id)
+    expect(motivo).toHaveFocus()
+    await userEvent.type(motivo, "   ")
+    await userEvent.click(confirmar)
+    expect(within(dialogo).getByText("Escriba el motivo.")).toBeVisible()
+    expect(
+      api.mock.calls.filter(([, init]) => init?.method === "POST")
+    ).toHaveLength(0)
+    // Al escribir un motivo, el aviso se va.
+    await userEvent.type(motivo, "Sin ofertas")
+    expect(
+      within(dialogo).queryByText("Escriba el motivo.")
+    ).not.toBeInTheDocument()
+  })
+
+  it("cerrar «Declarar desierta» sin declarar devuelve el foco al botón", async () => {
+    abrirConEvaluacion()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    // El botón sigue ahí (la negociación no cambió): recupera el foco y no se manda al contenido.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Declarar desierta" })
+      ).toHaveFocus()
+    )
+  })
+
+  it("sin conexión, adjudicar termina con un aviso en el diálogo y se puede cerrar", async () => {
+    abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`POST ${ADJUDICACION}`]: () =>
+        Promise.reject(new TypeError("Failed to fetch")),
+    })
+    const dialogo = await abrirDialogo("Nube Norte")
+    // Con la red caída la solicitud no se queda esperando: falla de inmediato y lo dice.
+    onlineManager.setOnline(false)
+    const confirmar = within(dialogo).getByRole("button", { name: "Confirmar" })
+    await userEvent.click(confirmar)
+    await waitFor(() =>
+      expect(within(dialogo).getByRole("alert")).toHaveTextContent(
+        "No se pudo conectar con el servidor; revise su conexión e intente de nuevo."
+      )
+    )
+    expect(confirmar).toHaveAttribute("aria-disabled", "false")
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+  })
+
+  it("sin conexión, declarar desierta termina con un aviso en el diálogo y se puede cerrar", async () => {
+    abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`POST ${DESIERTA}`]: () =>
+        Promise.reject(new TypeError("Failed to fetch")),
+    })
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo"),
+      "Sin ofertas"
+    )
+    onlineManager.setOnline(false)
+    const confirmar = within(dialogo).getByRole("button", {
+      name: "Declarar desierta",
+    })
+    await userEvent.click(confirmar)
+    await waitFor(() =>
+      expect(within(dialogo).getByRole("alert")).toHaveTextContent(
+        "No se pudo conectar con el servidor; revise su conexión e intente de nuevo."
+      )
+    )
+    expect(confirmar).toHaveAttribute("aria-disabled", "false")
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+  })
+
+  it("el aviso de un conflicto lleva el tono de conflicto y se borra al abrir otra confirmación", async () => {
+    const conflicto = "La negociación ya no está en evaluación."
+    abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`POST ${ADJUDICACION}`]: () =>
+        respuestaJson(
+          { title: "Conflicto", detail: conflicto, codigo: "estado_invalido" },
+          409
+        ),
+    })
+    const dialogo = await abrirDialogo("Nube Norte")
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Confirmar" })
+    )
+    // El texto está en el diálogo y en el aviso de la página (detrás del diálogo).
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(conflicto).map((e) => e.getAttribute("role"))
+      ).toEqual(["status", "alert"])
+    )
+    const aviso = screen.getAllByText(conflicto)[0]
+    expect(aviso).toHaveClass("text-warning")
+    expect(aviso.querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+    expect(screen.getByText(conflicto)).toHaveClass("text-warning")
+
+    // Abrir cualquier confirmación borra el conflicto de antes.
+    await abrirDialogo("Datos del Sur")
+    expect(screen.queryByText(conflicto)).not.toBeInTheDocument()
   })
 
   it("un doble clic en Declarar desierta manda una sola solicitud y no deja cerrar mientras tanto", async () => {

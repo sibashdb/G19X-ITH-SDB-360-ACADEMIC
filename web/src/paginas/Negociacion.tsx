@@ -1,6 +1,8 @@
+import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
 import { useParams } from "react-router"
 import { useRoles } from "@/auth"
+import { SeccionAprobacion } from "@/componentes/adjudicacion/SeccionAprobacion"
 import { SeccionEvaluacion } from "@/componentes/adjudicacion/SeccionEvaluacion"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { ContenidoVivo } from "@/componentes/negociacion/ContenidoVivo"
@@ -17,6 +19,10 @@ import {
   type Evento,
 } from "@/negociacion"
 
+/** El aviso de la página: un resultado, o un conflicto con el servicio (la negociación ya cambió). */
+type Aviso = { texto: string; tono: "exito" | "conflicto" }
+const SIN_AVISO: Aviso = { texto: "", tono: "exito" }
+
 export function Negociacion() {
   const { id = "" } = useParams()
   const esComprador = useRoles().includes("comprador")
@@ -28,7 +34,12 @@ export function Negociacion() {
         q.state.data?.estado === "abierto" ? 3000 : false,
     }
   )
-  const [aviso, setAviso] = useState("")
+  const [aviso, setAviso] = useState(SIN_AVISO)
+  const avisar = (texto: string) => setAviso({ texto, tono: "exito" })
+  const advertir = (texto: string) => setAviso({ texto, tono: "conflicto" })
+  // Al abrir un diálogo o empezar una decisión, el conflicto de antes ya no viene al caso.
+  const olvidarConflicto = () =>
+    setAviso((actual) => (actual.tono === "conflicto" ? SIN_AVISO : actual))
   // Los enlaces viven aquí y no en el editor: al publicar, el editor se desmonta.
   const [enlaces, setEnlaces] = useState<EnlaceInvitacion[] | null>(null)
   const [abridor, setAbridor] = useState<HTMLElement | null>(null)
@@ -52,7 +63,7 @@ export function Negociacion() {
               <EditorBorrador
                 key={evento.version}
                 evento={evento}
-                alAvisar={setAviso}
+                alAvisar={avisar}
                 alPublicar={(nuevos) => {
                   setAbridor(null)
                   setEnlaces(nuevos)
@@ -65,12 +76,25 @@ export function Negociacion() {
                     <DialogoCancelar
                       ruta={`/negociacion/eventos/${encodeURIComponent(evento.id)}`}
                       borrador={false}
-                      alCancelar={() => setAviso("Se canceló la negociación.")}
+                      alCancelar={() => avisar("Se canceló la negociación.")}
                     />
                   </div>
                 )}
                 {evento.estado === "en_evaluacion" && (
-                  <SeccionEvaluacion evento={evento} alAvisar={setAviso} />
+                  <SeccionEvaluacion
+                    evento={evento}
+                    alAvisar={avisar}
+                    alConflicto={advertir}
+                    alEmpezar={olvidarConflicto}
+                  />
+                )}
+                {evento.estado === "pendiente_aprobacion" && (
+                  <SeccionAprobacion
+                    evento={evento}
+                    alAvisar={avisar}
+                    alConflicto={advertir}
+                    alEmpezar={olvidarConflicto}
+                  />
                 )}
                 {evento.estado !== "borrador" && (
                   <TablaSesiones
@@ -88,8 +112,21 @@ export function Negociacion() {
           </>
         )}
       </ContenidoVivo>
-      <p role="status" className={aviso ? "text-sm text-success" : "sr-only"}>
-        {aviso}
+      <p
+        role="status"
+        className={
+          !aviso.texto
+            ? "sr-only"
+            : aviso.tono === "conflicto"
+              ? "flex items-start gap-2 text-sm text-warning"
+              : "text-sm text-success"
+        }
+      >
+        {/* El conflicto lleva un icono además del color. */}
+        {aviso.texto && aviso.tono === "conflicto" && (
+          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+        )}
+        {aviso.texto}
       </p>
       <DialogoEnlaces
         enlaces={enlaces}
