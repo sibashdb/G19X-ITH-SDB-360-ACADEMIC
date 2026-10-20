@@ -1,5 +1,6 @@
 import { keepPreviousData } from "@tanstack/react-query"
-import { useState } from "react"
+import { TriangleAlert } from "lucide-react"
+import { useId, useState } from "react"
 import {
   PESOS_POR_OMISION,
   useEvaluacion,
@@ -12,6 +13,7 @@ import { AjustarPesos } from "@/componentes/adjudicacion/AjustarPesos"
 import { DialogoAdjudicar } from "@/componentes/adjudicacion/DialogoAdjudicar"
 import { DialogoDesierta } from "@/componentes/adjudicacion/DialogoDesierta"
 import { Explicacion } from "@/componentes/adjudicacion/Explicacion"
+import { PropuestaRechazada } from "@/componentes/adjudicacion/PropuestaRechazada"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
@@ -36,6 +38,7 @@ export function SeccionEvaluacion({
   alEmpezar: () => void
 }) {
   const esComprador = useRoles().includes("comprador")
+  const idRechazo = useId()
   // Los pesos que se pidieron al recalcular; null, los configurados.
   const [pesos, setPesos] = useState<Pesos | null>(null)
   const consulta = useEvaluacion(evento.id, pesos, {
@@ -51,6 +54,8 @@ export function SeccionEvaluacion({
   if (consulta.data && consulta.data !== ultima) setUltima(consulta.data)
   const evaluacion = consulta.data ?? ultima
   const recomendacion = evaluacion?.recomendacion
+  // Las rechazadas vienen de la más reciente a la más antigua.
+  const rechazada = evaluacion?.historial[0]
   // La evaluación viva nunca trae propuesta vigente. Si la que se tiene la trae, es la foto de la
   // propuesta que se acaba de rechazar: no se muestra ni ofrece acciones hasta que llegue la viva.
   const obsoleta = Boolean(evaluacion?.vigente)
@@ -89,6 +94,24 @@ export function SeccionEvaluacion({
   } else {
     cuerpo = (
       <div className="space-y-6">
+        {rechazada && (
+          <section
+            aria-labelledby={idRechazo}
+            className="space-y-0.5 rounded-lg border border-warning p-3 text-sm break-words"
+          >
+            <h3
+              id={idRechazo}
+              className="mb-1 flex items-start gap-2 font-semibold"
+            >
+              <TriangleAlert
+                aria-hidden
+                className="mt-0.5 size-4 shrink-0 text-warning"
+              />
+              Se rechazó la última propuesta
+            </h3>
+            <PropuestaRechazada propuesta={rechazada} evento={evento} />
+          </section>
+        )}
         {recomendacion && (
           <TablaCandidatos
             recomendacion={recomendacion}

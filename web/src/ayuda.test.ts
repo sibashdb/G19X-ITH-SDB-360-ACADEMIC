@@ -145,6 +145,8 @@ describe("contenido de la ayuda", () => {
       "ven «Esperando aprobación de un aprobador», incluso quien la propuso",
       "Solo quien propuso y además tiene el rol de aprobación ve «Usted propuso esta adjudicación; la aprueba otra persona»",
       "Revisar la propuesta nueva",
+      // Tras un rechazo, la sección «Evaluación» muestra la última propuesta rechazada y su motivo.
+      "vuelve a «En evaluación», donde la sección «Evaluación» muestra la última propuesta rechazada y su motivo",
     ])
       expect(texto, frase).toContain(frase)
     // Con la adjudicación directa, la propuesta del comprador es la adjudicación: nadie más autoriza.

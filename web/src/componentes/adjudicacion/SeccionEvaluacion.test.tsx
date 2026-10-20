@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
+import { formatoFechaHora } from "@/fechas"
 import { GLOSARIO } from "@/glosario"
 import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
@@ -17,6 +18,7 @@ import {
   RECOMENDACION,
   RUTA,
   SIN_ACUERDOS,
+  propuesta,
   sesion,
 } from "@/pruebas/evaluacion"
 import { sesionDePrueba } from "@/pruebas/sesion"
@@ -50,6 +52,37 @@ const CON_PESOS_25: Evaluacion = {
     explicacion: ["Con pesos parejos, Datos del Sur queda primero."],
   },
 }
+
+/** Las rechazadas, de la más reciente a la más antigua; la primera guarda otro nombre del proveedor. */
+const RECHAZADA = propuesta("s2", "rechazada", {
+  id: "a2",
+  propuesta_por_nombre: "Marta Ruiz",
+  propuesta_en: "2026-10-21T10:00:00Z",
+  decidida_por_nombre: "Luis Pérez",
+  decidida_en: "2026-10-21T15:00:00Z",
+  motivo_rechazo: "El proveedor no cumple los límites del contrato.",
+  recomendacion: {
+    ...RECOMENDACION,
+    candidatos: [
+      NUBE_NORTE,
+      { ...DATOS_DEL_SUR, nombre: "Datos del Sur, S.A." },
+    ],
+  },
+}).vigente!
+const RECHAZADA_ANTERIOR = propuesta("s1", "rechazada", {
+  id: "a1",
+  propuesta_por_nombre: "Ana López",
+  propuesta_en: "2026-10-20T10:00:00Z",
+  decidida_por_nombre: "Sofía Díaz",
+  decidida_en: "2026-10-20T18:00:00Z",
+  motivo_rechazo: "Falta la cotización firmada.",
+}).vigente!
+/** Lo que devuelve el servicio en evaluación tras dos rechazos. */
+const TRAS_RECHAZOS: Evaluacion = {
+  ...CON_RECOMENDACION,
+  historial: [RECHAZADA, RECHAZADA_ANTERIOR],
+}
+const fecha = (iso: string) => sinEspaciosDuros(formatoFechaHora(iso))
 
 const PESOS_INVALIDOS =
   "Indique los pesos como cuatro enteros de 0 a 100 que sumen 100, en el orden costo, desempeño, riesgo y SLA; por ejemplo, 40,30,15,15."
@@ -470,6 +503,88 @@ describe("Sección «Evaluación»", () => {
     const { container } = abrir()
     await screen.findByRole("table", { name: "Candidatos de la evaluación" })
     await esperarSinViolaciones(container)
+  })
+
+  describe("tras un rechazo", () => {
+    const AVISO = "Se rechazó la última propuesta"
+
+    it("avisa de la propuesta rechazada más reciente, con quién la propuso y la rechazó y el motivo", async () => {
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () => respuestaJson(TRAS_RECHAZOS),
+      })
+      abrir()
+      const aviso = await screen.findByRole("region", { name: AVISO })
+      // El proveedor sale de la foto de esa propuesta, no de la evaluación de ahora.
+      expect(aviso).toHaveTextContent("Datos del Sur, S.A.")
+      expect(aviso).toHaveTextContent(
+        `Propuso Marta Ruiz, ${fecha("2026-10-21T10:00:00Z")}`
+      )
+      expect(aviso).toHaveTextContent(
+        `Rechazó Luis Pérez, ${fecha("2026-10-21T15:00:00Z")}`
+      )
+      expect(aviso).toHaveTextContent(
+        "Motivo del rechazo: El proveedor no cumple los límites del contrato."
+      )
+      // Solo la más reciente, y con texto: no depende del color.
+      expect(aviso).not.toHaveTextContent("Falta la cotización firmada.")
+      expect(aviso).not.toHaveTextContent("Sofía Díaz")
+      // La tabla sigue debajo para volver a proponer.
+      expect(
+        screen.getByRole("table", { name: "Candidatos de la evaluación" })
+      ).toBeInTheDocument()
+    })
+
+    it("un motivo con una palabra larguísima parte las palabras para no ensanchar la tarjeta a 375 px", async () => {
+      // jsdom no calcula el diseño: se fija la clase.
+      const larga = {
+        ...RECHAZADA,
+        motivo_rechazo: "x".repeat(300),
+      }
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () =>
+          respuestaJson({ ...CON_RECOMENDACION, historial: [larga] }),
+      })
+      abrir()
+      const aviso = await screen.findByRole("region", { name: AVISO })
+      expect(aviso).toHaveClass("break-words")
+      expect(within(aviso).getByText(/^Motivo del rechazo: x+$/)).toBeVisible()
+    })
+
+    it("sin rechazos no hay aviso", async () => {
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () => respuestaJson(CON_RECOMENDACION),
+      })
+      abrir()
+      await screen.findByRole("table", { name: "Candidatos de la evaluación" })
+      expect(
+        screen.queryByRole("region", { name: AVISO })
+      ).not.toBeInTheDocument()
+    })
+
+    it("lo ve también quien solo lee la negociación", async () => {
+      sesionDePrueba.roles = ["aprobador"]
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () => respuestaJson(TRAS_RECHAZOS),
+      })
+      abrir()
+      expect(
+        await screen.findByRole("region", { name: AVISO })
+      ).toBeInTheDocument()
+    })
+
+    it("no tiene violaciones de axe en claro ni en oscuro", async () => {
+      simularRutas({
+        [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+        [`GET ${EVALUACION}`]: () => respuestaJson(TRAS_RECHAZOS),
+      })
+      const { container } = abrir()
+      await screen.findByRole("region", { name: AVISO })
+      await esperarSinViolaciones(container)
+    })
   })
 })
 

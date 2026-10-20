@@ -304,7 +304,7 @@ export const ARTICULOS: Articulo[] = [
         parrafos: [
           "Quien propone no aprueba: aunque tenga también el rol de aprobación, en su propia propuesta no ve «Aprobar» ni «Rechazar». Cuando interviene un aprobador, siempre es una persona distinta de quien propuso.",
           "Si la propuesta cambia mientras la revisa, la plataforma se lo dice y reemplaza los botones por «Revisar la propuesta nueva»: solo se aprueba o se rechaza lo que ya leyó.",
-          "Al aprobar, la negociación queda «Adjudicada». Al rechazar, vuelve a «En evaluación» y Compras puede proponer el mismo acuerdo u otro, o declarar desierta la negociación. Las propuestas rechazadas quedan en el resumen, con su motivo.",
+          "Al aprobar, la negociación queda «Adjudicada». Al rechazar, vuelve a «En evaluación», donde la sección «Evaluación» muestra la última propuesta rechazada y su motivo, y Compras puede proponer el mismo acuerdo u otro, o declarar desierta la negociación. Las propuestas rechazadas quedan en el resumen, con su motivo.",
         ],
       },
       {

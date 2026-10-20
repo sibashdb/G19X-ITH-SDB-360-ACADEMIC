@@ -1,26 +1,15 @@
 import { useId, type ReactNode } from "react"
 import { useEvaluacion, type Adjudicacion } from "@/adjudicacion"
+import {
+  PropuestaRechazada,
+  proveedorDe,
+  quienYCuando,
+} from "@/componentes/adjudicacion/PropuestaRechazada"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { Termino } from "@/componentes/Termino"
-import { formatoFechaHora } from "@/fechas"
 import type { Evento } from "@/negociacion"
 import { formatoMoneda } from "@/tipos"
-
-/** El proveedor de una propuesta, como lo mostraba su foto; si falta, el de la sesión. */
-function proveedorDe(propuesta: Adjudicacion, evento: Evento): string {
-  return (
-    propuesta.recomendacion.candidatos.find((c) => c.id === propuesta.sesion_id)
-      ?.nombre ??
-    evento.sesiones.find((s) => s.id === propuesta.sesion_id)
-      ?.proveedor_nombre ??
-    "—"
-  )
-}
-
-/** Quién actuó y cuándo: «Ana López, 22 oct 2026, 10:00 a.m.». */
-const quienYCuando = (nombre: string | null, iso: string | null) =>
-  [nombre, iso && formatoFechaHora(iso)].filter(Boolean).join(", ") || "—"
 
 /** Lo que se adjudicó: proveedor, costo, quién propuso y aprobó, y el folio del contrato. */
 function DatosAdjudicacion({
@@ -138,17 +127,7 @@ export function ResumenAdjudicacion({ evento }: { evento: Evento }) {
                   key={p.id}
                   className="space-y-0.5 rounded-lg border p-3 break-words"
                 >
-                  <p className="font-medium">{proveedorDe(p, evento)}</p>
-                  <p>
-                    Propuso{" "}
-                    {quienYCuando(p.propuesta_por_nombre, p.propuesta_en)}
-                  </p>
-                  <p>
-                    Rechazó {quienYCuando(p.decidida_por_nombre, p.decidida_en)}
-                  </p>
-                  {p.motivo_rechazo && (
-                    <p>Motivo del rechazo: {p.motivo_rechazo}</p>
-                  )}
+                  <PropuestaRechazada propuesta={p} evento={evento} />
                 </li>
               ))}
             </ul>
