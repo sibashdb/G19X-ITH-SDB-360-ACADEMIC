@@ -172,6 +172,14 @@ export function normalizarTexto(texto: string): string {
     .toLowerCase()
 }
 
+/**
+ * Cierra una frase con un solo punto. Los nombres de proveedor suelen terminar en «.» («S.A. de
+ * C.V.») y, con el punto de la frase, quedaría «C.V..»: el del nombre sirve de punto final.
+ */
+export function conPuntoFinal(frase: string): string {
+  return frase.trimEnd().replace(/\.+$/, "") + "."
+}
+
 export type UsuarioAdmin = {
   id: string
   usuario: string

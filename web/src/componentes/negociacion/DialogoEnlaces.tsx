@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { EnlaceInvitacion } from "@/negociacion"
+import { conPuntoFinal } from "@/tipos"
 
 /**
  * Los enlaces de invitación, que la API entrega una sola vez (spec D3). Se abre por estado; al
@@ -44,7 +45,7 @@ export function DialogoEnlaces({
   const textoCopia =
     copiado &&
     (copia?.ok
-      ? `Se copió el enlace de ${copiado.proveedor_nombre}.`
+      ? conPuntoFinal(`Se copió el enlace de ${copiado.proveedor_nombre}`)
       : "No se pudo copiar; selecciónelo y cópielo a mano.")
   return (
     <Dialog

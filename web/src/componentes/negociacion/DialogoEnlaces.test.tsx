@@ -90,6 +90,25 @@ describe("DialogoEnlaces", () => {
     )
   })
 
+  it("el aviso de copia no duplica el punto del nombre del proveedor", async () => {
+    const nombre = "Datos Integrales S.A. de C.V."
+    const usuario = userEvent.setup()
+    render(
+      <DialogoEnlaces
+        enlaces={[{ ...ENLACE, proveedor_nombre: nombre }]}
+        alCerrar={() => {}}
+      />
+    )
+    await usuario.click(
+      await screen.findByRole("button", {
+        name: `Copiar el enlace de ${nombre}`,
+      })
+    )
+    expect(
+      await screen.findByText(`Se copió el enlace de ${nombre}`)
+    ).toBeInTheDocument()
+  })
+
   it("el aviso de copia está en el árbol aunque esté vacío y se ve al copiar", async () => {
     const { dialogo } = await abrir()
     const aviso = dialogo.querySelector("p[aria-live=polite]")

@@ -271,6 +271,36 @@ describe("Sección «Evaluación»", () => {
     }
   })
 
+  it("la explicación no deja dos puntos cuando un proveedor del servicio termina en uno", async () => {
+    // La plantilla del servicio agrega su punto al nombre: «…ganaría Datos Integrales S.A. de C.V..».
+    const NOMBRE = "Datos Integrales S.A. de C.V."
+    const conNombre: Evaluacion = {
+      ...CON_RECOMENDACION,
+      recomendacion: {
+        ...RECOMENDACION,
+        explicacion: [
+          "Nube Norte obtiene el mejor puntaje.",
+          `Si el peso del costo pasara de 40 a 10, ganaría ${NOMBRE}.`,
+        ],
+      },
+    }
+    simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+      [`GET ${EVALUACION}`]: () => respuestaJson(conNombre),
+    })
+    abrir()
+    expect(
+      await screen.findByText(
+        `Si el peso del costo pasara de 40 a 10, ganaría ${NOMBRE}`
+      )
+    ).toBeInTheDocument()
+    // Las frases que ya terminan en punto no cambian.
+    expect(
+      screen.getByText("Nube Norte obtiene el mejor puntaje.")
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/\.\.$/)).not.toBeInTheDocument()
+  })
+
   it("recalcular pide la evaluación con los pesos como texto y deja la tabla mientras carga", async () => {
     const recalculo = respuestaDiferida()
     const api = simularRutas({

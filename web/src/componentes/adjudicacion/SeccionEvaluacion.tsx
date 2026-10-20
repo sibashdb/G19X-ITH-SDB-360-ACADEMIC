@@ -19,6 +19,7 @@ import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { Termino } from "@/componentes/Termino"
 import type { Evento } from "@/negociacion"
+import { conPuntoFinal } from "@/tipos"
 
 /**
  * Los acuerdos tentativos ordenados y explicados, con los pesos que el comprador quiera probar. El
@@ -130,8 +131,9 @@ export function SeccionEvaluacion({
                         setPesos(null)
                         alAvisar(
                           resultado.vigente?.estado === "directa"
-                            ? // «S.A. de C.V.» ya termina en punto: no se duplica.
-                              `Se adjudicó la negociación a ${candidato.nombre.replace(/\.$/, "")}.`
+                            ? conPuntoFinal(
+                                `Se adjudicó la negociación a ${candidato.nombre}`
+                              )
                             : "Se envió la propuesta a un aprobador."
                         )
                       }}
