@@ -33,6 +33,8 @@ const JUSTIFICACION_OBLIGATORIA =
   "Para elegir un proveedor distinto del recomendado, escriba la justificación (de 10 a 1,000 caracteres)."
 const JUSTIFICACION_LONGITUD =
   "La justificación debe tener de 10 a 1,000 caracteres."
+const RECOMENDACION_CAMBIO =
+  "La recomendación cambió mientras usted decidía. Revise la evaluación actualizada antes de adjudicar."
 
 /** Por qué no sirve la justificación, con el texto del servicio; undefined si sirve. */
 function errorDeJustificacion(texto: string): string | undefined {
@@ -71,6 +73,8 @@ export function DialogoAdjudicar({
   const [abierto, setAbierto] = useState(false)
   const [justificacion, setJustificacion] = useState("")
   const [intentado, setIntentado] = useState(false)
+  // El servicio pidió la justificación de un candidato que aquí se creía el recomendado.
+  const [recomendacionCambio, setRecomendacionCambio] = useState(false)
   const adjudicada = useRef(false)
   const campo = useRef<HTMLTextAreaElement>(null)
   const abridor = useRef<HTMLButtonElement>(null)
@@ -96,8 +100,14 @@ export function DialogoAdjudicar({
       await cliente.invalidateQueries({ queryKey: ["negociacion"] })
     },
     onError: (error) => {
+      const pideElServicio = Boolean(erroresPorCampo(error).justificacion)
+      // El servicio recalcula la recomendación al proponer: si pide la justificación y aquí no había
+      // campo, la evaluación que se ve ya no es la de ahora. Se actualiza, y con ella el diálogo.
+      setRecomendacionCambio(pideElServicio && !pideJustificacion)
+      if (pideElServicio && !pideJustificacion)
+        void cliente.invalidateQueries({ queryKey: ["negociacion"] })
       // El error del campo no es una región viva: con el foco en el campo, se lee junto a él.
-      if (erroresPorCampo(error).justificacion) campo.current?.focus()
+      if (pideElServicio && pideJustificacion) campo.current?.focus()
       // Un 409 es que la negociación ya cambió: se actualiza lo que hay detrás del diálogo, sin
       // esperar a la consulta para mostrar el mensaje. Si la sección desaparece, el texto queda
       // en la página.
@@ -114,6 +124,7 @@ export function DialogoAdjudicar({
     evento.sesiones.find((s) => s.id === candidato.id)?.fuera_de_limites ??
       false
   )
+  // La regla se compara en MXN aunque la negociación sea en otra moneda: la frase lo dice.
   const costo = formatoMoneda(candidato.costo_total_mxn, "MXN")
   const umbral = formatoMoneda(recomendacion.umbral_aprobacion, "MXN")
   const termino = (
@@ -122,7 +133,7 @@ export function DialogoAdjudicar({
   const textoRazon = {
     umbral: (
       <>
-        el costo total ({costo}) supera el {termino} ({umbral})
+        el costo total en MXN ({costo}) supera el {termino} ({umbral})
       </>
     ),
     fuera_de_limites: <>el acuerdo está fuera de sus límites</>,
@@ -140,7 +151,7 @@ export function DialogoAdjudicar({
     </>
   ) : (
     <>
-      Se adjudicará directamente: el costo total ({costo}) no supera el{" "}
+      Se adjudicará directamente: el costo total en MXN ({costo}) no supera el{" "}
       {termino} ({umbral}) y el acuerdo está dentro de sus límites.
     </>
   )
@@ -151,10 +162,12 @@ export function DialogoAdjudicar({
   const errorCampo = pideJustificacion
     ? (localmente ?? delServicio.justificacion)
     : undefined
-  const aviso =
-    adjudicar.isError && !(pideJustificacion && delServicio.justificacion)
-      ? (Object.values(delServicio)[0] ?? adjudicar.error.message)
-      : ""
+  let aviso = ""
+  if (adjudicar.isError) {
+    if (recomendacionCambio) aviso = RECOMENDACION_CAMBIO
+    else if (!(pideJustificacion && delServicio.justificacion))
+      aviso = Object.values(delServicio)[0] ?? adjudicar.error.message
+  }
 
   function enviar(envio: FormEvent<HTMLFormElement>) {
     envio.preventDefault()

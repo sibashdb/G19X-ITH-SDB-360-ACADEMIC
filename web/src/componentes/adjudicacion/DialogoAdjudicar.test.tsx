@@ -7,9 +7,11 @@ import { GLOSARIO } from "@/glosario"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
   CON_RECOMENDACION,
+  DATOS_DEL_SUR,
   EVALUACION,
   EVENTO,
   ID,
+  NUBE_NORTE,
   RECOMENDACION,
   RUTA,
   propuesta,
@@ -36,6 +38,8 @@ const JUSTIFICACION = "El costo es mayor, pero ofrece soporte local."
 const MENSAJE_OBLIGATORIA =
   "Para elegir un proveedor distinto del recomendado, escriba la justificación (de 10 a 1,000 caracteres)."
 const MENSAJE_LONGITUD = "La justificación debe tener de 10 a 1,000 caracteres."
+const CAMBIO_RECOMENDACION =
+  "La recomendación cambió mientras usted decidía. Revise la evaluación actualizada antes de adjudicar."
 
 function abrir() {
   return renderizarPagina(
@@ -89,7 +93,7 @@ describe("Adjudicar", () => {
     abrirConEvaluacion()
     const dialogo = await abrirDialogo("Nube Norte")
     expect(dialogo).toHaveTextContent(
-      `Se adjudicará directamente: el costo total (${formatoMoneda("480000.00", "MXN")}) no supera el umbral de aprobación (${formatoMoneda("500000.00", "MXN")}) y el acuerdo está dentro de sus límites.`
+      `Se adjudicará directamente: el costo total en MXN (${formatoMoneda("480000.00", "MXN")}) no supera el umbral de aprobación (${formatoMoneda("500000.00", "MXN")}) y el acuerdo está dentro de sus límites.`
     )
     expect(
       within(dialogo).getByRole("button", { name: "Confirmar" })
@@ -125,7 +129,7 @@ describe("Adjudicar", () => {
     const monto = formatoMoneda("480000.00", "MXN")
     // Solo lo que lo supera pide aprobación (comparación estricta, como el servicio).
     expect(dialogo).toHaveTextContent(
-      `Se adjudicará directamente: el costo total (${monto}) no supera el umbral de aprobación (${monto})`
+      `Se adjudicará directamente: el costo total en MXN (${monto}) no supera el umbral de aprobación (${monto})`
     )
   })
 
@@ -143,7 +147,7 @@ describe("Adjudicar", () => {
             sesion("s2", "Datos del Sur", "acuerdo_tentativo"),
           ],
         },
-        `Irá a un aprobador porque el costo total (${costo}) supera el umbral de aprobación (${umbral}).`,
+        `Irá a un aprobador porque el costo total en MXN (${costo}) supera el umbral de aprobación (${umbral}).`,
       ],
       [
         "límites",
@@ -158,7 +162,7 @@ describe("Adjudicar", () => {
         "los dos",
         CON_RECOMENDACION,
         EVENTO,
-        `Irá a un aprobador porque el costo total (${costo}) supera el umbral de aprobación (${umbral}) y el acuerdo está fuera de sus límites.`,
+        `Irá a un aprobador porque el costo total en MXN (${costo}) supera el umbral de aprobación (${umbral}) y el acuerdo está fuera de sus límites.`,
       ],
     ]
     for (const [, evaluacion, evento, texto] of casos) {
@@ -168,6 +172,28 @@ describe("Adjudicar", () => {
       expect(dialogo).not.toHaveTextContent("Se adjudicará directamente")
       cleanup()
     }
+  })
+
+  it("en USD las cifras de la confirmación son en MXN y lo dice", async () => {
+    abrirConEvaluacion(
+      {
+        ...CON_RECOMENDACION,
+        recomendacion: {
+          ...RECOMENDACION,
+          candidatos: [
+            { ...NUBE_NORTE, costo_total: "26000.00" },
+            { ...DATOS_DEL_SUR, costo_total: "27500.00" },
+          ],
+        },
+      },
+      { ...EVENTO, moneda: "USD" }
+    )
+    const dialogo = await abrirDialogo("Nube Norte")
+    // La tabla muestra USD; la regla se compara en MXN, y la confirmación no mezcla las dos.
+    expect(dialogo).toHaveTextContent(
+      `Se adjudicará directamente: el costo total en MXN (${formatoMoneda("480000.00", "MXN")}) no supera el umbral de aprobación (${formatoMoneda("500000.00", "MXN")})`
+    )
+    expect(dialogo).not.toHaveTextContent("26,000")
   })
 
   it("pide la justificación solo si no es el recomendado", async () => {
@@ -357,6 +383,90 @@ describe("Adjudicar", () => {
     // Es del campo: la región de avisos del diálogo no lo repite y el diálogo sigue abierto.
     expect(within(dialogo).getByRole("alert")).toBeEmptyDOMElement()
     expect(screen.getByRole("dialog")).toBe(dialogo)
+  })
+
+  it("si el servicio pide la justificación de quien aquí era el recomendado, actualiza la evaluación y explica que cambió", async () => {
+    // La recomendación se recalcula al proponer: Datos del Sur pasó a ser el recomendado.
+    const otroRecomendado: Evaluacion = {
+      ...CON_RECOMENDACION,
+      recomendacion: { ...RECOMENDACION, recomendado: "s2" },
+    }
+    const nueva = respuestaDiferida()
+    let intentos = 0
+    let cambio = false
+    const { api } = abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`GET ${EVALUACION}`]: () =>
+        cambio ? nueva.promesa : respuestaJson(CON_RECOMENDACION),
+      [`POST ${ADJUDICACION}`]: () => {
+        intentos += 1
+        if (intentos > 1)
+          return respuestaJson(
+            {
+              title: "Servicio no disponible",
+              detail: "No se pudo guardar la propuesta; intente de nuevo.",
+            },
+            503
+          )
+        cambio = true
+        return respuestaJson(
+          {
+            title: "Solicitud inválida",
+            detail: "Revise los datos marcados.",
+            codigo: "justificacion_requerida",
+            errores: [{ campo: "justificacion", mensaje: MENSAJE_OBLIGATORIA }],
+          },
+          422
+        )
+      },
+    })
+    const dialogo = await abrirDialogo("Nube Norte")
+    expect(
+      within(dialogo).queryByLabelText("Justificación")
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Confirmar" })
+    )
+
+    // Se explica qué pasó, y no «escriba la justificación» sin un campo donde escribirla.
+    await waitFor(() =>
+      expect(within(dialogo).getByRole("alert")).toHaveTextContent(
+        CAMBIO_RECOMENDACION
+      )
+    )
+    expect(
+      within(dialogo).queryByText(MENSAJE_OBLIGATORIA)
+    ).not.toBeInTheDocument()
+    // La evaluación se vuelve a pedir y, con la recomendación nueva, aparece el campo.
+    await waitFor(() =>
+      expect(api.mock.calls.filter(([url]) => url === EVALUACION)).toHaveLength(
+        2
+      )
+    )
+    expect(
+      within(dialogo).queryByLabelText("Justificación")
+    ).not.toBeInTheDocument()
+    await act(async () => nueva.resolver(respuestaJson(otroRecomendado)))
+    const campo = await within(dialogo).findByLabelText("Justificación")
+    expect(campo).toBeRequired()
+    expect(within(dialogo).getByText(MENSAJE_OBLIGATORIA)).toBeInTheDocument()
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent(
+      CAMBIO_RECOMENDACION
+    )
+    expect(screen.getByRole("dialog")).toBe(dialogo)
+
+    // Otro error, después, no arrastra la explicación de este.
+    await userEvent.type(campo, JUSTIFICACION)
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Confirmar" })
+    )
+    await waitFor(() =>
+      expect(within(dialogo).getByRole("alert")).toHaveTextContent(
+        "No se pudo guardar la propuesta; intente de nuevo."
+      )
+    )
+    expect(within(dialogo).getByRole("alert")).not.toHaveTextContent(
+      "La recomendación cambió"
+    )
   })
 
   it("los demás errores del servicio se muestran en el diálogo, que sigue abierto", async () => {
