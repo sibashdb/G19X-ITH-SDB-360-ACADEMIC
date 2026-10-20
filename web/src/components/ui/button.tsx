@@ -15,8 +15,11 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        // Relleno sólido: el texto de 14 px de la variante translúcida no llegaba a 4.5:1 (3.82 en claro,
+        // 4.38 en oscuro). Reposo 4.83 / 6.77 y hover 5.82 / 7.36 (claro / oscuro); ver button.test.tsx.
+        // El foco es el de todos los botones: el tinte rojo del original no se veía sobre el relleno.
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive),var(--foreground)_10%)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
