@@ -1,8 +1,8 @@
 # Documento de arquitectura
 
 Entregable 3 del cronograma (PRD §6.5). Describe la plataforma tal como está construida al
-19/10/2026, después de N1 y de la adjudicación en los servicios. Lo planeado aparece marcado
-como tal. Los requerimientos y el diseño original están en el
+20/10/2026, después de N1 y de la adjudicación con sus servicios y su interfaz. Lo planeado
+aparece marcado como tal. Los requerimientos y el diseño original están en el
 [PRD](../superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md).
 
 | Documento | Contenido |

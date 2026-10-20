@@ -144,6 +144,8 @@ describe("contenido de la ayuda", () => {
       // Quien propuso sin el rol de aprobación espera igual que los demás (spec §7.1).
       "ven «Esperando aprobación de un aprobador», incluso quien la propuso",
       "Solo quien propuso y además tiene el rol de aprobación ve «Usted propuso esta adjudicación; la aprueba otra persona»",
+      // El cambio se detecta al aprobar o rechazar, no en vivo.
+      "Si al aprobar o rechazar la propuesta ya cambió, la plataforma se lo dice",
       "Revisar la propuesta nueva",
       // Tras un rechazo, la sección «Evaluación» muestra la última propuesta rechazada y su motivo.
       "vuelve a «En evaluación», donde la sección «Evaluación» muestra la última propuesta rechazada y su motivo",
@@ -151,6 +153,14 @@ describe("contenido de la ayuda", () => {
       expect(texto, frase).toContain(frase)
     // Con la adjudicación directa, la propuesta del comprador es la adjudicación: nadie más autoriza.
     expect(texto).not.toContain("siempre son personas distintas")
+    // La plataforma no vigila la propuesta mientras se lee.
+    expect(texto).not.toContain("mientras la revisa")
+  })
+
+  it("Adjudicar y aprobar dice que el aprobador ve la última propuesta rechazada", () => {
+    expect(textoDe("adjudicar-y-aprobar")).toContain(
+      "Si antes se rechazó otra propuesta, quien aprueba ve también la última propuesta rechazada, con quién la propuso y la rechazó y su motivo."
+    )
   })
 
   it("Adjudicar y aprobar dice qué ve Actividad y qué no", () => {
@@ -183,6 +193,12 @@ describe("contenido de la ayuda", () => {
     expect(
       buscarArticulos("umbral de aprobación", true).map((a) => a.slug)
     ).toContain(articulo)
+  })
+
+  it("la ayuda de Configuración dice que Actividad muestra los campos que cambiaron, no sus valores", () => {
+    const texto = textoDe("configurar-puntuacion-y-modelo")
+    expect(texto).toContain("quién lo hizo y qué campos cambió")
+    expect(texto).not.toContain("qué valores cambió")
   })
 
   it("los artículos de negociación llevan al de Adjudicar y aprobar", () => {

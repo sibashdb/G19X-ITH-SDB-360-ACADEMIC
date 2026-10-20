@@ -291,7 +291,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Aprobar o rechazar",
         parrafos: [
-          "Si la propuesta necesita aprobación, la negociación queda «Pendiente de aprobación». Quien tiene el rol de aprobación ve la misma evaluación con la propuesta resaltada, la justificación, las marcas «Fuera de límites» y el motivo por el que requiere aprobación. La lista de Negociaciones de quien aprueba empieza en «Por aprobar» si hay propuestas esperando.",
+          "Si la propuesta necesita aprobación, la negociación queda «Pendiente de aprobación». Quien tiene el rol de aprobación ve la misma evaluación con la propuesta resaltada, la justificación, las marcas «Fuera de límites» y el motivo por el que requiere aprobación. Si antes se rechazó otra propuesta, quien aprueba ve también la última propuesta rechazada, con quién la propuso y la rechazó y su motivo. La lista de Negociaciones de quien aprueba empieza en «Por aprobar» si hay propuestas esperando.",
           "Compras y el resto del equipo ven la propuesta, pero no deciden: ven «Esperando aprobación de un aprobador», incluso quien la propuso. Solo quien propuso y además tiene el rol de aprobación ve «Usted propuso esta adjudicación; la aprueba otra persona».",
         ],
         pasos: [
@@ -303,7 +303,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Reglas de la aprobación",
         parrafos: [
           "Quien propone no aprueba: aunque tenga también el rol de aprobación, en su propia propuesta no ve «Aprobar» ni «Rechazar». Cuando interviene un aprobador, siempre es una persona distinta de quien propuso.",
-          "Si la propuesta cambia mientras la revisa, la plataforma se lo dice y reemplaza los botones por «Revisar la propuesta nueva»: solo se aprueba o se rechaza lo que ya leyó.",
+          "Si al aprobar o rechazar la propuesta ya cambió, la plataforma se lo dice y reemplaza los botones por «Revisar la propuesta nueva»: solo se aprueba o se rechaza lo que ya leyó.",
           "Al aprobar, la negociación queda «Adjudicada». Al rechazar, vuelve a «En evaluación», donde la sección «Evaluación» muestra la última propuesta rechazada y su motivo, y Compras puede proponer el mismo acuerdo u otro, o declarar desierta la negociación. Las propuestas rechazadas quedan en el resumen, con su motivo.",
         ],
       },
@@ -464,7 +464,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         parrafos: [
-          "Las puntuaciones, el ranking y las alertas se recalculan al guardar. Cada cambio queda en la Actividad con quién lo hizo y qué valores cambió.",
+          "Las puntuaciones, el ranking y las alertas se recalculan al guardar. Cada cambio queda en la Actividad con quién lo hizo y qué campos cambió.",
         ],
       },
       {
