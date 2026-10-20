@@ -107,7 +107,8 @@ export function SeccionEvaluacion({
                         setPesos(null)
                         alAvisar(
                           resultado.vigente?.estado === "directa"
-                            ? `Se adjudicó la negociación a ${candidato.nombre}.`
+                            ? // «S.A. de C.V.» ya termina en punto: no se duplica.
+                              `Se adjudicó la negociación a ${candidato.nombre.replace(/\.$/, "")}.`
                             : "Se envió la propuesta a un aprobador."
                         )
                       }}

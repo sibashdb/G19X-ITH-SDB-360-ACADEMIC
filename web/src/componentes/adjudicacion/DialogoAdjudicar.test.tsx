@@ -254,6 +254,31 @@ describe("Adjudicar", () => {
     })
   })
 
+  it("el aviso no duplica el punto cuando el nombre del proveedor termina en uno", async () => {
+    const NOMBRE = "Datos Integrales S.A. de C.V."
+    const conPunto: Evaluacion = {
+      ...CON_RECOMENDACION,
+      recomendacion: {
+        ...RECOMENDACION,
+        candidatos: [
+          { ...RECOMENDACION.candidatos[0], nombre: NOMBRE },
+          RECOMENDACION.candidatos[1],
+        ],
+      },
+    }
+    abrirConEvaluacion(conPunto, EVENTO, {
+      [`POST ${ADJUDICACION}`]: () => respuestaJson(propuesta("s1", "directa")),
+    })
+    const dialogo = await abrirDialogo(NOMBRE)
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Confirmar" })
+    )
+    // Un solo punto: el del nombre sirve de punto final.
+    expect(
+      await screen.findByText(`Se adjudicó la negociación a ${NOMBRE}`)
+    ).toBeInTheDocument()
+  })
+
   it("manda los pesos de la evaluación que se ve, no los que el servicio rechazó", async () => {
     const rechazados = `${EVALUACION}?pesos=30,30,30,10`
     // La negociación no cambia de estado: así se ve si la sección queda atorada en los pesos rechazados.
