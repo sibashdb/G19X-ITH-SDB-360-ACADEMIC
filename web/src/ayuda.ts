@@ -267,8 +267,8 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "La evaluación",
         parrafos: [
-          "Cuando vence la fecha límite o todas las sesiones terminan, la negociación pasa a «En evaluación». Si hay acuerdos tentativos, la sección «Evaluación» los muestra del mejor al peor, con «Recomendado» en el primero, y explica con texto por qué quedó cada uno donde está.",
-          "Cada acuerdo se califica con su costo total, el desempeño del proveedor, su riesgo y el SLA. Los pesos que reparten 100 puntos entre esos cuatro criterios (por defecto, 40 al costo, 30 al desempeño, 15 al riesgo y 15 al SLA) los fija administración en Configuración. Si quiere probar otro reparto, use «Ajustar pesos», escriba cuatro pesos que sumen 100 y pulse «Recalcular»: es una prueba suya y no cambia la configuración, aunque si adjudica con esos pesos, la propuesta guarda los que usó.",
+          "Cuando vence la fecha límite o todas las sesiones terminan, la negociación pasa a «En evaluación». Si hay acuerdos tentativos, la sección «Evaluación» los muestra del mejor al peor, con «Recomendado» en el primero, y, debajo, «Por qué se recomienda» explica con texto qué aporta cada criterio al recomendado y qué cambios en los pesos cambiarían al ganador.",
+          "Cada acuerdo se califica con su costo total, el desempeño del proveedor, su riesgo y el SLA. Los pesos que reparten 100 puntos entre esos cuatro criterios (por defecto, 40 al costo, 30 al desempeño, 15 al riesgo y 15 al SLA) los fija administración en Configuración. Si quiere probar otro reparto, en «Ajustar pesos» escriba cuatro pesos que sumen 100 y pulse «Recalcular»: es una prueba suya y no cambia la configuración, aunque si adjudica con esos pesos, la propuesta guarda los que usó.",
           "La recomendación es una guía: la decisión es suya.",
         ],
       },
@@ -291,17 +291,18 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Aprobar o rechazar",
         parrafos: [
-          "Si la propuesta necesita aprobación, la negociación queda «Pendiente de aprobación». Quien tiene el rol de aprobación ve la misma evaluación con la propuesta resaltada, la justificación, las marcas «Fuera de límites» y el motivo por el que requiere aprobación. Compras y el resto del equipo ven la propuesta, pero no deciden: quien la propuso ve «Usted propuso esta adjudicación; la aprueba otra persona», y los demás, «Esperando aprobación de un aprobador». La lista de Negociaciones de quien aprueba empieza en «Por aprobar» si hay propuestas esperando.",
+          "Si la propuesta necesita aprobación, la negociación queda «Pendiente de aprobación». Quien tiene el rol de aprobación ve la misma evaluación con la propuesta resaltada, la justificación, las marcas «Fuera de límites» y el motivo por el que requiere aprobación. La lista de Negociaciones de quien aprueba empieza en «Por aprobar» si hay propuestas esperando.",
+          "Compras y el resto del equipo ven la propuesta, pero no deciden: quien la propuso ve «Usted propuso esta adjudicación; la aprueba otra persona», y los demás, «Esperando aprobación de un aprobador».",
         ],
         pasos: [
           "Revise la propuesta, su justificación y el motivo.",
-          "Pulse «Aprobar» para adjudicar, o «Rechazar» y escriba el motivo; queda en la bitácora.",
+          "Pulse «Aprobar» para adjudicar, o «Rechazar» y escriba el motivo; queda registrado con la propuesta rechazada.",
         ],
       },
       {
         titulo: "Reglas de la aprobación",
         parrafos: [
-          "Quien propone no aprueba: aunque tenga también el rol de aprobación, en su propia propuesta no ve «Aprobar» ni «Rechazar». Así, quien elige y quien autoriza siempre son personas distintas.",
+          "Quien propone no aprueba: aunque tenga también el rol de aprobación, en su propia propuesta no ve «Aprobar» ni «Rechazar». Cuando interviene un aprobador, siempre es una persona distinta de quien propuso.",
           "Si la propuesta cambia mientras la revisa, la plataforma se lo dice y reemplaza los botones por «Revisar la propuesta nueva»: solo se aprueba o se rechaza lo que ya leyó.",
           "Al aprobar, la negociación queda «Adjudicada». Al rechazar, vuelve a «En evaluación» y Compras puede proponer el mismo acuerdo u otro, o declarar desierta la negociación. Las propuestas rechazadas quedan en el resumen, con su motivo.",
         ],
@@ -316,14 +317,14 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "El aviso a los proveedores",
         parrafos: [
-          "Cuando la negociación se adjudica o se declara desierta, cada proveedor recibe un correo con el resultado que le toca: que su oferta fue adjudicada y Compras se pondrá en contacto, que la negociación se adjudicó a otra propuesta, o que se declaró desierta. También lo ve en su portal mientras su enlace siga vigente. Nunca se les dice quién ganó ni se les muestra ningún monto.",
+          "Poco después de que la negociación se adjudica o se declara desierta, la plataforma envía a cada proveedor invitado que tenga correo el resultado que le toca: que su oferta fue adjudicada y Compras se pondrá en contacto, que la negociación se adjudicó a otra propuesta, o que se declaró desierta. También lo ve en su portal mientras su enlace siga vigente. Ni el correo ni el aviso del portal dicen quién ganó ni muestran ningún monto.",
           "Administración ve estos correos en Correos, como «Resultado de negociación».",
         ],
       },
       {
         titulo: "El resultado",
         parrafos: [
-          "Con la negociación «Adjudicada» o «Desierta», la sección «Resultado» resume quién propuso y quién aprobó (o que fue una adjudicación directa), el proveedor, el costo total, el folio del contrato, el motivo si quedó desierta y las propuestas rechazadas. Cada paso queda en la bitácora de Actividad.",
+          "Con la negociación «Adjudicada» o «Desierta», la sección «Resultado» resume quién propuso y quién aprobó (o que fue una adjudicación directa), el proveedor, el costo total, el folio del contrato, el motivo si quedó desierta y las propuestas rechazadas. En Actividad, administración ve la adjudicación (directa o aprobada), la declaración de desierta y los avisos enviados a cada proveedor; las propuestas rechazadas se consultan en la sección «Resultado» de la negociación.",
         ],
       },
     ],
@@ -450,7 +451,7 @@ export const ARTICULOS: Articulo[] = [
     tema: "administracion",
     titulo: "Configurar la puntuación y el modelo de precios",
     resumen:
-      "Pesos de la puntuación, umbral de riesgo, inflación y reentrenamiento del modelo.",
+      "Pesos de la puntuación y de la adjudicación, umbrales de riesgo y de aprobación, inflación y reentrenamiento del modelo.",
     secciones: [
       {
         titulo: "Puntuación",
@@ -464,6 +465,12 @@ export const ARTICULOS: Articulo[] = [
       {
         parrafos: [
           "Las puntuaciones, el ranking y las alertas se recalculan al guardar. Cada cambio queda en la Actividad con quién lo hizo y qué valores cambió.",
+        ],
+      },
+      {
+        titulo: "Adjudicación",
+        parrafos: [
+          "La tarjeta «Adjudicación» fija cuánto pesa cada criterio (costo total, desempeño, riesgo y SLA; deben sumar 100) al recomendar a quién adjudicar, y el umbral de aprobación en MXN: una adjudicación con un costo total mayor necesita un aprobador. Se guarda con «Guardar adjudicación», aparte de la puntuación, y el cambio queda en la Actividad.",
         ],
       },
       {

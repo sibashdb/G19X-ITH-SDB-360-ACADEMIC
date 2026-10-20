@@ -117,7 +117,7 @@ export function DialogoAdjudicar({
   const costo = formatoMoneda(candidato.costo_total_mxn, "MXN")
   const umbral = formatoMoneda(recomendacion.umbral_aprobacion, "MXN")
   const termino = (
-    <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>
+    <Termino clave="umbralAprobacion">umbral de aprobación</Termino>
   )
   const textoRazon = {
     umbral: (

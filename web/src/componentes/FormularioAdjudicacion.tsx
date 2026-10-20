@@ -190,9 +190,9 @@ export function FormularioAdjudicacion() {
       titulo="Adjudicación"
       descripcion={
         <>
-          Cuánto pesa cada criterio al recomendar a quién adjudicar, y desde qué
-          costo total (el{" "}
-          <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>) una
+          Cuánto pesa cada criterio al recomendar a quién adjudicar, y por
+          encima de qué costo total (el{" "}
+          <Termino clave="umbralAprobacion">umbral de aprobación</Termino>) una
           adjudicación necesita un aprobador.
         </>
       }

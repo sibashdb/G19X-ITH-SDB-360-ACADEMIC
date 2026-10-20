@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
-import type { Evento } from "@/negociacion"
 import { GLOSARIO } from "@/glosario"
+import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
   CON_RECOMENDACION,
@@ -110,7 +110,7 @@ describe("Sección «Evaluación»", () => {
     )
     expect(
       await screen.findByRole("dialog", { name: "Fuera de límites" })
-    ).toHaveTextContent(GLOSARIO.fuera_de_limites.definicion)
+    ).toHaveTextContent(GLOSARIO.fueraDeLimites.definicion)
   })
 
   it("muestra los candidatos en orden, con el recomendado marcado con texto", async () => {

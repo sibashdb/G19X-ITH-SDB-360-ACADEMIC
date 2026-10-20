@@ -118,22 +118,68 @@ describe("contenido de la ayuda", () => {
       ).toContain("adjudicar-y-aprobar")
   })
 
-  it("Adjudicar y aprobar explica la regla, la separación de funciones y el aviso a los proveedores", () => {
-    const texto = JSON.stringify(
-      articuloPorSlug("adjudicar-y-aprobar")?.secciones
-    )
+  /** Todo el texto de un artículo, para fijar frases sin depender de en qué párrafo caen. */
+  const textoDe = (slug: string) =>
+    JSON.stringify(articuloPorSlug(slug)?.secciones)
+
+  it("Adjudicar y aprobar explica la evaluación, los pesos y la regla del aprobador", () => {
+    const texto = textoDe("adjudicar-y-aprobar")
     for (const frase of [
-      "Ajustar pesos",
-      "500,000 MXN",
-      "administración lo cambie en Configuración",
-      "fuera de sus límites",
-      "Quien propone no aprueba",
-      "Revisar la propuesta nueva",
-      "Declarar desierta",
-      "se declara desierta sola",
-      "ni se les muestra ningún monto",
+      "«Por qué se recomienda» explica con texto qué aporta cada criterio al recomendado y qué cambios en los pesos cambiarían al ganador",
+      "en «Ajustar pesos» escriba cuatro pesos que sumen 100 y pulse «Recalcular»",
+      "500,000 MXN, salvo que administración lo cambie en Configuración",
+      "quedó fuera de sus límites",
+      // La regla es «mayor que», no «mayor o igual».
+      "un costo igual al umbral no lo supera",
+      "la adjudicación es directa",
     ])
       expect(texto, frase).toContain(frase)
+  })
+
+  it("Adjudicar y aprobar dice que quien propone no aprueba, sin prometer más que eso", () => {
+    const texto = textoDe("adjudicar-y-aprobar")
+    for (const frase of [
+      "Quien propone no aprueba",
+      "Cuando interviene un aprobador, siempre es una persona distinta de quien propuso.",
+      "Esperando aprobación de un aprobador",
+      "Usted propuso esta adjudicación; la aprueba otra persona",
+      "Revisar la propuesta nueva",
+    ])
+      expect(texto, frase).toContain(frase)
+    // Con la adjudicación directa, la propuesta del comprador es la adjudicación: nadie más autoriza.
+    expect(texto).not.toContain("siempre son personas distintas")
+  })
+
+  it("Adjudicar y aprobar dice qué ve Actividad y qué no", () => {
+    const texto = textoDe("adjudicar-y-aprobar")
+    expect(texto).toContain(
+      "En Actividad, administración ve la adjudicación (directa o aprobada), la declaración de desierta y los avisos enviados a cada proveedor; las propuestas rechazadas se consultan en la sección «Resultado» de la negociación."
+    )
+    expect(texto).not.toContain("Cada paso queda en la bitácora de Actividad")
+  })
+
+  it("Adjudicar y aprobar explica cómo se declara desierta y el aviso a los proveedores", () => {
+    const texto = textoDe("adjudicar-y-aprobar")
+    for (const frase of [
+      "Declarar desierta",
+      "se declara desierta sola",
+      // El correo sale poco después, a quien tenga correo; ni el correo ni el portal dicen quién ganó.
+      "Poco después de que la negociación se adjudica o se declara desierta",
+      "a cada proveedor invitado que tenga correo",
+      "Ni el correo ni el aviso del portal dicen quién ganó ni muestran ningún monto.",
+    ])
+      expect(texto, frase).toContain(frase)
+  })
+
+  it("la ayuda de administración menciona la tarjeta Adjudicación de Configuración", () => {
+    const articulo = "configurar-puntuacion-y-modelo"
+    const texto = textoDe(articulo)
+    expect(texto).toContain("«Adjudicación»")
+    expect(texto).toContain("umbral de aprobación en MXN")
+    expect(texto).toContain("Guardar adjudicación")
+    expect(
+      buscarArticulos("umbral de aprobación", true).map((a) => a.slug)
+    ).toContain(articulo)
   })
 
   it("los artículos de negociación llevan al de Adjudicar y aprobar", () => {
@@ -152,12 +198,17 @@ describe("contenido de la ayuda", () => {
   it("los términos nuevos de la adjudicación están en el glosario", () => {
     expect(GLOSARIO.adjudicacion.termino).toBe("Adjudicación")
     expect(GLOSARIO.adjudicacion.definicion).toContain("contrato")
-    expect(GLOSARIO.umbral_aprobacion.termino).toBe("Umbral de aprobación")
-    expect(GLOSARIO.umbral_aprobacion.definicion).toContain("500,000")
+    expect(GLOSARIO.umbralAprobacion.termino).toBe("Umbral de aprobación")
+    expect(GLOSARIO.umbralAprobacion.definicion).toContain("500,000")
+    // La regla es «mayor que»: el valor igual al umbral no necesita aprobador.
+    expect(GLOSARIO.umbralAprobacion.definicion).toContain(
+      "por encima del cual"
+    )
+    expect(GLOSARIO.umbralAprobacion.definicion).not.toContain("a partir")
     expect(GLOSARIO.desierta.termino).toBe("Desierta")
     expect(GLOSARIO.desierta.definicion).toContain("sin adjudicar")
-    expect(GLOSARIO.fuera_de_limites.termino).toBe("Fuera de límites")
-    expect(GLOSARIO.fuera_de_limites.definicion).toContain("aprobador")
+    expect(GLOSARIO.fueraDeLimites.termino).toBe("Fuera de límites")
+    expect(GLOSARIO.fueraDeLimites.definicion).toContain("aprobador")
   })
 
   it("para reenviar una invitación manda al botón «Reenviar» de la tabla de sesiones", () => {

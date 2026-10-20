@@ -104,7 +104,7 @@ describe("Adjudicar", () => {
     )
     expect(
       await screen.findByRole("dialog", { name: "Umbral de aprobación" })
-    ).toHaveTextContent(GLOSARIO.umbral_aprobacion.definicion)
+    ).toHaveTextContent(GLOSARIO.umbralAprobacion.definicion)
 
     // Escape cierra la definición y deja la confirmación abierta.
     await userEvent.keyboard("{Escape}")

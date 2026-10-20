@@ -89,17 +89,17 @@ export const GLOSARIO = {
     definicion:
       "Elegir el acuerdo que se convierte en contrato. Si el costo es alto o el acuerdo salió de los límites, antes debe aprobarlo un aprobador.",
   },
-  umbral_aprobacion: {
+  umbralAprobacion: {
     termino: "Umbral de aprobación",
     definicion:
-      "El costo total, en pesos mexicanos (MXN), a partir del cual decide un aprobador: una adjudicación que lo supera necesita su aprobación. Por defecto es de 500,000 MXN y administración puede cambiarlo.",
+      "El costo total, en pesos mexicanos (MXN), por encima del cual una adjudicación necesita la aprobación de un aprobador. Por defecto es de 500,000 MXN y administración puede cambiarlo.",
   },
   desierta: {
     termino: "Desierta",
     definicion:
       "La negociación termina sin adjudicar a ningún proveedor. Compras la declara con un motivo, o queda así sola si ninguna sesión llegó a un acuerdo.",
   },
-  fuera_de_limites: {
+  fueraDeLimites: {
     termino: "Fuera de límites",
     definicion:
       "El acuerdo salió de los límites que fijó el comprador, por ejemplo porque se aceptó o propuso a mano. Siempre lo decide un aprobador, sin importar su costo.",

@@ -92,7 +92,7 @@ export function TablaCandidatos({
                   <Badge variant="warning" className="bg-card">
                     <TriangleAlert aria-hidden />
                     {c.id === primeraFueraDeLimites ? (
-                      <Termino clave="fuera_de_limites" />
+                      <Termino clave="fueraDeLimites" />
                     ) : (
                       "Fuera de límites"
                     )}

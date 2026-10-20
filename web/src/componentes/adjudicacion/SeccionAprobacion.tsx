@@ -27,11 +27,10 @@ import type { Evento } from "@/negociacion"
 const MOTIVOS: Record<MotivoAprobacion, ReactNode> = {
   umbral: (
     <>
-      Supera el{" "}
-      <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>
+      Supera el <Termino clave="umbralAprobacion">umbral de aprobación</Termino>
     </>
   ),
-  fuera_de_limites: <Termino clave="fuera_de_limites" />,
+  fuera_de_limites: <Termino clave="fueraDeLimites" />,
 }
 
 /**

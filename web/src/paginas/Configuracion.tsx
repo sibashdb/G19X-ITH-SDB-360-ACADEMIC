@@ -17,7 +17,7 @@ export function Configuracion() {
               <Termino clave="precioReferencia">precio de referencia</Termino>,
               los pesos con que se recomienda una{" "}
               <Termino clave="adjudicacion">adjudicación</Termino> y su{" "}
-              <Termino clave="umbral_aprobacion">umbral de aprobación</Termino>.
+              <Termino clave="umbralAprobacion">umbral de aprobación</Termino>.
             </>
           }
         />

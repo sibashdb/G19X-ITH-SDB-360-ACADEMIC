@@ -166,7 +166,7 @@ describe("Pendiente de aprobación", () => {
     )
     expect(
       await screen.findByRole("dialog", { name: "Umbral de aprobación" })
-    ).toHaveTextContent(GLOSARIO.umbral_aprobacion.definicion)
+    ).toHaveTextContent(GLOSARIO.umbralAprobacion.definicion)
     await userEvent.keyboard("{Escape}")
 
     await userEvent.click(
@@ -174,7 +174,7 @@ describe("Pendiente de aprobación", () => {
     )
     expect(
       await screen.findByRole("dialog", { name: "Fuera de límites" })
-    ).toHaveTextContent(GLOSARIO.fuera_de_limites.definicion)
+    ).toHaveTextContent(GLOSARIO.fueraDeLimites.definicion)
   })
 
   it("la propuesta pendiente se muestra con la foto guardada", async () => {
