@@ -2,7 +2,7 @@ import { DialogoMotivo } from "@/componentes/adjudicacion/DialogoMotivo"
 import { Termino } from "@/componentes/Termino"
 import type { Evento } from "@/negociacion"
 
-/** «Declarar desierta» la negociación en evaluación, con el motivo que queda en la bitácora. */
+/** «Declarar desierta» la negociación en evaluación, con el motivo que queda en la bitácora y en la Actividad. */
 export function DialogoDesierta({
   evento,
   alDeclarar,

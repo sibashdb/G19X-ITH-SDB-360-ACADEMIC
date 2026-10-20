@@ -580,6 +580,10 @@ describe("Adjudicar", () => {
     })
     const motivo = within(dialogo).getByLabelText("Motivo")
     expect(motivo).toHaveAttribute("maxlength", "500")
+    // La desierta sí llega a la bitácora de Actividad.
+    expect(motivo).toHaveAccessibleDescription(
+      "Queda en la bitácora y en la Actividad."
+    )
     await userEvent.type(motivo, "Ninguna propuesta conviene")
     await userEvent.click(
       within(dialogo).getByRole("button", { name: "Declarar desierta" })

@@ -376,6 +376,10 @@ describe("Pendiente de aprobación", () => {
     const motivo = within(dialogo).getByLabelText("Motivo del rechazo")
     expect(motivo).toBeRequired()
     expect(motivo).toHaveAttribute("maxlength", "500")
+    // La web no muestra bitácora al aprobador: el motivo se ve con la propuesta rechazada.
+    expect(motivo).toHaveAccessibleDescription(
+      "Queda con la propuesta rechazada."
+    )
 
     // Sin motivo (o solo con espacios) no se envía, y se dice junto al campo.
     await userEvent.type(motivo, "   ")

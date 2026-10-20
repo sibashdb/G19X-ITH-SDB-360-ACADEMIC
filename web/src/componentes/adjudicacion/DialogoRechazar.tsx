@@ -2,7 +2,8 @@ import { DialogoMotivo } from "@/componentes/adjudicacion/DialogoMotivo"
 import type { Evento } from "@/negociacion"
 
 /**
- * «Rechazar» la propuesta pendiente, con el motivo que queda en la bitácora. `adjudicacionId` es el
+ * «Rechazar» la propuesta pendiente, con el motivo que queda con la propuesta rechazada (se ve en la
+ * evaluación y en el resumen; la Actividad no registra los rechazos). `adjudicacionId` es el
  * de la propuesta que el aprobador revisó (el `vigente.id` de la evaluación en pantalla): si ya no
  * es la vigente, el servicio no decide nada.
  */
@@ -33,7 +34,7 @@ export function DialogoRechazar({
       titulo="Rechazar la propuesta"
       descripcion="La propuesta queda rechazada y la negociación vuelve a evaluación para que el comprador proponga de nuevo. No se puede deshacer."
       etiqueta="Motivo del rechazo"
-      ayuda="Queda en la bitácora."
+      ayuda="Queda con la propuesta rechazada."
       alTerminar={alRechazar}
       alConflicto={alConflicto}
       alEmpezar={alEmpezar}
