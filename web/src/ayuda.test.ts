@@ -141,8 +141,9 @@ describe("contenido de la ayuda", () => {
     for (const frase of [
       "Quien propone no aprueba",
       "Cuando interviene un aprobador, siempre es una persona distinta de quien propuso.",
-      "Esperando aprobación de un aprobador",
-      "Usted propuso esta adjudicación; la aprueba otra persona",
+      // Quien propuso sin el rol de aprobación espera igual que los demás (spec §7.1).
+      "ven «Esperando aprobación de un aprobador», incluso quien la propuso",
+      "Solo quien propuso y además tiene el rol de aprobación ve «Usted propuso esta adjudicación; la aprueba otra persona»",
       "Revisar la propuesta nueva",
     ])
       expect(texto, frase).toContain(frase)

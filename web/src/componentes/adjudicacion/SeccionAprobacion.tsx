@@ -36,7 +36,7 @@ const MOTIVOS: Record<MotivoAprobacion, ReactNode> = {
 /**
  * La propuesta de adjudicación que espera aprobación: la evaluación guardada al proponer, con la
  * propuesta marcada. Otra persona con el rol de aprobador la aprueba o la rechaza; quien la propuso
- * y los demás solo ven que espera. `alAvisar` recibe el resultado para el aviso de la página,
+ * y es aprobador ve que la aprueba otra persona, y los demás solo ven que espera. `alAvisar` recibe el resultado para el aviso de la página,
  * `alConflicto` el texto de un 409 y `alEmpezar` avisa de que se abrió un diálogo o empezó una
  * decisión (el aviso de un conflicto anterior ya no viene al caso).
  *
@@ -219,19 +219,20 @@ export function SeccionAprobacion({
           destacada={vigente.sesion_id}
         />
         <Explicacion recomendacion={vigente.recomendacion} />
+        {/* Spec §7.1: «Usted propuso…» es solo para quien propuso y también es aprobador (los botones
+            no le tocan); cualquiera que no sea aprobador, aunque haya propuesto, solo espera. */}
         {vigente.estado === "pendiente" &&
+          esAprobador &&
           vigente.propuesta_por_id === usuarioId && (
             <p className="text-sm text-muted-foreground">
               Usted propuso esta adjudicación; la aprueba otra persona.
             </p>
           )}
-        {vigente.estado === "pendiente" &&
-          vigente.propuesta_por_id !== usuarioId &&
-          !esAprobador && (
-            <p className="text-sm text-muted-foreground">
-              Esperando aprobación de un aprobador.
-            </p>
-          )}
+        {vigente.estado === "pendiente" && !esAprobador && (
+          <p className="text-sm text-muted-foreground">
+            Esperando aprobación de un aprobador.
+          </p>
+        )}
         {hayAcciones && (
           <div className="flex flex-wrap justify-end gap-2">
             <DialogoRechazar

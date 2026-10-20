@@ -292,7 +292,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Aprobar o rechazar",
         parrafos: [
           "Si la propuesta necesita aprobación, la negociación queda «Pendiente de aprobación». Quien tiene el rol de aprobación ve la misma evaluación con la propuesta resaltada, la justificación, las marcas «Fuera de límites» y el motivo por el que requiere aprobación. La lista de Negociaciones de quien aprueba empieza en «Por aprobar» si hay propuestas esperando.",
-          "Compras y el resto del equipo ven la propuesta, pero no deciden: quien la propuso ve «Usted propuso esta adjudicación; la aprueba otra persona», y los demás, «Esperando aprobación de un aprobador».",
+          "Compras y el resto del equipo ven la propuesta, pero no deciden: ven «Esperando aprobación de un aprobador», incluso quien la propuso. Solo quien propuso y además tiene el rol de aprobación ve «Usted propuso esta adjudicación; la aprueba otra persona».",
         ],
         pasos: [
           "Revise la propuesta, su justificación y el motivo.",

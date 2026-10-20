@@ -250,11 +250,12 @@ describe("Pendiente de aprobación", () => {
       // Otra persona con el rol de aprobador decide.
       [["aprobador"], DE_LUIS, "botones"],
       [["comprador", "aprobador"], DE_LUIS, "botones"],
-      // Quien propuso no decide, aunque tenga el rol de aprobador.
+      // Quien propuso y es aprobador no decide: se le dice que la aprueba otra persona.
       [["comprador", "aprobador"], DE_ANA, PROPUSO],
       [["aprobador"], DE_ANA, PROPUSO],
-      [["comprador"], DE_ANA, PROPUSO],
-      // Los demás esperan.
+      // Los demás esperan, también quien propuso sin ser aprobador (spec §7.1).
+      [["comprador"], DE_ANA, ESPERA],
+      [["admin"], DE_ANA, ESPERA],
       [["comprador"], DE_LUIS, ESPERA],
       [["admin"], DE_LUIS, ESPERA],
     ]
@@ -1004,11 +1005,12 @@ describe("Pendiente de aprobación", () => {
   it("quien propuso o espera tampoco tiene violaciones de axe", async () => {
     const PROPUSO = "Usted propuso esta adjudicación; la aprueba otra persona."
     const ESPERA = "Esperando aprobación de un aprobador."
-    for (const [evaluacion, texto] of [
-      [DE_ANA, PROPUSO],
-      [DE_LUIS, ESPERA],
+    for (const [roles, evaluacion, texto] of [
+      [["aprobador"], DE_ANA, PROPUSO],
+      [["comprador"], DE_ANA, ESPERA],
+      [["comprador"], DE_LUIS, ESPERA],
     ] as const) {
-      sesionDePrueba.roles = ["comprador"]
+      sesionDePrueba.roles = [...roles]
       const { container } = abrirPendiente(evaluacion)
       await seccion()
       expect(screen.getByText(texto)).toBeInTheDocument()
