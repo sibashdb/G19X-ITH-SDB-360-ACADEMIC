@@ -1,6 +1,11 @@
 import { keepPreviousData } from "@tanstack/react-query"
 import { useState } from "react"
-import { PESOS_POR_OMISION, useEvaluacion, type Pesos } from "@/adjudicacion"
+import {
+  PESOS_POR_OMISION,
+  useEvaluacion,
+  type Evaluacion,
+  type Pesos,
+} from "@/adjudicacion"
 import { erroresPorCampo } from "@/api"
 import { AjustarPesos } from "@/componentes/adjudicacion/AjustarPesos"
 import { Explicacion } from "@/componentes/adjudicacion/Explicacion"
@@ -18,16 +23,23 @@ export function SeccionEvaluacion({ evento }: { evento: Evento }) {
     // Al recalcular, la tabla anterior se queda a la vista hasta que llegue la nueva.
     placeholderData: keepPreviousData,
   })
-  const recomendacion = consulta.data?.recomendacion
-  // El servicio rechazó los pesos: se dice junto a los campos y no sustituye a la evaluación.
+  // La última evaluación que llegó. Si el servicio rechaza otros pesos, la consulta nueva no tiene
+  // datos (el marcador de posición solo sirve mientras carga): esta copia mantiene la tabla a la vista.
+  const [ultima, setUltima] = useState<Evaluacion | undefined>()
+  if (consulta.data && consulta.data !== ultima) setUltima(consulta.data)
+  const evaluacion = consulta.data ?? ultima
+  const recomendacion = evaluacion?.recomendacion
+  // El servicio rechazó los pesos: se dice junto a los campos y la tabla anterior se queda.
   const errorPesos = consulta.isLoadingError
     ? erroresPorCampo(consulta.error).pesos
     : undefined
   const aviso = consulta.isPlaceholderData
     ? "Recalculando…"
-    : consulta.isRefetchError
-      ? "No se pudo actualizar; se muestran los últimos datos recibidos."
-      : ""
+    : errorPesos
+      ? "Se muestran los resultados de los últimos pesos que se calcularon."
+      : consulta.isRefetchError
+        ? "No se pudo actualizar; se muestran los últimos datos recibidos."
+        : ""
 
   let cuerpo
   if (consulta.isPending) {
@@ -39,7 +51,7 @@ export function SeccionEvaluacion({ evento }: { evento: Evento }) {
         alReintentar={() => void consulta.refetch()}
       />
     )
-  } else if (consulta.data && !recomendacion) {
+  } else if (evaluacion && !recomendacion) {
     cuerpo = (
       <EstadoVacio
         titulo="No hay acuerdos tentativos para evaluar."

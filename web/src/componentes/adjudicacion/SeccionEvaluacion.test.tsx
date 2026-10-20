@@ -1,4 +1,5 @@
-import { cleanup, screen, within } from "@testing-library/react"
+import { focusManager } from "@tanstack/react-query"
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Candidato, Evaluacion, Recomendacion } from "@/adjudicacion"
@@ -302,6 +303,10 @@ describe("Sección «Evaluación»", () => {
     await screen.findByRole("table", { name: "Candidatos de la evaluación" })
     const primera = fila("Nube Norte")
     expect(primera.getByText("Bajo")).toBeInTheDocument()
+    // El nombre accesible del control dice de qué es el nivel.
+    expect(primera.getByText("Bajo").closest("summary")).toHaveTextContent(
+      "Riesgo Bajo"
+    )
     expect(primera.getByText("Concentración: 35 %")).toBeInTheDocument()
     expect(
       primera.getByText("Tendencia de incidentes: 10 %")
@@ -435,6 +440,40 @@ describe("Sección «Evaluación»", () => {
       screen.queryByRole("button", { name: "Reintentar" })
     ).not.toBeInTheDocument()
     expect(screen.getByLabelText("Peso (Costo total)")).toHaveValue(25)
+    // La última recomendación calculada sigue a la vista, y se dice que es la anterior.
+    expect(fila("Nube Norte").getByText("Recomendado")).toBeInTheDocument()
+    expect(screen.getByText(RECOMENDACION.explicacion[0])).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Se muestran los resultados de los últimos pesos que se calcularon."
+      )
+    ).toBeInTheDocument()
+    // Al corregir un campo, el rechazo ya no se muestra.
+    await userEvent.type(screen.getByLabelText("Peso (Costo total)"), "1")
+    expect(within(grupo).queryByText(PESOS_INVALIDOS)).not.toBeInTheDocument()
+  })
+
+  it("no vuelve a pedir la evaluación al volver a la ventana", async () => {
+    const api = simularRutas({
+      [`GET ${RUTA}`]: () => respuestaJson(EVENTO),
+      [`GET ${EVALUACION}`]: () => respuestaJson(CON_RECOMENDACION),
+    })
+    const veces = (url: string) =>
+      api.mock.calls.filter(([u]) => u === url).length
+    abrir()
+    await screen.findByRole("table", { name: "Candidatos de la evaluación" })
+    try {
+      await act(async () => {
+        focusManager.setFocused(false)
+        focusManager.setFocused(true)
+      })
+      // La negociación sí se actualiza al volver (prueba de que el enfoque llegó a las consultas)...
+      await waitFor(() => expect(veces(RUTA)).toBe(2))
+      // ...pero la evaluación cambia solo al recalcular, tras una acción o con «Reintentar».
+      expect(veces(EVALUACION)).toBe(1)
+    } finally {
+      focusManager.setFocused(undefined)
+    }
   })
 
   it("con inteligencia caída la evaluación ofrece reintentar y las sesiones siguen", async () => {
@@ -550,5 +589,22 @@ describe("TablaCandidatos", () => {
       })
     ).toBeInTheDocument()
     await esperarSinViolaciones(container)
+  })
+
+  it("los distintivos verde y ámbar llevan fondo propio para no perder contraste sobre la fila resaltada", () => {
+    // Sobre bg-info-suave (#E0F2FE) el verde #15803D y el ámbar #B45309 de 12 px dan 4.37:1 y
+    // 4.38:1 (< 4.5:1); sobre bg-card (#FFFFFF) dan 5.02:1. jsdom no calcula contraste, así que se
+    // fija la clase; los valores salen de los tokens de index.css.
+    renderizarPagina(
+      <TablaCandidatos
+        recomendacion={RECOMENDACION}
+        evento={EVENTO as unknown as Evento}
+        destacada="s1"
+      />
+    )
+    expect(fila("Nube Norte").getByText("Recomendado")).toHaveClass("bg-card")
+    expect(fila("Datos del Sur").getByText("Fuera de límites")).toHaveClass(
+      "bg-card"
+    )
   })
 })

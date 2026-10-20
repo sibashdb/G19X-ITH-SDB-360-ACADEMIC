@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils"
 
 /**
  * Cuatro pesos que suman 100 para recalcular la recomendación. `pesos` solo da los valores
- * iniciales: después, los campos son de quien escribe. `error` es el rechazo del servicio.
+ * iniciales: después, los campos son de quien escribe. `error` es el rechazo del servicio y se
+ * oculta con la primera edición que sigue.
  */
 export function AjustarPesos({
   pesos,
@@ -34,6 +35,8 @@ export function AjustarPesos({
       ) as Record<Criterio, string>
   )
   const [intentado, setIntentado] = useState(false)
+  // El rechazo del servicio que la persona ya empezó a corregir.
+  const [corregido, setCorregido] = useState<string | undefined>()
   const total = totalPesos(campos)
   const validos = pesosValidos(campos)
   // Un campo que no es entero cuenta 0 en el total: se avisa aparte para que el total no engañe.
@@ -41,11 +44,13 @@ export function AjustarPesos({
   const problema = enteros
     ? `Los pesos deben sumar 100; ahora suman ${total}.`
     : "Cada peso debe ser un número entero de 0 a 100."
-  const mensaje = intentado && !validos ? problema : error
+  const mensaje =
+    intentado && !validos ? problema : error === corregido ? undefined : error
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
     setIntentado(true)
+    setCorregido(undefined)
     if (validos) alRecalcular(validos)
   }
 
@@ -74,6 +79,7 @@ export function AjustarPesos({
               onChange={(e) => {
                 setCampos({ ...campos, [criterio]: e.target.value })
                 setIntentado(false)
+                setCorregido(error)
               }}
             />
           ))}
@@ -81,6 +87,7 @@ export function AjustarPesos({
         <p
           id={idTotal}
           aria-live="polite"
+          aria-atomic="true"
           className={cn(
             "flex items-center gap-1 text-sm font-medium",
             validos ? "text-success" : "text-warning"

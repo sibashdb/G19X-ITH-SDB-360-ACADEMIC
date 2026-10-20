@@ -171,7 +171,9 @@ export function razonesAprobacion(
 
 /**
  * La evaluación del evento; con `pesos`, la recomendación con esos pesos en vez de los configurados.
- * `opciones` va tal cual a `useNegociacion` (p. ej. `placeholderData` para no vaciar la tabla al recalcular).
+ * `opciones` va a `useNegociacion` (p. ej. `placeholderData` para no vaciar la tabla al recalcular).
+ * No se recarga al volver a la ventana: la evaluación cambia al recalcular, tras una acción
+ * (que invalida las consultas de la negociación) o con «Reintentar», no por sí sola.
  */
 export function useEvaluacion(
   eventoId: string,
@@ -181,6 +183,6 @@ export function useEvaluacion(
   const consulta = pesos ? `?pesos=${textoPesos(pesos)}` : ""
   return useNegociacion<Evaluacion>(
     `/eventos/${encodeURIComponent(eventoId)}/evaluacion${consulta}`,
-    opciones
+    { refetchOnWindowFocus: false, ...opciones }
   )
 }

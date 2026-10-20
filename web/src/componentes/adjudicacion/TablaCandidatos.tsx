@@ -69,9 +69,11 @@ export function TablaCandidatos({
           >
             <TableCell className="whitespace-normal">
               <p className="font-medium">{c.nombre}</p>
+              {/* bg-card: sobre la fila de la propuesta (bg-info-suave) el verde y el ámbar del
+                  texto pequeño bajan de 4.5:1; sobre el fondo de la tarjeta tienen 5.02:1 (claro). */}
               <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
                 {c.id === recomendacion.recomendado && (
-                  <Badge variant="success">
+                  <Badge variant="success" className="bg-card">
                     <Award aria-hidden />
                     Recomendado
                   </Badge>
@@ -83,7 +85,7 @@ export function TablaCandidatos({
                   </Badge>
                 )}
                 {fueraDeLimites.has(c.id) && (
-                  <Badge variant="warning">
+                  <Badge variant="warning" className="bg-card">
                     <TriangleAlert aria-hidden />
                     Fuera de límites
                   </Badge>
@@ -104,6 +106,7 @@ export function TablaCandidatos({
             <TableCell className="whitespace-normal">
               <details>
                 <summary className="w-fit cursor-pointer rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                  <span className="sr-only">Riesgo</span>{" "}
                   {NOMBRES_NIVEL_RIESGO[c.riesgo.nivel]}
                 </summary>
                 <ul className="mt-1 text-xs text-muted-foreground">
