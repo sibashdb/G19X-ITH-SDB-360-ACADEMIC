@@ -1,9 +1,12 @@
-import { onlineManager } from "@tanstack/react-query"
+import { onlineManager, useQueryClient } from "@tanstack/react-query"
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useState, type ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Evaluacion } from "@/adjudicacion"
+import { SeccionAprobacion } from "@/componentes/adjudicacion/SeccionAprobacion"
 import { formatoFechaHora } from "@/fechas"
+import type { Evento } from "@/negociacion"
 import { Negociacion } from "@/paginas/Negociacion"
 import {
   CON_RECOMENDACION,
@@ -121,6 +124,24 @@ async function abrirRechazo() {
 }
 const confirmarRechazo = (dialogo: HTMLElement) =>
   within(dialogo).getByRole("button", { name: "Rechazar propuesta" })
+
+/** Monta a sus hijos con la evaluación de `evaluacion` ya en caché (y vencida): lo que queda de una visita anterior. */
+function ConCache({
+  evaluacion,
+  children,
+}: {
+  evaluacion: Evaluacion
+  children: ReactNode
+}) {
+  const cliente = useQueryClient()
+  useState(() =>
+    cliente.setQueryData(
+      ["negociacion", `/eventos/${ID}/evaluacion`],
+      evaluacion
+    )
+  )
+  return children
+}
 
 beforeEach(() => {
   sesionDePrueba.roles = ["aprobador"]
@@ -854,6 +875,94 @@ describe("Pendiente de aprobación", () => {
       within(tabla).getAllByRole("button", { name: /Adjudicar/ })
     ).toHaveLength(2)
     expect(within(tabla).queryByText("Propuesta")).not.toBeInTheDocument()
+  })
+
+  it("con una propuesta vieja en caché, no se muestra ni se adopta hasta que llega la vigente", async () => {
+    // El aprobador vuelve a la negociación con la propuesta de Luis en caché; mientras tanto el
+    // servicio la reemplazó por la de Marta.
+    const viva = respuestaDiferida()
+    simularRutas({ [`GET ${EVALUACION}`]: () => viva.promesa })
+    renderizarPagina(
+      <ConCache evaluacion={DE_LUIS}>
+        <SeccionAprobacion
+          evento={PENDIENTE as unknown as Evento}
+          alAvisar={vi.fn()}
+          alConflicto={vi.fn()}
+          alEmpezar={vi.fn()}
+        />
+      </ConCache>
+    )
+    // Mientras llega la vigente, ni la tabla ni la propuesta vieja ni sus acciones.
+    expect(screen.getByText("Cargando…")).toBeInTheDocument()
+    expect(
+      screen.queryByText(/Propuesta de Luis Pérez/)
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("table", { name: "Candidatos de la evaluación" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /Aprobar|Rechazar/ })
+    ).not.toBeInTheDocument()
+
+    await act(async () => viva.resolver(respuestaJson(DE_MARTA)))
+    // La primera que se adopta es la vigente: sus acciones salen sin aviso de cambio, porque el
+    // aprobador nunca vio la anterior como algo que decidir.
+    await screen.findByText(/Propuesta de Marta Ruiz/)
+    expect(aprobar()).toBeInTheDocument()
+    expect(rechazar()).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Revisar la propuesta nueva" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("tras rechazar, si la evaluación llega antes que la negociación no avisa de actualizar la página", async () => {
+    const lenta = respuestaDiferida()
+    let rechazada = false
+    const { api, cliente } = abrirPendiente(DE_LUIS, {
+      [`GET ${RUTA}`]: () =>
+        rechazada ? lenta.promesa : respuestaJson(PENDIENTE),
+      [`GET ${EVALUACION}`]: () =>
+        respuestaJson(rechazada ? CON_RECOMENDACION : DE_LUIS),
+      [`POST ${RECHAZAR}`]: () => {
+        rechazada = true
+        return respuestaJson({
+          recomendacion: null,
+          vigente: null,
+          historial: [],
+        })
+      },
+    })
+    await seccion()
+    const dialogo = await abrirRechazo()
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo del rechazo"),
+      "El costo es alto"
+    )
+    await userEvent.click(confirmarRechazo(dialogo))
+    await screen.findByText(
+      "Se rechazó la propuesta; la negociación vuelve a evaluación."
+    )
+    // La evaluación viva (sin propuesta) ya llegó; la negociación todavía no se actualiza.
+    await waitFor(() => expect(lecturas(api, EVALUACION)).toBe(2))
+    await waitFor(() =>
+      expect(
+        cliente.getQueryState(["negociacion", `/eventos/${ID}/evaluacion`])
+          ?.fetchStatus
+      ).toBe("idle")
+    )
+    await act(async () => {})
+    expect(
+      screen.queryByText("No hay una propuesta pendiente.")
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Cargando…")).toBeInTheDocument()
+
+    await act(async () =>
+      lenta.resolver(respuestaJson({ ...EVENTO, estado: "en_evaluacion" }))
+    )
+    await screen.findByRole("heading", { name: "Evaluación" })
+    expect(
+      screen.queryByRole("heading", { name: TITULO })
+    ).not.toBeInTheDocument()
   })
 
   it("no tiene violaciones de axe en claro ni en oscuro", async () => {

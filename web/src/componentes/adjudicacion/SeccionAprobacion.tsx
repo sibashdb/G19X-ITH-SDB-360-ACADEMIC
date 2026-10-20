@@ -123,7 +123,9 @@ export function SeccionAprobacion({
       : ""
 
   let cuerpo
-  if (consulta.isPending) {
+  // Una propuesta en caché no se muestra mientras llega la viva: la primera que se adopta es siempre
+  // la vigente, y no la que el servicio ya reemplazó.
+  if (consulta.isPending || (revisada === null && consulta.isFetching)) {
     cuerpo = <EstadoCarga />
   } else if (consulta.isLoadingError) {
     cuerpo = (
@@ -133,15 +135,17 @@ export function SeccionAprobacion({
       />
     )
   } else if (!vigente) {
-    // Con la evaluación anterior en caché (sin propuesta), la nueva está en camino.
-    cuerpo = consulta.isFetching ? (
-      <EstadoCarga />
-    ) : (
-      <EstadoVacio
-        titulo="No hay una propuesta pendiente."
-        descripcion="La negociación cambió de estado; actualice la página para ver el estado más reciente."
-      />
-    )
+    // Con la evaluación anterior en caché (sin propuesta), la nueva está en camino. Tras una decisión,
+    // la evaluación puede llegar antes que la negociación: mientras esta se actualiza, no hay aviso.
+    cuerpo =
+      consulta.isFetching || ocupado ? (
+        <EstadoCarga />
+      ) : (
+        <EstadoVacio
+          titulo="No hay una propuesta pendiente."
+          descripcion="La negociación cambió de estado; actualice la página para ver el estado más reciente."
+        />
+      )
   } else {
     cuerpo = (
       <div className="space-y-6">
