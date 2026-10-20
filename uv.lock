@@ -1401,7 +1401,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.8" },
     { name = "simulador", editable = "tools/simulador" },
-    { name = "testcontainers", extras = ["postgres", "rabbitmq"], specifier = ">=4.9" },
+    { name = "testcontainers", extras = ["postgres", "rabbitmq"], specifier = ">=4.15.0" },
 ]
 
 [[package]]
