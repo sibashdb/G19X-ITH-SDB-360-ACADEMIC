@@ -240,7 +240,7 @@ export function SeccionAprobacion({
           destacada={vigente.sesion_id}
         />
         <Explicacion recomendacion={vigente.recomendacion} />
-        {/* Ruling R13: «Aprobar» decide con un clic; esta línea dice qué se aprueba. */}
+        {/* «Aprobar» decide con un clic, sin confirmación; esta línea dice qué se aprueba. */}
         <p className="text-sm font-medium">
           {`Propuesta: adjudicar a ${proveedorDe(vigente, evento)} por ${formatoMoneda(vigente.costo_total, evento.moneda)}`}
           {evento.moneda === "USD" &&
