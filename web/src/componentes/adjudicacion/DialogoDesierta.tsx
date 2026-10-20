@@ -22,9 +22,12 @@ import type { Evento } from "@/negociacion"
 export function DialogoDesierta({
   evento,
   alDeclarar,
+  alConflicto,
 }: {
   evento: Evento
   alDeclarar: () => void
+  /** El texto del servicio ante un 409: la página lo conserva si la negociación ya no está en evaluación. */
+  alConflicto: (mensaje: string) => void
 }) {
   const token = useToken()
   const cliente = useQueryClient()
@@ -33,6 +36,7 @@ export function DialogoDesierta({
   const [motivo, setMotivo] = useState("")
   const declarada = useRef(false)
   const campo = useRef<HTMLTextAreaElement>(null)
+  const abridor = useRef<HTMLButtonElement>(null)
   const declarar = useMutation({
     mutationFn: () =>
       pedir<Evaluacion>(
@@ -50,9 +54,12 @@ export function DialogoDesierta({
       // El error del campo no es una región viva: con el foco en el campo, se lee junto a él.
       if (erroresPorCampo(error).motivo) campo.current?.focus()
       // Un 409 es que la negociación ya cambió: se actualiza lo que hay detrás del diálogo, sin
-      // esperar a la consulta para mostrar el mensaje.
-      if (error instanceof ErrorApi && error.estado === 409)
+      // esperar a la consulta para mostrar el mensaje. Si la sección desaparece, el texto queda
+      // en la página.
+      if (error instanceof ErrorApi && error.estado === 409) {
+        alConflicto(error.message)
         void cliente.invalidateQueries({ queryKey: ["negociacion"] })
+      }
     },
   })
   const error = erroresPorCampo(declarar.error).motivo
@@ -76,15 +83,16 @@ export function DialogoDesierta({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
+        <Button ref={abridor} type="button" variant="outline">
           Declarar desierta
         </Button>
       </DialogTrigger>
       <DialogContent
         onCloseAutoFocus={(cierre) => {
           // La negociación sale de «En evaluación» y el botón que abrió el diálogo se desmonta: el
-          // foco pasa al contenido y no a <body> (ver DialogoCancelar).
-          if (!declarada.current) return
+          // foco pasa al contenido y no a <body> (ver DialogoCancelar). Radix también llama a esto
+          // si el diálogo se desmonta abierto (un 409): entonces el botón ya no existe.
+          if (!declarada.current && abridor.current?.isConnected) return
           cierre.preventDefault()
           document.getElementById("contenido")?.focus()
         }}

@@ -86,6 +86,7 @@ export function SeccionEvaluacion({
                       evento={evento}
                       candidato={candidato}
                       recomendacion={recomendacion}
+                      alConflicto={alAvisar}
                       alAdjudicar={(resultado) => {
                         // Los pesos rechazados no deben quedar pedidos al invalidar las consultas.
                         setPesos(null)
@@ -118,6 +119,7 @@ export function SeccionEvaluacion({
         esComprador && (
           <DialogoDesierta
             evento={evento}
+            alConflicto={alAvisar}
             alDeclarar={() => alAvisar("Se declaró desierta la negociación.")}
           />
         )

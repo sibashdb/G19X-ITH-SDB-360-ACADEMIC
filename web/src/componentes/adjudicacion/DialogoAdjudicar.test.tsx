@@ -514,8 +514,49 @@ describe("Adjudicar", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     )
+    // Sin adjudicar, el botón sigue ahí y recupera el foco (no se manda al contenido).
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Adjudicar a Nube Norte" })
+      ).toHaveFocus()
+    )
     const otra = await abrirDialogo("Nube Norte")
     expect(within(otra).getByRole("alert")).toBeEmptyDOMElement()
+  })
+
+  it("un 409 que saca a la negociación de «En evaluación» deja el texto del servicio en la página y el foco en el contenido", async () => {
+    const conflicto =
+      "La negociación ya tiene una propuesta pendiente de aprobación."
+    let otroComprador = false
+    abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`GET ${RUTA}`]: () =>
+        respuestaJson({
+          ...EVENTO,
+          estado: otroComprador ? "pendiente_aprobacion" : "en_evaluacion",
+        }),
+      [`POST ${ADJUDICACION}`]: () => {
+        otroComprador = true
+        return respuestaJson(
+          { title: "Conflicto", detail: conflicto, codigo: "estado_invalido" },
+          409
+        )
+      },
+    })
+    const dialogo = await abrirDialogo("Nube Norte")
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Confirmar" })
+    )
+    // La sección desaparece con su diálogo: el texto se queda en la región de avisos de la página.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: "Evaluación" })
+      ).not.toBeInTheDocument()
+    )
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByText(conflicto)).toHaveAttribute("role", "status")
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
   })
 
   it("un doble clic en Confirmar manda una sola propuesta", async () => {
@@ -726,6 +767,48 @@ describe("Adjudicar", () => {
     )
     await waitFor(() => expect(lecturas()).toBe(antes + 1))
     expect(screen.getByRole("dialog")).toBe(dialogo)
+  })
+
+  it("un 409 al declarar desierta que saca a la negociación de «En evaluación» deja el texto en la página y el foco en el contenido", async () => {
+    const conflicto = "La negociación ya no está en evaluación."
+    let otroComprador = false
+    abrirConEvaluacion(CON_RECOMENDACION, EVENTO, {
+      [`GET ${RUTA}`]: () =>
+        respuestaJson({
+          ...EVENTO,
+          estado: otroComprador ? "adjudicado" : "en_evaluacion",
+        }),
+      [`POST ${DESIERTA}`]: () => {
+        otroComprador = true
+        return respuestaJson(
+          { title: "Conflicto", detail: conflicto, codigo: "estado_invalido" },
+          409
+        )
+      },
+    })
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Declarar desierta" })
+    )
+    const dialogo = await screen.findByRole("dialog", {
+      name: "Declarar desierta la negociación",
+    })
+    await userEvent.type(
+      within(dialogo).getByLabelText("Motivo"),
+      "Sin ofertas"
+    )
+    await userEvent.click(
+      within(dialogo).getByRole("button", { name: "Declarar desierta" })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: "Evaluación" })
+      ).not.toBeInTheDocument()
+    )
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByText(conflicto)).toHaveAttribute("role", "status")
+    await waitFor(() =>
+      expect(document.getElementById("contenido")).toHaveFocus()
+    )
   })
 
   it("quien no es comprador no ve Adjudicar ni Declarar desierta", async () => {

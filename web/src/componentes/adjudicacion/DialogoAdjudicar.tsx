@@ -51,12 +51,15 @@ export function DialogoAdjudicar({
   candidato,
   recomendacion,
   alAdjudicar,
+  alConflicto,
 }: {
   evento: Evento
   candidato: Candidato
   /** La recomendación que se ve: sus pesos son los que se mandan, para que el servicio calcule lo mismo. */
   recomendacion: Recomendacion
   alAdjudicar: (resultado: Evaluacion) => void
+  /** El texto del servicio ante un 409: la página lo conserva si la negociación ya no está en evaluación. */
+  alConflicto: (mensaje: string) => void
 }) {
   const token = useToken()
   const cliente = useQueryClient()
@@ -66,6 +69,7 @@ export function DialogoAdjudicar({
   const [intentado, setIntentado] = useState(false)
   const adjudicada = useRef(false)
   const campo = useRef<HTMLTextAreaElement>(null)
+  const abridor = useRef<HTMLButtonElement>(null)
   const pideJustificacion = candidato.id !== recomendacion.recomendado
   const adjudicar = useMutation({
     mutationFn: () =>
@@ -88,9 +92,12 @@ export function DialogoAdjudicar({
       // El error del campo no es una región viva: con el foco en el campo, se lee junto a él.
       if (erroresPorCampo(error).justificacion) campo.current?.focus()
       // Un 409 es que la negociación ya cambió: se actualiza lo que hay detrás del diálogo, sin
-      // esperar a la consulta para mostrar el mensaje.
-      if (error instanceof ErrorApi && error.estado === 409)
+      // esperar a la consulta para mostrar el mensaje. Si la sección desaparece, el texto queda
+      // en la página.
+      if (error instanceof ErrorApi && error.estado === 409) {
+        alConflicto(error.message)
         void cliente.invalidateQueries({ queryKey: ["negociacion"] })
+      }
     },
   })
 
@@ -147,7 +154,7 @@ export function DialogoAdjudicar({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
+        <Button ref={abridor} type="button" variant="outline" size="sm">
           {/* El espacio va fuera del sr-only: dentro, el nombre sale «Adjudicara…». */}
           Adjudicar <span className="sr-only">a {candidato.nombre}</span>
         </Button>
@@ -156,8 +163,9 @@ export function DialogoAdjudicar({
         onCloseAutoFocus={(cierre) => {
           // El botón que abrió el diálogo se desmonta al salir la negociación de «En evaluación»: el
           // foco pasa al contenido y no a <body>. Va aquí y no tras la invalidación porque Radix
-          // devuelve el foco al botón después de cerrar y pisaría el del contenido.
-          if (!adjudicada.current) return
+          // devuelve el foco al botón después de cerrar y pisaría el del contenido. Radix también
+          // llama a esto si el diálogo se desmonta abierto (un 409): entonces el botón ya no existe.
+          if (!adjudicada.current && abridor.current?.isConnected) return
           cierre.preventDefault()
           document.getElementById("contenido")?.focus()
         }}
