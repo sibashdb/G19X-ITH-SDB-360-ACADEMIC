@@ -1,4 +1,8 @@
-import { useNegociacion, type VistaPortal } from "@/negociacion"
+import {
+  useNegociacion,
+  type OpcionesConsulta,
+  type VistaPortal,
+} from "@/negociacion"
 
 // Tipos de services/negociacion/src/negociacion/api/esquemas.py (Evaluacion, AdjudicacionSalida) y de
 // services/inteligencia/src/inteligencia/api/esquemas.py (RecomendacionSalida, CandidatoSalida,
@@ -79,7 +83,7 @@ export const PESOS_POR_OMISION: Pesos = {
   sla: 15,
 }
 // El orden de «?pesos=» en el servicio.
-const CRITERIOS: Criterio[] = ["costo", "desempeno", "riesgo", "sla"]
+export const CRITERIOS: Criterio[] = ["costo", "desempeno", "riesgo", "sla"]
 
 export const NOMBRES_CRITERIO: Record<Criterio, string> = {
   costo: "Costo total",
@@ -127,6 +131,11 @@ export function totalPesos(campos: Record<Criterio, string>): number {
   )
 }
 
+/** Si cada campo es un entero (no vacío, sin signo ni decimales): lo que no lo es, `totalPesos` lo cuenta 0. */
+export function sonEnteros(campos: Record<Criterio, string>): boolean {
+  return CRITERIOS.every((criterio) => entero(campos[criterio]) !== null)
+}
+
 /** Los pesos si cada campo es un entero y suman 100; si no, null. */
 export function pesosValidos(campos: Record<Criterio, string>): Pesos | null {
   const pesos = {} as Pesos
@@ -160,10 +169,18 @@ export function razonesAprobacion(
   return motivos
 }
 
-/** La evaluación del evento; con `pesos`, la recomendación con esos pesos en vez de los configurados. */
-export function useEvaluacion(eventoId: string, pesos: Pesos | null) {
+/**
+ * La evaluación del evento; con `pesos`, la recomendación con esos pesos en vez de los configurados.
+ * `opciones` va tal cual a `useNegociacion` (p. ej. `placeholderData` para no vaciar la tabla al recalcular).
+ */
+export function useEvaluacion(
+  eventoId: string,
+  pesos: Pesos | null,
+  opciones?: OpcionesConsulta<Evaluacion>
+) {
   const consulta = pesos ? `?pesos=${textoPesos(pesos)}` : ""
   return useNegociacion<Evaluacion>(
-    `/eventos/${encodeURIComponent(eventoId)}/evaluacion${consulta}`
+    `/eventos/${encodeURIComponent(eventoId)}/evaluacion${consulta}`,
+    opciones
   )
 }

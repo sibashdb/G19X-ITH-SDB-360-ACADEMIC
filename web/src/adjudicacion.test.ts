@@ -3,9 +3,11 @@ import { cleanup, renderHook, waitFor } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  CRITERIOS,
   PESOS_POR_OMISION,
   pesosValidos,
   razonesAprobacion,
+  sonEnteros,
   superaUmbral,
   TEXTOS_RESULTADO,
   textoPesos,
@@ -42,6 +44,21 @@ describe("pesos de la adjudicación", () => {
     expect(
       pesosValidos({ costo: "40", desempeno: "30", riesgo: "15", sla: "10" })
     ).toBeNull()
+  })
+
+  it("CRITERIOS es el orden de «?pesos=»", () => {
+    expect(CRITERIOS).toEqual(["costo", "desempeno", "riesgo", "sla"])
+  })
+
+  it("sonEnteros distingue un campo que no es entero de una suma que no da 100", () => {
+    expect(
+      sonEnteros({ costo: "40", desempeno: "30", riesgo: "15", sla: "15" })
+    ).toBe(true)
+    // «1000» y «-5» suman 0 en totalPesos: sin esto, el total parecería 100 con campos inválidos.
+    for (const malo of ["", "-5", "10.5", "1000", "abc"])
+      expect(
+        sonEnteros({ costo: malo, desempeno: "30", riesgo: "15", sla: "15" })
+      ).toBe(false)
   })
 
   it("totalPesos suma los enteros y cuenta 0 lo que no lo es", () => {
@@ -110,5 +127,18 @@ describe("useEvaluacion", () => {
     )
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(urlDeLlamada(simulado).search).toBe("?pesos=40,30,15,15")
+  })
+
+  it("pasa las opciones a la consulta", async () => {
+    const simulado = simularApi(() => respuestaJson(VACIA))
+    const cliente = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const { result } = renderHook(
+      () => useEvaluacion("ev-1", null, { enabled: false }),
+      { wrapper: envoltura(cliente) }
+    )
+    await waitFor(() => expect(result.current.fetchStatus).toBe("idle"))
+    expect(simulado).not.toHaveBeenCalled()
   })
 })

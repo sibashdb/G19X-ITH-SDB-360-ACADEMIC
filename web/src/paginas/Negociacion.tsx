@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useParams } from "react-router"
 import { useRoles } from "@/auth"
+import { SeccionEvaluacion } from "@/componentes/adjudicacion/SeccionEvaluacion"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { ContenidoVivo } from "@/componentes/negociacion/ContenidoVivo"
 import { DialogoCancelar } from "@/componentes/negociacion/DialogoCancelar"
@@ -67,6 +68,9 @@ export function Negociacion() {
                       alCancelar={() => setAviso("Se canceló la negociación.")}
                     />
                   </div>
+                )}
+                {evento.estado === "en_evaluacion" && (
+                  <SeccionEvaluacion evento={evento} />
                 )}
                 {evento.estado !== "borrador" && (
                   <TablaSesiones

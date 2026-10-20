@@ -24,7 +24,7 @@ const PESOS = [
 type ClavePeso = (typeof PESOS)[number][0]
 
 /** Un campo numérico con su etiqueta, su ayuda y el error del servicio junto a él. */
-function CampoNumero({
+export function CampoNumero({
   nombre,
   etiqueta,
   ayuda,

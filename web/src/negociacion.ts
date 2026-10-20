@@ -320,7 +320,7 @@ export function esFinal(estado: EstadoSesion): boolean {
   return FINALES.includes(estado)
 }
 
-type OpcionesConsulta<T> = Omit<
+export type OpcionesConsulta<T> = Omit<
   UseQueryOptions<T, Error, T>,
   "queryKey" | "queryFn" | "enabled"
 > & { enabled?: boolean }
