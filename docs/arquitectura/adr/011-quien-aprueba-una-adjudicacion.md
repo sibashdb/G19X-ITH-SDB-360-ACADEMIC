@@ -28,8 +28,8 @@ aprobador, si el monto supera el umbral, y si no, el propio comprador. Deja abie
 4. **Umbral por defecto: $500,000 MXN de costo total (D7).** El costo total incluye la cuota de
    implementación y se compara en MXN al tipo de cambio más reciente; la regla es «mayor que», no
    «mayor o igual». El administrador lo cambia en la configuración de `inteligencia`, junto a
-   los pesos de la recomendación (hoy por la API, con `PUT /configuracion`; la pantalla llega
-   con el incremento 4′b), y el cambio queda en la Actividad. La regla se evalúa al proponer y
+   los pesos de la recomendación (en Configuración, sección «Adjudicación»; la API sigue siendo
+   `PUT /configuracion`), y el cambio queda en la Actividad. La regla se evalúa al proponer y
    se guarda con la propuesta (`requiere_aprobacion` y `motivo_aprobacion`): cambiar el umbral
    después no mueve una propuesta que ya espera.
 5. **La aprobación se liga a la propuesta revisada.** Aprobar o rechazar lleva el

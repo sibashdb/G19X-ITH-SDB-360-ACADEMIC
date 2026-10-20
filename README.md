@@ -11,9 +11,9 @@ IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
 ## Qué está hecho y qué falta
 
-Estado al 19/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
-determinista y la adjudicación con aprobación ya funcionan de punta a punta en los servicios,
-hasta el contrato registrado; lo siguiente es su interfaz.
+Estado al 20/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
+determinista y la adjudicación con aprobación ya funcionan de punta a punta, en los servicios y
+en la interfaz, hasta el contrato registrado.
 
 | # | Capacidad del PRD | Estado | Dónde | Qué falta |
 |---|---|---|---|---|
@@ -23,9 +23,9 @@ hasta el contrato registrado; lo siguiente es su interfaz.
 | 4 | Eventos de negociación | Hecho | `services/negociacion`: compra o renovación, líneas, invitados, ideal y límite por término, palancas con peso y fecha límite; pantalla Negociaciones | — |
 | 5 | Negociación con agente en el portal | Parcial | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual | Los mensajes del agente son plantillas y la nota del proveedor no se interpreta (el LLM llega con N2) |
 | 6 | Propuestas de negociación | Falta | — | Documento de estrategia y argumentos para negociar a mano |
-| 7 | Recomendación de adjudicación | Parcial | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta | Las pantallas de evaluación y propuesta y los campos de Configuración para los pesos de la adjudicación y el umbral (incremento 4′b); mientras tanto se usan la API de `negociacion` y `PUT /configuracion` de `inteligencia` |
+| 7 | Recomendación de adjudicación | Hecho | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta. Pantalla: la evaluación de los acuerdos con la recomendación explicada y los pesos ajustables, la propuesta con su justificación y el resumen de la negociación adjudicada o desierta; en Configuración, la sección «Adjudicación» con los pesos y el umbral | — |
 | 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
-| 9 | Aprobaciones y bitácora | Parcial | Aprobación en `services/negociacion`: sobre el umbral (500,000 MXN por defecto) o fuera de límites decide un aprobador, y nunca quien propuso ([ADR-011](docs/arquitectura/adr/011-quien-aprueba-una-adjudicacion.md)); la adjudicación aprobada registra el contrato en `proveedores`. Aviso del resultado a los proveedores por correo. Bitácora inmutable en `administracion` (pantalla Actividad, con adjudicaciones y desiertas; pantalla Correos) y en `negociacion` | La pantalla de aprobación y los campos de Configuración para el umbral (incremento 4′b); mientras tanto se usan la API de `negociacion` y `PUT /configuracion` de `inteligencia` |
+| 9 | Aprobaciones y bitácora | Hecho | Aprobación en `services/negociacion`: sobre el umbral (500,000 MXN por defecto) o fuera de límites decide un aprobador, y nunca quien propuso ([ADR-011](docs/arquitectura/adr/011-quien-aprueba-una-adjudicacion.md)); la adjudicación aprobada registra el contrato en `proveedores`. Aviso del resultado a los proveedores por correo. Bitácora inmutable en `administracion` (pantalla Actividad, con adjudicaciones y desiertas; pantalla Correos) y en `negociacion`. Pantalla: aprobar o rechazar la propuesta por una persona distinta de quien propuso, el filtro «Por aprobar» de Negociaciones, el resumen con el folio del contrato y el aviso del resultado en el portal del proveedor | — |
 | 10 | Tablero | Parcial | Gasto, contratos por vencer, proveedores en riesgo y ahorro potencial | Estado de las negociaciones y ahorro logrado |
 
 **Métricas medidas** (PRD §1.6):
@@ -58,10 +58,8 @@ hasta el contrato registrado; lo siguiente es su interfaz.
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
 
-**Lo siguiente** (replanificación del 15/10/2026, PRD §6.6.1): la interfaz de la adjudicación y
-la aprobación (incremento 4′b; evaluación, propuesta, aprobación, filtros de Negociaciones, portal,
-Configuración y ayuda), antes del 11/11. Después, solo si hay tiempo: el LLM (N2), las propuestas
-(6) y el simulador de escenarios (8).
+**Lo siguiente** (replanificación del 15/10/2026, PRD §6.6.1): solo si hay tiempo, el LLM (N2),
+las propuestas (6) y el simulador de escenarios (8).
 
 ## Requisitos
 
@@ -154,7 +152,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
   `npm run lint` rechaza colores literales y `src/tokens.node.test.ts` verifica el contraste WCAG).
 - Tema claro, oscuro o del sistema desde la barra superior; la preferencia se guarda en el navegador.
 - Fuentes Fira Sans y Fira Code servidas por la propia aplicación (sin CDN).
-- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md` (Plan A), `docs/qa/revision-inteligencia-interfaz.md` (inteligencia en la interfaz) y `docs/qa/revision-negociacion.md` (negociación y portal del proveedor).
+- Revisión de accesibilidad y diseño adaptable: `docs/qa/revision-visual-plan-a.md` (Plan A), `docs/qa/revision-inteligencia-interfaz.md` (inteligencia en la interfaz), `docs/qa/revision-negociacion.md` (negociación y portal del proveedor) y `docs/qa/revision-adjudicacion.md` (adjudicación y aprobación, revisadas en el navegador).
 - Guía "Cómo usar PluriOne" en el Tablero; se oculta y vuelve desde el menú de usuario, y se recuerda por persona (no por navegador). El menú
   muestra icono y nombre; el propósito de cada opción aparece en la ayuda emergente del menú
   contraído y lo lee el lector de pantalla.
@@ -169,6 +167,12 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
   - publicación, con enlaces que se muestran una sola vez;
   - supervisión de cada sesión, que se actualiza cada 3 s, e intervención manual;
   - «Renovar» en el Tablero, en las Alertas y en la ficha del proveedor.
+- **Adjudicación y aprobación** (`web/src/adjudicacion.ts`):
+  - evaluación de los acuerdos con la recomendación explicada y los pesos ajustables, para adjudicar al recomendado o a otro con justificación, o declarar desierta la negociación;
+  - quien aprueba entra por el filtro «Por aprobar» de Negociaciones y aprueba o rechaza la propuesta; nunca lo hace quien la propuso;
+  - resumen de la negociación adjudicada, con el folio del contrato, o desierta;
+  - el portal del proveedor muestra el resultado mientras su enlace siga vigente;
+  - Configuración tiene la sección «Adjudicación» (pesos y umbral de aprobación) y la Actividad registra el cambio.
 - **Portal del proveedor** (`/portal`): el proveedor entra con el enlace de su invitación, sin cuenta. Ve qué se negocia, la conversación y la última propuesta del agente, y puede enviar ofertas o pedir hablar con una persona.
 
 ## Estructura
@@ -193,10 +197,6 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.
-- **Adjudicación solo por la API.** La evaluación, la propuesta y la aprobación todavía no tienen
-  pantalla, y tampoco los pesos de la adjudicación ni el umbral en Configuración (incremento
-  4′b): se usan con `/api/negociacion` y `PUT /api/inteligencia/configuracion` (contrato en
-  [`docs/arquitectura/openapi/negociacion.json`](docs/arquitectura/openapi/negociacion.json)).
 - **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
   interpreta; la IA llega con N2.
 - **Portal solo con HTTPS o localhost.** El portal del proveedor genera claves de idempotencia
