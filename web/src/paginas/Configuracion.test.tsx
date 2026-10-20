@@ -23,6 +23,11 @@ const CONFIGURACION = {
   peso_satisfaccion: 15,
   umbral_riesgo: 40,
   inflacion_anual: "4.50",
+  adjudicacion_costo: 40,
+  adjudicacion_desempeno: 30,
+  adjudicacion_riesgo: 15,
+  adjudicacion_sla: 15,
+  umbral_aprobacion: "500000.00",
   actualizado_en: null,
   actualizado_por: null,
 }
@@ -118,7 +123,7 @@ describe("Configuracion", () => {
       vi.fn(() => new Promise(() => {}))
     )
     renderizar()
-    expect(await screen.findAllByRole("status")).toHaveLength(2)
+    expect(await screen.findAllByRole("status")).toHaveLength(3)
   })
 
   it("muestra al administrador la puntuación y el modelo con sus términos", async () => {
@@ -134,7 +139,8 @@ describe("Configuracion", () => {
       expect(screen.getByRole("button", { name: termino })).toBeInTheDocument()
     }
     expect(await screen.findByLabelText("Cumplimiento de SLA")).toHaveValue(30)
-    expect(screen.getByText("Total: 100 de 100")).toBeInTheDocument()
+    // Un total por cada grupo de pesos: el de la puntuación y el de la adjudicación.
+    expect(screen.getAllByText("Total: 100 de 100")).toHaveLength(2)
     expect(
       screen.getByText(
         "Son los valores iniciales: nadie los ha cambiado todavía."
@@ -196,6 +202,60 @@ describe("Configuracion", () => {
       peso_satisfaccion: 10,
       umbral_riesgo: 40,
       inflacion_anual: "4.50",
+    })
+  })
+
+  it("muestra la sección de adjudicación después de la puntuación, con lo guardado", async () => {
+    api()
+    renderizar()
+
+    const titulos = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((titulo) => titulo.textContent)
+    expect(titulos.slice(0, 2)).toEqual([
+      "Pesos de la puntuación",
+      "Adjudicación",
+    ])
+    expect(await screen.findByLabelText("Costo total")).toHaveValue(40)
+    expect(screen.getByLabelText("Umbral de aprobación (MXN)")).toHaveValue(
+      500000
+    )
+  })
+
+  it("guardar la adjudicación manda la puntuación guardada, no la que se edita arriba", async () => {
+    const simulado = api()
+    renderizar()
+    // Una edición sin guardar en la puntuación: 30 → 35.
+    const sla = await screen.findByLabelText("Cumplimiento de SLA")
+    await userEvent.clear(sla)
+    await userEvent.type(sla, "35")
+    const costo = screen.getByLabelText("Costo total")
+    await userEvent.clear(costo)
+    await userEvent.type(costo, "45")
+    const riesgo = screen.getByLabelText("Riesgo")
+    await userEvent.clear(riesgo)
+    await userEvent.type(riesgo, "10")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar adjudicación" })
+    )
+
+    expect(
+      await screen.findByText("Se guardó la configuración de la adjudicación.")
+    ).toBeInTheDocument()
+    expect(cuerpoGuardado(simulado)).toEqual({
+      peso_sla: 30,
+      peso_resolucion: 20,
+      peso_incidentes: 20,
+      peso_entregas: 15,
+      peso_satisfaccion: 15,
+      umbral_riesgo: 40,
+      inflacion_anual: "4.50",
+      adjudicacion_costo: 45,
+      adjudicacion_desempeno: 30,
+      adjudicacion_riesgo: 10,
+      adjudicacion_sla: 15,
+      umbral_aprobacion: "500000.00",
     })
   })
 

@@ -1,4 +1,5 @@
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
+import { FormularioAdjudicacion } from "@/componentes/FormularioAdjudicacion"
 import { FormularioPuntuacion } from "@/componentes/FormularioPuntuacion"
 import { PanelModeloPrecios } from "@/componentes/PanelModeloPrecios"
 import { RequiereRol } from "@/componentes/RequiereRol"
@@ -18,7 +19,10 @@ export function Configuracion() {
           }
         />
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          <FormularioPuntuacion />
+          <div className="space-y-4">
+            <FormularioPuntuacion />
+            <FormularioAdjudicacion />
+          </div>
           <PanelModeloPrecios />
         </div>
       </section>

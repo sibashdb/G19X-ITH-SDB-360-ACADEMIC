@@ -1,15 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Check, CircleAlert } from "lucide-react"
-import { useId, useState, type ComponentProps, type FormEvent } from "react"
+import { useId, useState, type FormEvent } from "react"
 import { enviarJson, erroresPorCampo, pedir } from "@/api"
 import { useToken } from "@/auth"
+import { CampoNumero } from "@/componentes/CampoNumero"
 import { ContenidoConsulta } from "@/componentes/Estados"
 import { Seccion } from "@/componentes/Seccion"
 import { Termino } from "@/componentes/Termino"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { formatoFechaHora } from "@/fechas"
 import { useInteligencia, type ConfiguracionInteligencia } from "@/inteligencia"
 import { cn } from "@/lib/utils"
@@ -22,56 +21,6 @@ const PESOS = [
   ["peso_satisfaccion", "Satisfacción"],
 ] as const
 type ClavePeso = (typeof PESOS)[number][0]
-
-/** Un campo numérico con su etiqueta, su ayuda y el error del servicio junto a él. */
-export function CampoNumero({
-  nombre,
-  etiqueta,
-  ayuda,
-  error,
-  "aria-describedby": otraDescripcion,
-  ...entrada
-}: {
-  nombre: string
-  etiqueta: string
-  ayuda?: string
-  error?: string
-} & Omit<ComponentProps<typeof Input>, "id" | "name">) {
-  const id = useId()
-  // La descripción que llega (p. ej. el total de los pesos) se suma a la ayuda y al error.
-  const descripciones = [
-    otraDescripcion,
-    ayuda && `${id}-ayuda`,
-    error && `${id}-error`,
-  ]
-    .filter(Boolean)
-    .join(" ")
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={id}>{etiqueta}</Label>
-      <Input
-        id={id}
-        name={nombre}
-        type="number"
-        required
-        aria-invalid={error ? true : undefined}
-        aria-describedby={descripciones || undefined}
-        className="w-32"
-        {...entrada}
-      />
-      {ayuda && (
-        <p id={`${id}-ayuda`} className="text-xs text-muted-foreground">
-          {ayuda}
-        </p>
-      )}
-      {error && (
-        <p id={`${id}-error`} className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
-  )
-}
 
 function Formulario({ inicial }: { inicial: ConfiguracionInteligencia }) {
   const token = useToken()

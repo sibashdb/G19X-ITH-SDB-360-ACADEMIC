@@ -9,7 +9,7 @@ import {
   type Criterio,
   type Pesos,
 } from "@/adjudicacion"
-import { CampoNumero } from "@/componentes/FormularioPuntuacion"
+import { CampoNumero } from "@/componentes/CampoNumero"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 

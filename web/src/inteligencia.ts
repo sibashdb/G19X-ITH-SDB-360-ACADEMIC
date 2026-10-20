@@ -190,6 +190,11 @@ export type ConfiguracionInteligencia = {
   peso_satisfaccion: number
   umbral_riesgo: number
   inflacion_anual: string
+  adjudicacion_costo: number
+  adjudicacion_desempeno: number
+  adjudicacion_riesgo: number
+  adjudicacion_sla: number
+  umbral_aprobacion: string
   actualizado_en: string | null
   actualizado_por: string | null
 }
