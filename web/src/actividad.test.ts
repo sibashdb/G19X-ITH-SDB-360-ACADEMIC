@@ -82,8 +82,23 @@ describe("describirActividad", () => {
           },
         ],
       },
-      "Cambió la configuración de la puntuación: peso del costo en la adjudicación, peso del desempeño en la adjudicación, peso del riesgo en la adjudicación, peso del SLA en la adjudicación, umbral de aprobación",
+      "Cambió la configuración de la adjudicación: peso del costo en la adjudicación, peso del desempeño en la adjudicación, peso del riesgo en la adjudicación, peso del SLA en la adjudicación, umbral de aprobación",
     ],
+    [
+      "configuracion.actualizada",
+      {
+        cambios: [
+          { campo: "peso_sla", anterior: 30, nuevo: 40 },
+          {
+            campo: "umbral_aprobacion",
+            anterior: "500000.00",
+            nuevo: "750000.00",
+          },
+        ],
+      },
+      "Cambió la configuración de la puntuación y de la adjudicación: pesos, umbral de aprobación",
+    ],
+    ["configuracion.actualizada", {}, "Cambió la configuración"],
     [
       "modelo.entrenado",
       { version: 4, mape: 0.112, promovido: true },

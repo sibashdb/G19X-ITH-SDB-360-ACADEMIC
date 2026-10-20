@@ -196,7 +196,7 @@ function ContenidoActividad() {
         <EstadoVacio
           icono={History}
           titulo="Aún no hay actividad registrada"
-          descripcion="Aquí aparecerán los inicios de sesión, las acciones sobre usuarios, las importaciones, los cambios del catálogo y los de la puntuación y el modelo de precios."
+          descripcion="Aquí aparecerán los inicios de sesión, las acciones sobre usuarios, las importaciones, los cambios del catálogo y de la configuración, el modelo de precios y las negociaciones."
         />
       )
     return (
@@ -261,7 +261,7 @@ function ContenidoActividad() {
     <section className="space-y-6">
       <EncabezadoPagina
         titulo="Actividad"
-        descripcion="Quién hizo qué y cuándo: inicios de sesión, cambios de usuarios, importaciones, catálogo y puntuación. Nada de esto se puede borrar."
+        descripcion="Quién hizo qué y cuándo: inicios de sesión, cambios de usuarios, importaciones, catálogo, configuración de la puntuación y la adjudicación, y negociaciones. Nada de esto se puede borrar."
         acciones={
           <Button
             variant="outline"

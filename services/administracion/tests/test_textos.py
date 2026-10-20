@@ -128,7 +128,7 @@ CASOS: list[tuple[str, str, dict[str, object], str]] = [
         "configuracion.actualizada",
         "configuración de la puntuación",
         {},
-        "Cambió la configuración de la puntuación",
+        "Cambió la configuración",
     ),
     (
         "modelo.entrenado",
@@ -241,9 +241,21 @@ CASOS: list[tuple[str, str, dict[str, object], str]] = [
                 {"campo": "umbral_aprobacion", "anterior": "500000.00", "nuevo": "750000.00"},
             ]
         },
-        "Cambió la configuración de la puntuación: peso del costo en la adjudicación, "
+        "Cambió la configuración de la adjudicación: peso del costo en la adjudicación, "
         "peso del desempeño en la adjudicación, peso del riesgo en la adjudicación, "
         "peso del SLA en la adjudicación, umbral de aprobación",
+    ),
+    (
+        "configuracion.actualizada",
+        "configuración de la puntuación",
+        {
+            "cambios": [
+                {"campo": "peso_sla", "anterior": 30, "nuevo": 40},
+                {"campo": "umbral_aprobacion", "anterior": "500000.00", "nuevo": "750000.00"},
+            ]
+        },
+        "Cambió la configuración de la puntuación y de la adjudicación: "
+        "pesos, umbral de aprobación",
     ),
 ]
 

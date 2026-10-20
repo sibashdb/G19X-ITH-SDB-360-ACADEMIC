@@ -52,12 +52,20 @@ const NOMBRES_AJUSTE: Record<string, string> = {
   adjudicacion_sla: "peso del SLA en la adjudicación",
   umbral_aprobacion: "umbral de aprobación",
 }
-const CONFIGURACION = "Cambió la configuración de la puntuación"
+const CONFIGURACION = "Cambió la configuración"
+
+/** La sección de Configuración a la que pertenece el campo. */
+function area(campo: string): string {
+  return campo.startsWith("adjudicacion_") || campo === "umbral_aprobacion"
+    ? "de la adjudicación"
+    : "de la puntuación"
+}
 
 /** Los campos cambiados en lenguaje llano; los cinco pesos se nombran una vez. */
 function ajustes(a: RegistroActividad): string {
   const cambios = Array.isArray(a.detalle.cambios) ? a.detalle.cambios : []
   const nombres: string[] = []
+  const areas: string[] = []
   for (const cambio of cambios) {
     const campo =
       cambio && typeof cambio === "object"
@@ -67,9 +75,10 @@ function ajustes(a: RegistroActividad): string {
       ? "pesos"
       : (NOMBRES_AJUSTE[campo] ?? campo)
     if (!nombres.includes(nombre)) nombres.push(nombre)
+    if (!areas.includes(area(campo))) areas.push(area(campo))
   }
   return nombres.length
-    ? `${CONFIGURACION}: ${nombres.join(", ")}`
+    ? `${CONFIGURACION} ${areas.join(" y ")}: ${nombres.join(", ")}`
     : CONFIGURACION
 }
 

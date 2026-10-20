@@ -49,19 +49,31 @@ NOMBRES_AJUSTE = {
     "adjudicacion_sla": "peso del SLA en la adjudicación",
     "umbral_aprobacion": "umbral de aprobación",
 }
-CONFIGURACION = "Cambió la configuración de la puntuación"
+CONFIGURACION = "Cambió la configuración"
+
+
+def _area(campo: str) -> str:
+    """La sección de Configuración a la que pertenece el campo."""
+    if campo.startswith("adjudicacion_") or campo == "umbral_aprobacion":
+        return "de la adjudicación"
+    return "de la puntuación"
 
 
 def _ajustes(a: Actividad) -> str:
     """Los campos cambiados en lenguaje llano; los cinco pesos se nombran una vez."""
     cambios = a.detalle.get("cambios")
     nombres: list[str] = []
+    areas: list[str] = []
     for cambio in cambios if isinstance(cambios, list) else []:
         campo = str(cambio.get("campo", "")) if isinstance(cambio, dict) else ""
         nombre = "pesos" if campo.startswith("peso_") else NOMBRES_AJUSTE.get(campo, campo)
         if nombre not in nombres:
             nombres.append(nombre)
-    return f"{CONFIGURACION}: {', '.join(nombres)}" if nombres else CONFIGURACION
+        if _area(campo) not in areas:
+            areas.append(_area(campo))
+    if not nombres:
+        return CONFIGURACION
+    return f"{CONFIGURACION} {' y '.join(areas)}: {', '.join(nombres)}"
 
 
 def _entrenamiento(a: Actividad) -> str:
