@@ -1,6 +1,6 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { useNavigate } from "react-router"
+import { useLocation, useNavigate } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Negociaciones } from "@/paginas/Negociaciones"
 import { sesionDePrueba } from "@/pruebas/sesion"
@@ -75,7 +75,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  sessionStorage.clear()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe("Negociaciones", () => {
@@ -302,6 +304,135 @@ describe("Negociaciones", () => {
     expect(
       api.mock.calls.filter(([url]) => String(url) === PENDIENTES)
     ).toHaveLength(1)
+  })
+
+  it("la revisión respeta el tipo de la URL: sin pendientes de ese tipo no hay redirección", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const REVISION = `${PENDIENTES}&tipo=renovacion`
+    // Hay pendientes en total, pero ninguna de renovación.
+    const api = simularApi((url) =>
+      respuestaJson(
+        url === REVISION
+          ? { total: 0, elementos: [] }
+          : url === PENDIENTES
+            ? POR_APROBAR
+            : PAGINA
+      )
+    )
+    renderizarPagina(<Negociaciones />, {
+      ruta: "/negociaciones?tipo=renovacion",
+    })
+    await screen.findByRole("link", { name: "NEG-2026-0001" })
+    expect(ubicacionActual()).toBe("/negociaciones?tipo=renovacion")
+    expect(api.mock.calls.map(([url]) => String(url))).toEqual([
+      REVISION,
+      "/api/negociacion/eventos?pagina=1&tamano=25&tipo=renovacion",
+    ])
+  })
+
+  it("con pendientes del tipo de la URL, la redirección conserva el tipo", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const REVISION = `${PENDIENTES}&tipo=compra`
+    const api = simularApi((url) =>
+      respuestaJson(
+        url === REVISION || url.includes("estado=pendiente_aprobacion")
+          ? POR_APROBAR
+          : PAGINA
+      )
+    )
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones?tipo=compra" })
+    await screen.findByRole("table")
+    expect(ubicacionActual()).toBe(
+      "/negociaciones?tipo=compra&estado=pendiente_aprobacion"
+    )
+    expect(api.mock.calls.map(([url]) => String(url))).toEqual([
+      REVISION,
+      "/api/negociacion/eventos?pagina=1&tamano=25&estado=pendiente_aprobacion&tipo=compra",
+    ])
+  })
+
+  it("un estado inválido en la URL cuenta como sin estado: el aprobador va a Por aprobar y el valor no llega a la API", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const api = simularAprobador(() => respuestaJson(POR_APROBAR))
+    renderizarPagina(<Negociaciones />, {
+      ruta: "/negociaciones?estado=hackeo",
+    })
+    await screen.findByRole("table")
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+    expect(api.mock.calls.map(([url]) => String(url))).toEqual([
+      PENDIENTES,
+      "/api/negociacion/eventos?pagina=1&tamano=25&estado=pendiente_aprobacion",
+    ])
+  })
+
+  it("si el aprobador ya eligió un filtro, al volver con Atrás no se le redirige de nuevo", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    const api = simularAprobador(() => respuestaJson(POR_APROBAR))
+    function Pantallas() {
+      const { pathname } = useLocation()
+      const navegar = useNavigate()
+      // Abrir una negociación desmonta la lista: «Atrás» la monta de nuevo.
+      return pathname === "/negociaciones" ? (
+        <>
+          <Negociaciones />
+          <button
+            type="button"
+            onClick={() => void navegar("/negociaciones/1")}
+          >
+            Abrir
+          </button>
+        </>
+      ) : (
+        <button type="button" onClick={() => void navegar(-1)}>
+          Atrás
+        </button>
+      )
+    }
+    renderizarPagina(<Pantallas />, { ruta: "/negociaciones" })
+    await screen.findByRole("table")
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        { name: "Todas" }
+      )
+    )
+    await within(screen.getByRole("table")).findByText("Abierta")
+    await userEvent.click(screen.getByRole("button", { name: "Abrir" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Atrás" }))
+    await within(await screen.findByRole("table")).findByText("Abierta")
+    expect(ubicacionActual()).toBe("/negociaciones")
+    expect(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        { name: "Todas" }
+      )
+    ).toHaveAttribute("aria-pressed", "true")
+    expect(
+      api.mock.calls.filter(([url]) => String(url) === PENDIENTES)
+    ).toHaveLength(1)
+  })
+
+  it("sin sessionStorage el aprobador es redirigido como siempre y los filtros siguen funcionando", async () => {
+    sesionDePrueba.roles = ["aprobador"]
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("bloqueado")
+    })
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("bloqueado")
+    })
+    simularAprobador(() => respuestaJson(POR_APROBAR))
+    renderizarPagina(<Negociaciones />, { ruta: "/negociaciones" })
+    await screen.findByRole("table")
+    expect(ubicacionActual()).toBe("/negociaciones?estado=pendiente_aprobacion")
+    await userEvent.click(
+      within(screen.getByRole("group", { name: "Estado" })).getByRole(
+        "button",
+        { name: "Todas" }
+      )
+    )
+    await within(screen.getByRole("table")).findByText("Abierta")
+    expect(ubicacionActual()).toBe("/negociaciones")
   })
 
   it("ignora filtros inválidos de la URL", async () => {

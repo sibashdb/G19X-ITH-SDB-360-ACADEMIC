@@ -2,7 +2,7 @@ import { keepPreviousData } from "@tanstack/react-query"
 import { Hand, Handshake, Plus, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
-import { useRoles } from "@/auth"
+import { useRoles, useUsuarioId } from "@/auth"
 import { EncabezadoPagina } from "@/componentes/EncabezadoPagina"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
 import { Filtro } from "@/componentes/Filtro"
@@ -33,14 +33,31 @@ import {
 import { enteroPositivo, unoDe, useParametros } from "@/parametros"
 
 const POR_PAGINA = 25
-// Basta una fila: solo importa el total de propuestas por aprobar.
-const PENDIENTES = "/eventos?estado=pendiente_aprobacion&pagina=1&tamano=1"
 const ESTADOS = Object.keys(NOMBRES_ESTADO_EVENTO) as EstadoEvento[]
 const TIPOS = Object.keys(NOMBRES_TIPO) as TipoEvento[]
+
+/** ¿Ya eligió esta persona un filtro en esta sesión del navegador? Sin almacenamiento, no se sabe: no. */
+function yaEligioFiltro(clave: string): boolean {
+  try {
+    return sessionStorage.getItem(clave) !== null
+  } catch {
+    return false
+  }
+}
+
+function recordarEleccionDeFiltro(clave: string): void {
+  try {
+    sessionStorage.setItem(clave, "1")
+  } catch {
+    // Sin almacenamiento, la redirección corre en cada visita.
+  }
+}
 
 export function Negociaciones() {
   const roles = useRoles()
   const esComprador = roles.includes("comprador")
+  const esAprobador = roles.includes("aprobador")
+  const claveEleccion = `negociaciones.filtro-elegido.${useUsuarioId()}`
   const [parametros, actualizar] = useParametros()
   const filtros = useRef<HTMLDivElement>(null)
   // Los valores de la URL se validan: uno inválido cuenta como "sin filtro" y no llega a la API.
@@ -48,11 +65,19 @@ export function Negociaciones() {
   const tipo = unoDe(parametros.get("tipo"), TIPOS)
   const pagina = enteroPositivo(parametros.get("pagina"), 1, 1000)
   // Al entrar, el aprobador va a «Por aprobar» si hay alguna (spec §7.2). Se revisa una sola vez por
-  // visita: después se respeta lo que elija, y mientras tanto la lista espera en vez de saltar.
+  // visita, y no si ya eligió un filtro en esta sesión del navegador (p. ej. al volver con «Atrás»):
+  // después se respeta lo que elija, y mientras tanto la lista espera en vez de saltar.
   const [revisando, setRevisando] = useState(
-    () => roles.includes("aprobador") && !estado
+    () => esAprobador && !estado && !yaEligioFiltro(claveEleccion)
   )
-  const pendientes = useNegociacion<PaginaEventos>(PENDIENTES, {
+  // Basta una fila: solo importa el total de propuestas por aprobar, del tipo que ya filtra la URL.
+  const revision = new URLSearchParams({
+    estado: "pendiente_aprobacion",
+    pagina: "1",
+    tamano: "1",
+  })
+  if (tipo) revision.set("tipo", tipo)
+  const pendientes = useNegociacion<PaginaEventos>(`/eventos?${revision}`, {
     enabled: revisando,
   })
   // Si la revisión falló no hay total, y se muestran todas.
@@ -89,9 +114,15 @@ export function Negociaciones() {
     </Button>
   ) : undefined
 
+  // Elegir un filtro es la decisión de la persona: el aprobador no vuelve a ser redirigido en esta sesión.
+  function elegirFiltro(cambios: Record<string, string | null>) {
+    if (esAprobador) recordarEleccionDeFiltro(claveEleccion)
+    actualizar(cambios)
+  }
+
   // El botón usado desaparece con los datos nuevos: el foco pasa a «Todas», que siempre está en pantalla.
   function quitarFiltros() {
-    actualizar({ estado: null, tipo: null, pagina: null })
+    elegirFiltro({ estado: null, tipo: null, pagina: null })
     filtros.current?.querySelector("button")?.focus()
   }
   function irALaPrimera() {
@@ -231,7 +262,7 @@ export function Negociaciones() {
             >
               <Filtro
                 activo={!estado}
-                onClick={() => actualizar({ estado: null, pagina: null })}
+                onClick={() => elegirFiltro({ estado: null, pagina: null })}
               >
                 Todas
               </Filtro>
@@ -239,7 +270,7 @@ export function Negociaciones() {
                 <Filtro
                   key={e}
                   activo={estado === e}
-                  onClick={() => actualizar({ estado: e, pagina: null })}
+                  onClick={() => elegirFiltro({ estado: e, pagina: null })}
                 >
                   {NOMBRES_FILTRO_ESTADO[e]}
                 </Filtro>
@@ -252,7 +283,7 @@ export function Negociaciones() {
             >
               <Filtro
                 activo={!tipo}
-                onClick={() => actualizar({ tipo: null, pagina: null })}
+                onClick={() => elegirFiltro({ tipo: null, pagina: null })}
               >
                 Todos los tipos
               </Filtro>
@@ -260,7 +291,7 @@ export function Negociaciones() {
                 <Filtro
                   key={t}
                   activo={tipo === t}
-                  onClick={() => actualizar({ tipo: t, pagina: null })}
+                  onClick={() => elegirFiltro({ tipo: t, pagina: null })}
                 >
                   {NOMBRES_TIPO[t]}
                 </Filtro>
