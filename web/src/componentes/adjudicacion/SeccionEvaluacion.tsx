@@ -7,7 +7,10 @@ import {
   type Pesos,
 } from "@/adjudicacion"
 import { erroresPorCampo } from "@/api"
+import { useRoles } from "@/auth"
 import { AjustarPesos } from "@/componentes/adjudicacion/AjustarPesos"
+import { DialogoAdjudicar } from "@/componentes/adjudicacion/DialogoAdjudicar"
+import { DialogoDesierta } from "@/componentes/adjudicacion/DialogoDesierta"
 import { Explicacion } from "@/componentes/adjudicacion/Explicacion"
 import { TablaCandidatos } from "@/componentes/adjudicacion/TablaCandidatos"
 import { EstadoCarga, EstadoError, EstadoVacio } from "@/componentes/Estados"
@@ -15,8 +18,19 @@ import { Seccion } from "@/componentes/Seccion"
 import { Termino } from "@/componentes/Termino"
 import type { Evento } from "@/negociacion"
 
-/** Los acuerdos tentativos ordenados y explicados, con los pesos que el comprador quiera probar. */
-export function SeccionEvaluacion({ evento }: { evento: Evento }) {
+/**
+ * Los acuerdos tentativos ordenados y explicados, con los pesos que el comprador quiera probar. El
+ * comprador también adjudica a un candidato o declara desierta la negociación; `alAvisar` recibe el
+ * resultado para el aviso de la página.
+ */
+export function SeccionEvaluacion({
+  evento,
+  alAvisar,
+}: {
+  evento: Evento
+  alAvisar: (texto: string) => void
+}) {
+  const esComprador = useRoles().includes("comprador")
   // Los pesos que se pidieron al recalcular; null, los configurados.
   const [pesos, setPesos] = useState<Pesos | null>(null)
   const consulta = useEvaluacion(evento.id, pesos, {
@@ -62,7 +76,30 @@ export function SeccionEvaluacion({ evento }: { evento: Evento }) {
     cuerpo = (
       <div className="space-y-6">
         {recomendacion && (
-          <TablaCandidatos recomendacion={recomendacion} evento={evento} />
+          <TablaCandidatos
+            recomendacion={recomendacion}
+            evento={evento}
+            accion={
+              esComprador
+                ? (candidato) => (
+                    <DialogoAdjudicar
+                      evento={evento}
+                      candidato={candidato}
+                      recomendacion={recomendacion}
+                      alAdjudicar={(resultado) => {
+                        // Los pesos rechazados no deben quedar pedidos al invalidar las consultas.
+                        setPesos(null)
+                        alAvisar(
+                          resultado.vigente?.estado === "directa"
+                            ? `Se adjudicó la negociación a ${candidato.nombre}.`
+                            : "Se envió la propuesta a un aprobador."
+                        )
+                      }}
+                    />
+                  )
+                : undefined
+            }
+          />
         )}
         {recomendacion && <Explicacion recomendacion={recomendacion} />}
         <AjustarPesos
@@ -77,6 +114,14 @@ export function SeccionEvaluacion({ evento }: { evento: Evento }) {
   return (
     <Seccion
       titulo="Evaluación"
+      acciones={
+        esComprador && (
+          <DialogoDesierta
+            evento={evento}
+            alDeclarar={() => alAvisar("Se declaró desierta la negociación.")}
+          />
+        )
+      }
       descripcion={
         <>
           Los acuerdos tentativos, del mejor al peor. Cada uno se califica con

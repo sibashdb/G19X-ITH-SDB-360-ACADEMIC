@@ -70,7 +70,7 @@ export function Negociacion() {
                   </div>
                 )}
                 {evento.estado === "en_evaluacion" && (
-                  <SeccionEvaluacion evento={evento} />
+                  <SeccionEvaluacion evento={evento} alAvisar={setAviso} />
                 )}
                 {evento.estado !== "borrador" && (
                   <TablaSesiones
