@@ -7,10 +7,12 @@ tarde recibe un 409 que dice el estado actual.
 
 import re
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from comun import costos
 from comun.auth import Usuario
 from comun.outbox import registrar_evento
 from sqlalchemy import exists, select
@@ -28,7 +30,7 @@ from negociacion.dominio.adjudicacion import (
 from negociacion.dominio.terminos import Valores
 from negociacion.errores import conflicto, invalido, prohibido
 from negociacion.integraciones import Integraciones
-from negociacion.modelos import Adjudicacion, Evento, Outbox, SesionNegociacion
+from negociacion.modelos import Adjudicacion, Evento, Linea, Oferta, Outbox, SesionNegociacion
 
 ESTADOS_EVALUACION = ("en_evaluacion", "pendiente_aprobacion", "adjudicado", "desierto")
 CRITERIOS = ("costo", "desempeno", "riesgo", "sla")  # el orden de `?pesos=40,30,15,15`
@@ -101,34 +103,52 @@ async def candidatos(bd: AsyncSession, evento: Evento) -> list[dict[str, Any]]:
         )
     ).all()
     lineas = await consultas.lineas_de(bd, evento.id)
-    vigente = evento.foto.get("contrato") or {}  # solo una renovación tiene contrato vigente
     resultado: list[dict[str, Any]] = []
     # ponytail: una consulta por sesión (a lo más 10 invitados); un solo JOIN si hubiera más.
     for sesion in sesiones:
         oferta = await turnos.ultima_oferta_proveedor(bd, sesion.id)
         if oferta is None:
             raise RuntimeError("Un acuerdo tentativo siempre tiene una oferta del proveedor")
-        precios, palancas = oferta.valores["precios"], oferta.valores["palancas"]
-        resultado.append(
-            {
-                "id": str(sesion.id),
-                "proveedor_id": str(sesion.proveedor_id),
-                "nombre": sesion.proveedor_nombre,
-                "plazo_meses": int(Decimal(str(palancas.get("plazo_meses", evento.plazo_meses)))),
-                "cuota_implementacion": str(palancas.get("cuota_implementacion", 0)),
-                "sla": palancas.get("sla_disponibilidad", vigente.get("sla_disponibilidad")),
-                "lineas": [
-                    {
-                        "codigo_servicio": linea.codigo_servicio,
-                        "unidad": linea.unidad,
-                        "cantidad": str(linea.cantidad),
-                        "precio": str(precios[str(linea.id)]),
-                    }
-                    for linea in lineas
-                ],
-            }
-        )
+        resultado.append(candidato_de(sesion, oferta, lineas, evento))
     return resultado
+
+
+def candidato_de(
+    sesion: SesionNegociacion, oferta: Oferta, lineas: Sequence[Linea], evento: Evento
+) -> dict[str, Any]:
+    """El candidato de una oferta, como lo recibe la recomendación: de lo que no se negoció, el
+    plazo del evento y el SLA del contrato vigente."""
+    precios, palancas = oferta.valores["precios"], oferta.valores["palancas"]
+    vigente = evento.foto.get("contrato") or {}  # solo una renovación tiene contrato vigente
+    return {
+        "id": str(sesion.id),
+        "proveedor_id": str(sesion.proveedor_id),
+        "nombre": sesion.proveedor_nombre,
+        "plazo_meses": int(Decimal(str(palancas.get("plazo_meses", evento.plazo_meses)))),
+        "cuota_implementacion": str(palancas.get("cuota_implementacion", 0)),
+        "sla": palancas.get("sla_disponibilidad", vigente.get("sla_disponibilidad")),
+        "lineas": [
+            {
+                "codigo_servicio": linea.codigo_servicio,
+                "unidad": linea.unidad,
+                "cantidad": str(linea.cantidad),
+                "precio": str(precios[str(linea.id)]),
+            }
+            for linea in lineas
+        ],
+    }
+
+
+def costo_de(candidato: dict[str, Any]) -> Decimal:
+    """Costo total de un candidato, con la regla que usa la recomendación (`comun.costos`)."""
+    return costos.costo_total(
+        (
+            (linea["unidad"], Decimal(linea["cantidad"]), Decimal(linea["precio"]))
+            for linea in candidato["lineas"]
+        ),
+        candidato["plazo_meses"],
+        Decimal(candidato["cuota_implementacion"]),
+    )
 
 
 async def peticion_de(

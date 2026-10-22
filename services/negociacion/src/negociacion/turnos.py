@@ -460,6 +460,15 @@ async def ultima_oferta_proveedor(bd: AsyncSession, sesion_id: uuid.UUID) -> Ofe
     )
 
 
+async def primera_oferta_proveedor(bd: AsyncSession, sesion_id: uuid.UUID) -> Oferta | None:
+    return await bd.scalar(
+        select(Oferta)
+        .where(Oferta.sesion_id == sesion_id, Oferta.autor == "proveedor")
+        .order_by(Oferta.secuencia)
+        .limit(1)
+    )
+
+
 def _fuera_de_limites(detalle: str) -> ErrorDominio:
     return ErrorDominio(422, "Solicitud inválida", detalle, {"codigo": "fuera_de_limites"})
 

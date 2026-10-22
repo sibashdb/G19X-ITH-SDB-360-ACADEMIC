@@ -1116,6 +1116,32 @@
           }
         }
       }
+    },
+    "/tablero": {
+      "get": {
+        "tags": [
+          "tablero"
+        ],
+        "summary": "Tablero",
+        "operationId": "tablero_tablero_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableroSalida"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1264,6 +1290,50 @@
         ],
         "title": "AdjudicacionSalida",
         "description": "Una propuesta de adjudicación; `recomendacion` es la foto de inteligencia al proponer."
+      },
+      "AhorroSalida": {
+        "properties": {
+          "adjudicadas": {
+            "type": "integer",
+            "title": "Adjudicadas"
+          },
+          "primera_oferta_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Primera Oferta Mxn"
+          },
+          "adjudicado_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Adjudicado Mxn"
+          },
+          "ahorro_mxn": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ahorro Mxn"
+          },
+          "ahorro_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ahorro Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adjudicadas",
+          "primera_oferta_mxn",
+          "adjudicado_mxn",
+          "ahorro_mxn",
+          "ahorro_pct"
+        ],
+        "title": "AhorroSalida",
+        "description": "Lo adjudicado frente a la primera oferta de cada proveedor ganador, en MXN."
       },
       "Aprobacion": {
         "properties": {
@@ -1442,7 +1512,7 @@
           "historial"
         ],
         "title": "Evaluacion",
-        "description": "Los acuerdos evaluados: la recomendación de hoy, la propuesta vigente y las rechazadas."
+        "description": "Los acuerdos evaluados: la recomendación, la propuesta vigente y las rechazadas."
       },
       "EventoCambios": {
         "properties": {
@@ -3001,6 +3071,37 @@
           "actualizado_en"
         ],
         "title": "SesionResumen"
+      },
+      "TableroSalida": {
+        "properties": {
+          "por_estado": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "borrador",
+                "abierto",
+                "en_evaluacion",
+                "pendiente_aprobacion",
+                "adjudicado",
+                "desierto",
+                "cancelado"
+              ]
+            },
+            "type": "object",
+            "title": "Por Estado"
+          },
+          "ahorro": {
+            "$ref": "#/components/schemas/AhorroSalida"
+          }
+        },
+        "type": "object",
+        "required": [
+          "por_estado",
+          "ahorro"
+        ],
+        "title": "TableroSalida"
       },
       "ValidationError": {
         "properties": {

@@ -19,7 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from negociacion import vencimientos
-from negociacion.api import adjudicacion, eventos, portal
+from negociacion.api import adjudicacion, eventos, portal, tablero
 from negociacion.api import sesiones as rutas_sesiones  # `sesiones` es la fábrica de sesiones de BD
 from negociacion.config import Configuracion
 from negociacion.correo import EnviarCorreo, enviador_smtp
@@ -98,4 +98,5 @@ def crear_app(
     app.include_router(adjudicacion.router)
     app.include_router(rutas_sesiones.router)
     app.include_router(portal.router)
+    app.include_router(tablero.router)
     return app

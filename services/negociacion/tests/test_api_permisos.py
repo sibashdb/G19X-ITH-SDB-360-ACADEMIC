@@ -24,6 +24,7 @@ ESPERADAS = {
     ("GET", "/sesiones/{sesion_id}"),
     ("POST", "/sesiones/{sesion_id}/control"),
     ("POST", "/sesiones/{sesion_id}/respuestas"),
+    ("GET", "/tablero"),
 }
 # Las únicas rutas que decide el aprobador; el comprador y el administrador no entran.
 DEL_APROBADOR = {

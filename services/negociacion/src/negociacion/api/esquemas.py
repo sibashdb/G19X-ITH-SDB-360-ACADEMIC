@@ -456,3 +456,18 @@ class Evaluacion(BaseModel):
     recomendacion: dict[str, Any] | None
     vigente: AdjudicacionSalida | None  # pendiente, aprobada o directa
     historial: list[AdjudicacionSalida]  # las rechazadas, de la más reciente a la más antigua
+
+
+class AhorroSalida(BaseModel):
+    """Lo adjudicado frente a la primera oferta de cada proveedor ganador, en MXN."""
+
+    adjudicadas: int
+    primera_oferta_mxn: Decimal
+    adjudicado_mxn: Decimal
+    ahorro_mxn: Decimal  # negativo si la primera oferta costaba menos
+    ahorro_pct: float | None  # None sin adjudicadas
+
+
+class TableroSalida(BaseModel):
+    por_estado: dict[EstadoEvento, int]  # siempre los 7 estados, en 0 si no hay
+    ahorro: AhorroSalida
