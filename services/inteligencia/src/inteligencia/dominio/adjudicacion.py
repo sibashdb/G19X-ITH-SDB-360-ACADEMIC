@@ -9,7 +9,8 @@ from dataclasses import dataclass, fields
 from decimal import Decimal
 from typing import Literal
 
-from inteligencia.dominio.precios import UNIDADES_MENSUALES
+from comun import costos
+
 from inteligencia.dominio.puntuacion import MESES_HISTORIAL_CORTO
 
 CRITERIOS = ("costo", "desempeno", "riesgo", "sla")
@@ -115,15 +116,13 @@ class Recomendacion:
     sensibilidad: list[Sensibilidad]
 
 
-def costo_total(
-    candidato: Candidato, unidades_mensuales: frozenset[str] = UNIDADES_MENSUALES
-) -> Decimal:
+def costo_total(candidato: Candidato) -> Decimal:
     """Suma de precio por cantidad (por plazo, en las unidades mensuales) más la cuota."""
-    total = candidato.cuota
-    for linea in candidato.lineas:
-        meses = candidato.plazo_meses if linea.unidad in unidades_mensuales else 1
-        total += linea.precio * linea.cantidad * meses
-    return total
+    return costos.costo_total(
+        ((linea.unidad, linea.cantidad, linea.precio) for linea in candidato.lineas),
+        candidato.plazo_meses,
+        candidato.cuota,
+    )
 
 
 def tendencia_incidentes(incidentes: Sequence[float]) -> float:

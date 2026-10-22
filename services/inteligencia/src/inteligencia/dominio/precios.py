@@ -11,9 +11,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
+from comun.costos import UNIDADES_MENSUALES
+
 MIN_OBSERVACIONES = 8
 VENTANA_MESES = 24
-UNIDADES_MENSUALES = frozenset({"usuario_mes", "vcpu_mes", "gb_mes", "mes"})
 
 Confianza = Literal["normal", "baja"]
 Posicion = Literal["bajo_p25", "justo", "sobre_p75"]
