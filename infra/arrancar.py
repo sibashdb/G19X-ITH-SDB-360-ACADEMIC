@@ -8,6 +8,7 @@ Deja la plataforma lista desde cero y se puede repetir sin dañar nada:
 5. corre la prueba de humo.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -34,6 +35,10 @@ PASOS = [
 
 
 def main() -> int:
+    # En Git Bash la salida es una tubería y Python escribiría en cp1252: los acentos saldrían
+    # rotos aquí y en los pasos que lanza (la prueba de humo).
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+    os.environ["PYTHONIOENCODING"] = "utf-8"
     env = RAIZ / "infra" / ".env"
     if not env.exists():
         shutil.copyfile(RAIZ / "infra" / ".env.example", env)
