@@ -113,6 +113,10 @@ El script se puede repetir sin dañar nada:
 5. corre la prueba de humo (`infra/smoke_test.py`), que llega de una negociación aprobada a su
    contrato registrado en `proveedores`.
 
+Desde un clon limpio, en el equipo de desarrollo, tarda de 3 a 8 minutos según la red
+([`docs/qa/arranque-desde-cero.md`](docs/qa/arranque-desde-cero.md)), sin contar la descarga de
+las imágenes base de Docker la primera vez.
+
 Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
 `aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
 con usuario y contraseña. La prueba de humo deja un usuario `humo.prueba` desactivado, que
