@@ -63,6 +63,14 @@ describe("contenido de la ayuda", () => {
     expect(texto("revisar-actividad")).toContain("adjudicación")
   })
 
+  it("la guía de uso explica la fila de negociaciones del Tablero", () => {
+    const texto = JSON.stringify(
+      articuloPorSlug("como-usar-pluri-one")?.secciones
+    )
+    expect(texto).toContain("«Negociaciones»")
+    expect(texto).toContain("ahorro logrado")
+  })
+
   it("encuentra un artículo por su slug", () => {
     expect(articuloPorSlug("importar-datos")?.titulo).toBe(
       "Importar los datos del ERP"

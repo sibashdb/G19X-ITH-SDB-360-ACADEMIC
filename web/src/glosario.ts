@@ -19,6 +19,11 @@ export const GLOSARIO = {
     definicion:
       "Lo que ahorraría en lo que resta del contrato si pagara el precio típico del mercado (P50).",
   },
+  ahorroLogrado: {
+    termino: "Ahorro logrado",
+    definicion:
+      "Lo que bajó el costo total de los contratos adjudicados frente a la primera oferta de cada proveedor ganador.",
+  },
   puntuacion: {
     termino: "Puntuación",
     definicion:

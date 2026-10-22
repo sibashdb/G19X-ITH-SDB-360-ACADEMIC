@@ -3,6 +3,7 @@ import {
   CalendarClock,
   ChartBar,
   ChartLine,
+  HandCoins,
   ListOrdered,
   PiggyBank,
   TriangleAlert,
@@ -43,7 +44,13 @@ import {
   type Destacado,
   type TableroDatos,
 } from "@/inteligencia"
-import { rutaRenovacion } from "@/negociacion"
+import {
+  NOMBRES_FILTRO_ESTADO,
+  rutaRenovacion,
+  useNegociacion,
+  type EstadoEvento,
+  type TableroNegociacion,
+} from "@/negociacion"
 import {
   NOMBRES_CATEGORIA,
   formatoFecha,
@@ -137,6 +144,7 @@ function Contenido({ datos }: { datos: TableroDatos }) {
           tono="exito"
         />
       </div>
+      <FilaNegociaciones />
       <div className="grid gap-4 lg:grid-cols-2">
         <Seccion
           titulo="Gasto por categoría"
@@ -218,6 +226,61 @@ function Contenido({ datos }: { datos: TableroDatos }) {
       </Seccion>
     </>
   )
+}
+
+const ESTADOS = Object.keys(NOMBRES_FILTRO_ESTADO) as EstadoEvento[]
+
+/** Las negociaciones por estado y el ahorro logrado; carga y falla por su cuenta (spec del Tablero, §4). */
+function FilaNegociaciones() {
+  const consulta = useNegociacion<TableroNegociacion>("/tablero")
+  if (!consulta.isSuccess)
+    return (
+      <Seccion titulo="Estado de las negociaciones">
+        <ContenidoConsulta consulta={consulta}>{() => null}</ContenidoConsulta>
+      </Seccion>
+    )
+  const { por_estado, ahorro } = consulta.data
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <TarjetaKpi
+        titulo={<Termino clave="ahorroLogrado">Ahorro logrado</Termino>}
+        valor={ahorro.adjudicadas === 0 ? null : montoCorto(ahorro.ahorro_mxn)}
+        detalle={detalleAhorro(ahorro)}
+        icono={HandCoins}
+        enlace="/negociaciones?estado=adjudicado"
+        textoEnlace="Ver adjudicadas"
+        tono={Number(ahorro.ahorro_mxn) < 0 ? "advertencia" : "exito"}
+      />
+      <Seccion titulo="Estado de las negociaciones" className="lg:col-span-2">
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {ESTADOS.map((estado) => (
+            <li key={estado}>
+              <Link
+                to={`/negociaciones?estado=${estado}`}
+                className="flex items-baseline justify-between gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted"
+              >
+                <span>{NOMBRES_FILTRO_ESTADO[estado]}</span>{" "}
+                <span className="text-lg font-semibold tabular-nums">
+                  {por_estado[estado].toLocaleString("es-MX")}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Seccion>
+    </div>
+  )
+}
+
+function detalleAhorro({
+  adjudicadas,
+  ahorro_pct,
+}: TableroNegociacion["ahorro"]): string {
+  if (adjudicadas === 0) return "Todavía no hay negociaciones adjudicadas."
+  const cuantas = `${adjudicadas.toLocaleString("es-MX")} ${adjudicadas === 1 ? "negociación adjudicada" : "negociaciones adjudicadas"}`
+  return ahorro_pct === null
+    ? `En ${cuantas}.`
+    : `${formatoPorcentaje(ahorro_pct)} frente a la primera oferta, en ${cuantas}.`
 }
 
 function GastoPorCategoria({

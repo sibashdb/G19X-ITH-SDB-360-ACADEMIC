@@ -267,6 +267,18 @@ export const NOMBRES_FILTRO_ESTADO: Record<EstadoEvento, string> = {
   pendiente_aprobacion: "Por aprobar",
 }
 
+/** GET /tablero de negociacion: cuántas hay en cada estado y el ahorro frente a la primera oferta. */
+export type TableroNegociacion = {
+  por_estado: Record<EstadoEvento, number>
+  ahorro: {
+    adjudicadas: number
+    primera_oferta_mxn: string
+    adjudicado_mxn: string
+    ahorro_mxn: string // negativo si la primera oferta costaba menos
+    ahorro_pct: number | null // null sin adjudicadas o si la primera oferta suma 0
+  }
+}
+
 export const NOMBRES_ESTADO_SESION: Record<EstadoSesion, string> = {
   invitada: "Invitada",
   activa: "Activa",

@@ -88,9 +88,43 @@ const VACIO = {
   distribucion: TABLERO.distribucion.map((r) => ({ ...r, proveedores: 0 })),
 }
 
-function api(tablero: () => Response = () => respuestaJson(TABLERO)) {
+const NEGOCIACIONES = {
+  por_estado: {
+    borrador: 1,
+    abierto: 2,
+    en_evaluacion: 1,
+    pendiente_aprobacion: 1,
+    adjudicado: 3,
+    desierto: 1,
+    cancelado: 0,
+  },
+  ahorro: {
+    adjudicadas: 3,
+    primera_oferta_mxn: "1250000.00",
+    adjudicado_mxn: "937500.00",
+    ahorro_mxn: "312500.00",
+    ahorro_pct: 25.0,
+  },
+}
+
+const SIN_ADJUDICADAS = {
+  por_estado: { ...NEGOCIACIONES.por_estado, adjudicado: 0 },
+  ahorro: {
+    adjudicadas: 0,
+    primera_oferta_mxn: "0.00",
+    adjudicado_mxn: "0.00",
+    ahorro_mxn: "0.00",
+    ahorro_pct: null,
+  },
+}
+
+function api(
+  tablero: () => Response = () => respuestaJson(TABLERO),
+  negociaciones: () => Response = () => respuestaJson(NEGOCIACIONES)
+) {
   return simularApi((url) => {
     if (url === "/api/inteligencia/tablero") return tablero()
+    if (url === "/api/negociacion/tablero") return negociaciones()
     if (url.startsWith("/api/proveedores/proveedores?"))
       return respuestaJson({ total: 60, elementos: [] })
     return new Response("", { status: 404 })
@@ -278,10 +312,113 @@ describe("Tablero", () => {
     expect(await screen.findByText("$48.2 M MXN")).toBeInTheDocument()
   })
 
+  it("muestra el ahorro logrado y el estado de las negociaciones", async () => {
+    sesionDePrueba.roles = ["comprador"]
+    api()
+    renderizarPagina(<Tablero />)
+
+    const ahorro = tarjeta(
+      await screen.findByRole("button", { name: "Ahorro logrado" })
+    )
+    expect(ahorro).toHaveTextContent("$312.5 mil MXN")
+    expect(ahorro).toHaveTextContent(
+      "25.0 % frente a la primera oferta, en 3 negociaciones adjudicadas."
+    )
+    expect(
+      within(ahorro).getByRole("link", { name: "Ver adjudicadas" })
+    ).toHaveAttribute("href", "/negociaciones?estado=adjudicado")
+    const estados = seccion("Estado de las negociaciones")
+    expect(within(estados).getAllByRole("link")).toHaveLength(7)
+    expect(
+      within(estados).getByRole("link", { name: "Abierta 2" })
+    ).toHaveAttribute("href", "/negociaciones?estado=abierto")
+    expect(
+      within(estados).getByRole("link", { name: "Por aprobar 1" })
+    ).toHaveAttribute("href", "/negociaciones?estado=pendiente_aprobacion")
+    expect(
+      within(estados).getByRole("link", { name: "Cancelada 0" })
+    ).toHaveAttribute("href", "/negociaciones?estado=cancelado")
+  })
+
+  it("sin adjudicadas, el ahorro lo explica", async () => {
+    api(undefined, () => respuestaJson(SIN_ADJUDICADAS))
+    renderizarPagina(<Tablero />)
+
+    const ahorro = tarjeta(
+      await screen.findByRole("button", { name: "Ahorro logrado" })
+    )
+    expect(ahorro).toHaveTextContent(
+      "Todavía no hay negociaciones adjudicadas."
+    )
+    expect(ahorro).not.toHaveTextContent("NaN")
+    expect(ahorro).not.toHaveTextContent("%")
+  })
+
+  it("si la primera oferta suma 0, el ahorro omite el porcentaje", async () => {
+    const cero = {
+      ...SIN_ADJUDICADAS,
+      ahorro: { ...SIN_ADJUDICADAS.ahorro, adjudicadas: 1 },
+    }
+    api(undefined, () => respuestaJson(cero))
+    renderizarPagina(<Tablero />)
+
+    const ahorro = tarjeta(
+      await screen.findByRole("button", { name: "Ahorro logrado" })
+    )
+    expect(ahorro).toHaveTextContent("En 1 negociación adjudicada.")
+    expect(ahorro).not.toHaveTextContent("%")
+  })
+
+  it("un ahorro negativo se muestra con su signo y como advertencia", async () => {
+    const negativo = {
+      ...NEGOCIACIONES,
+      ahorro: {
+        ...NEGOCIACIONES.ahorro,
+        ahorro_mxn: "-30000.00",
+        ahorro_pct: -2.4,
+      },
+    }
+    api(undefined, () => respuestaJson(negativo))
+    renderizarPagina(<Tablero />)
+
+    const ahorro = tarjeta(
+      await screen.findByRole("button", { name: "Ahorro logrado" })
+    )
+    expect(ahorro).toHaveTextContent("-30.0 mil MXN")
+    expect(ahorro).toHaveTextContent("-2.4 % frente a la primera oferta")
+    expect(ahorro.querySelector("[data-tono]")).toHaveAttribute(
+      "data-tono",
+      "advertencia"
+    )
+  })
+
+  it("si negociacion no responde, el resto del tablero sigue y la fila permite reintentar", async () => {
+    let fallar = true
+    api(undefined, () =>
+      fallar ? new Response("", { status: 502 }) : respuestaJson(NEGOCIACIONES)
+    )
+    renderizarPagina(<Tablero />)
+
+    const alerta = await screen.findByRole("alert")
+    expect(tarjeta(alerta)).toHaveTextContent("Estado de las negociaciones")
+    expect(screen.getByText("$48.2 M MXN")).toBeInTheDocument()
+    expect(tarjeta(screen.getByText("Por vencer (90 días)"))).toHaveTextContent(
+      "12"
+    )
+    fallar = false
+    await userEvent.click(
+      within(tarjeta(alerta)).getByRole("button", { name: "Reintentar" })
+    )
+    expect(
+      await screen.findByRole("button", { name: "Ahorro logrado" })
+    ).toBeInTheDocument()
+  })
+
   it("no tiene violaciones de accesibilidad", async () => {
     api()
     const { container } = renderizarPagina(<Tablero />)
     await screen.findByText("$48.2 M MXN")
+    await screen.findByRole("button", { name: "Ahorro logrado" })
     await screen.findByRole("heading", { name: "Cómo usar PluriOne" })
     await esperarSinViolaciones(container)
   })
