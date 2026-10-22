@@ -4,7 +4,9 @@ Proyecto 064 de residencias profesionales (ITH) para PluriOne. Plataforma de apo
 de servicios de TI: inteligencia de precios, desempeño de proveedores, negociación asistida por
 IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
-- Requerimientos y diseño: [`docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md`](docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md)
+- Para empezar: el PRD en una página, [`docs/PRD.md`](docs/PRD.md), y el alcance vigente del
+  MVP, [`docs/MVP.md`](docs/MVP.md)
+- Requerimientos y diseño completos: [`docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md`](docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md)
 - Propuesta técnica: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md)
 - Arquitectura (C4, modelo de datos, eventos, contratos y ADR): [`docs/arquitectura/`](docs/arquitectura/README.md)
 - Planes de implementación: [`docs/superpowers/plans/`](docs/superpowers/plans/)
@@ -50,7 +52,7 @@ en la interfaz, hasta el contrato registrado.
 
 | # | Entregable | Estado |
 |---|---|---|
-| 1 | Documento de requerimientos | Hecho: el PRD |
+| 1 | Documento de requerimientos | Hecho: el PRD ([`docs/PRD.md`](docs/PRD.md)) y su alcance vigente ([`docs/MVP.md`](docs/MVP.md)) |
 | 2 | Propuesta técnica | Hecho: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md) |
 | 3 | Documento de arquitectura | Hecho: [`docs/arquitectura/`](docs/arquitectura/README.md) (C4, modelo de datos, eventos, OpenAPI, AsyncAPI y ADR) |
 | 4 | Plan del proyecto | Parcial: planes por incremento y plan del PRD (§6.6) |
@@ -58,8 +60,35 @@ en la interfaz, hasta el contrato registrado.
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
 
-**Lo siguiente** (replanificación del 15/10/2026, PRD §6.6.1): solo si hay tiempo, el LLM (N2),
-las propuestas (6) y el simulador de escenarios (8).
+**Lo siguiente** (decisión del 22/10/2026, PRD §6.6.2): completar el Tablero (10) hasta el 28/10
+y después el LLM recortado (N2), del 29/10 al 04/11, con fecha límite. Las propuestas (6) y el
+simulador de escenarios (8) quedan como trabajo futuro. Calendario completo en
+[`docs/MVP.md`](docs/MVP.md).
+
+## Cómo se trabajó con IA
+
+El proyecto se desarrolló con Claude Code (Anthropic) como asistente. Casi todos los commits se
+escribieron con él y lo declaran con la línea `Co-Authored-By: Claude …`, que nombra el modelo
+usado (Opus, Sonnet o Haiku). El método:
+
+- **Primero la especificación.** Cada incremento empieza con una spec en
+  [`docs/superpowers/specs/`](docs/superpowers/specs/), escrita en conversación con el residente.
+  El residente aprueba el alcance y las decisiones antes de que se programe; el PRD lo aprobó
+  sección por sección.
+- **Después el plan.** De cada spec sale un plan en
+  [`docs/superpowers/plans/`](docs/superpowers/plans/), con las tareas, las interfaces y las
+  pruebas de cada una. El residente lo aprueba antes de implementar.
+- **Implementación con revisión independiente.** Un agente implementa cada tarea con pruebas
+  primero (TDD). Otro agente, que no comparte el contexto del primero, la revisa contra la spec.
+  Al final, un revisor revisa la rama completa, y sus hallazgos se corrigen antes de integrar.
+- **Verificación con evidencia.** Algo está terminado cuando lo dicen las pruebas (pytest y
+  Vitest), el CI con la prueba de humo del stack completo y las revisiones en el navegador con
+  axe ([`docs/qa/`](docs/qa/)), no cuando lo afirma el agente.
+- **Decisiones del residente.** El residente fija el alcance y las prioridades (por ejemplo, la
+  opción A del 15/10 y la decisión sobre el LLM del 22/10), entra con sus usuarios a las
+  revisiones en el navegador y decide qué se integra y cuándo se publica.
+- **Datos.** Los datos de la plataforma son sintéticos (generador con semilla), así que el
+  asistente no trabajó con datos reales de compras.
 
 ## Requisitos
 

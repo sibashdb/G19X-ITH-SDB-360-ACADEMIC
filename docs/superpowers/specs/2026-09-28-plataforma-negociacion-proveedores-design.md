@@ -623,6 +623,28 @@ Cada incremento de desarrollo tendrá **su propio plan de implementación**, emp
 
 El avance frente a las capacidades se mantiene en el README, en «Qué está hecho y qué falta».
 
+#### 6.6.2 Decisión sobre el LLM (22/10/2026)
+
+**Avance.** 4′ se integró el 20/10, antes de la ventana del 21/10 al 11/11 que tenía asignada.
+
+**Revisión del asesor del 22/10.** Pidió decidir por escrito si el LLM (N2) entra.
+
+**Decisión del residente.** N2 entra recortado y con fecha límite, del 29/10 al 04/11/2026:
+- El LLM interpreta la nota libre del proveedor para sugerir los campos de su oferta, que el
+  proveedor confirma, y redacta los mensajes del agente.
+- El motor sigue decidiendo (ADR-002) y las plantillas quedan como respaldo.
+- Se acepta con los evals de 4.8 y las metas de 1.6: campos interpretados ≥ 90 %, 0 filtraciones
+  y respuesta del agente < 20 s en el percentil 95.
+- Si el 04/11 no las cumple, el agente se queda con las plantillas, N2 queda como trabajo futuro
+  y el 05/11 empieza el manual de usuario.
+
+**Ajustes a la priorización de 6.7:**
+- Las propuestas (6) y el simulador de escenarios (8) pasan a **Won't (v1)**: no caben en el
+  calendario.
+- El Tablero (10) se completa antes de N2, del 22/10 al 28/10.
+
+El alcance y el calendario vigentes están en [`docs/MVP.md`](../../MVP.md).
+
 ### 6.7 Priorización MoSCoW (qué se recorta si hay retrasos)
 
 - **Must:** capacidades 1, 2 (línea base), 3, 4, 5, 7 y 9; seguridad (5.1–5.3); pruebas unitarias, de integración y E2E; métricas de 1.6.
