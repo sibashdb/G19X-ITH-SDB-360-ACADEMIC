@@ -4,8 +4,9 @@ Proyecto 064 de residencias profesionales (ITH) para PluriOne. Plataforma de apo
 de servicios de TI: inteligencia de precios, desempeño de proveedores, negociación asistida por
 IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
-- Para empezar: el PRD en una página, [`docs/PRD.md`](docs/PRD.md), y el alcance vigente del
-  MVP, [`docs/MVP.md`](docs/MVP.md)
+- Para empezar: el PRD en una página, [`docs/PRD.md`](docs/PRD.md); el alcance vigente del
+  MVP, [`docs/MVP.md`](docs/MVP.md), y el plan del proyecto,
+  [`docs/plan-del-proyecto.md`](docs/plan-del-proyecto.md)
 - Requerimientos y diseño completos: [`docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md`](docs/superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md)
 - Propuesta técnica: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md)
 - Arquitectura (C4, modelo de datos, eventos, contratos y ADR): [`docs/arquitectura/`](docs/arquitectura/README.md)
@@ -56,7 +57,7 @@ cuánto se ahorró.
 | 1 | Documento de requerimientos | Hecho: el PRD ([`docs/PRD.md`](docs/PRD.md)) y su alcance vigente ([`docs/MVP.md`](docs/MVP.md)) |
 | 2 | Propuesta técnica | Hecho: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md) |
 | 3 | Documento de arquitectura | Hecho: [`docs/arquitectura/`](docs/arquitectura/README.md) (C4, modelo de datos, eventos, OpenAPI, AsyncAPI y ADR) |
-| 4 | Plan del proyecto | Parcial: planes por incremento y plan del PRD (§6.6) |
+| 4 | Plan del proyecto | Hecho: [`docs/plan-del-proyecto.md`](docs/plan-del-proyecto.md) (incrementos hechos, calendario, backlog y riesgos) |
 | 5 | Sistema funcional | En curso: este repositorio; falta publicar las imágenes en GHCR |
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
