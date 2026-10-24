@@ -54,6 +54,40 @@ El residente decidió que **el LLM entra, recortado y con fecha límite**:
 - **Límite del equipo:** la GPU de desarrollo tiene 4 GB, así que solo caben modelos locales de
   unos 3 mil millones de parámetros, cuantizados.
 
+## Recorrido de demostración (5 minutos)
+
+Recorre el flujo completo del MVP: una compra que negocia el agente, la adjudica el comprador,
+la aprueba otra persona y termina en un contrato.
+
+Se hizo el 24/10/2026 sobre el stack de `main` y tomó unos 4 minutos, sin contar el cambio de
+usuario. Las cifras de abajo son las de esa corrida. Con otra fecha, la referencia de precios
+puede variar unos centavos.
+
+**Antes de empezar:**
+- Levante el stack con `uv run python infra/arrancar.py` y abra <http://localhost:8080>.
+- Los usuarios `comprador1` y `aprobador1` y sus contraseñas están en
+  `infra/keycloak/realm-plataforma.json`.
+- El proveedor no tiene cuenta. Entra con el enlace de su invitación, que se abre en una ventana
+  privada o desde el correo que llega a Mailpit (<http://localhost:8025>).
+
+| Paso | Quién | Qué hace | Qué se ve |
+|---|---|---|---|
+| 1 | `comprador1` | Entra. El Tablero ya muestra el gasto, los vencimientos y la fila de negociaciones con el ahorro logrado | El Tablero |
+| 2 | `comprador1` | Va a Negociaciones y pulsa «Nueva negociación». Escribe un título y elige el servicio «Desarrollador(a) senior (MXN)» con cantidad 800 y al proveedor «Código del Pacífico S.A. de C.V.». Deja la fecha límite, las 6 rondas, el estilo «Balanceado» y el plazo de 12 meses que vienen por defecto. Pulsa «Crear borrador» | El borrador, con la banda de referencia: P25 $1,243.07 · P50 $1,325.80 · P75 $1,449.72 por hora |
+| 3 | `comprador1` | Revisa los límites sugeridos (ideal $1,243.07 y límite $1,325.80, del P25 y el P50), pulsa «Publicar» y confirma. Copia el enlace con «Copiar» | «Enlace de invitación»: se muestra una sola vez y también se envía por correo |
+| 4 | Proveedor | Abre el enlace en una ventana privada. Ofrece $1,500 por hora y pulsa «Enviar oferta» | El agente responde al momento con una contraoferta de $1,247.25, sin revelar el límite |
+| 5 | Proveedor | Pulsa «Aceptar esta propuesta», que llena el formulario, y después «Enviar oferta» | «La negociación terminó con un acuerdo tentativo», que no es vinculante hasta que se apruebe |
+| 6 | `comprador1` | Vuelve a la negociación, que ya está «En evaluación». Lee «Por qué se recomienda» y pulsa «Adjudicar a Código del Pacífico S.A. de C.V.» | La confirmación avisa que irá a un aprobador porque el costo total ($997,800.00) supera el umbral de $500,000.00 |
+| 7 | `comprador1` | Pulsa «Confirmar» y cierra sesión, en el menú de su cuenta, abajo a la izquierda | La negociación queda «Pendiente de aprobación» |
+| 8 | `aprobador1` | Entra. En el Tablero, la fila de negociaciones marca «Por aprobar 1»; pulsa ese número y abre la negociación | La propuesta de `comprador1`, el motivo («Supera el umbral de aprobación») y los botones «Aprobar» y «Rechazar». Quien propone nunca ve esos botones |
+| 9 | `aprobador1` | Pulsa «Aprobar» | La negociación queda «Adjudicada». El «Resultado» muestra quién propuso, quién aprobó y el folio del contrato `C-NEG-…` |
+| 10 | `aprobador1` | Vuelve al Tablero | El ahorro logrado sube unos $202,200: es (1,500 − 1,247.25) × 800 frente a la primera oferta. El contrato ya está en el historial del proveedor |
+
+**Qué conviene mirar en el camino:**
+- El agente nunca acepta fuera de los límites ni los revela.
+- Cada respuesta del agente tiene «¿Por qué respondió esto?» en la sesión del comprador.
+- El proveedor puede pulsar «Hablar con una persona» en cualquier momento.
+
 ## Calendario
 
 El calendario completo hasta el 07/12, con el backlog y los riesgos, está en el
