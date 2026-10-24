@@ -16,7 +16,7 @@ está en el [README](../README.md#qué-está-hecho-y-qué-falta).
 | 5 | Negociación con agente en el portal | Must con el agente determinista; el LLM, Should | Hecho el agente determinista; el LLM, del 29/10 al 04/11 (abajo) |
 | 7 | Recomendación de adjudicación | Must | Hecho |
 | 9 | Aprobaciones y bitácora | Must | Hecho |
-| 10 | Tablero | Should | Falta el estado de las negociaciones y el ahorro logrado; del 22/10 al 28/10 |
+| 10 | Tablero | Should | Hecho: incluye el estado de las negociaciones y el ahorro logrado frente a la primera oferta |
 
 ## Qué no entra
 

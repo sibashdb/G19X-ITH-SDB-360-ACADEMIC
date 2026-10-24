@@ -13,9 +13,10 @@ IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
 ## Qué está hecho y qué falta
 
-Estado al 20/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
+Estado al 22/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
 determinista y la adjudicación con aprobación ya funcionan de punta a punta, en los servicios y
-en la interfaz, hasta el contrato registrado.
+en la interfaz, hasta el contrato registrado, y el Tablero muestra cómo van las negociaciones y
+cuánto se ahorró.
 
 | # | Capacidad del PRD | Estado | Dónde | Qué falta |
 |---|---|---|---|---|
@@ -28,7 +29,7 @@ en la interfaz, hasta el contrato registrado.
 | 7 | Recomendación de adjudicación | Hecho | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta. Pantalla: la evaluación de los acuerdos con la recomendación explicada y los pesos ajustables, la propuesta con su justificación y el resumen de la negociación adjudicada o desierta; en Configuración, la sección «Adjudicación» con los pesos y el umbral | — |
 | 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
 | 9 | Aprobaciones y bitácora | Hecho | Aprobación en `services/negociacion`: sobre el umbral (500,000 MXN por defecto) o fuera de límites decide un aprobador, y nunca quien propuso ([ADR-011](docs/arquitectura/adr/011-quien-aprueba-una-adjudicacion.md)); la adjudicación aprobada registra el contrato en `proveedores`. Aviso del resultado a los proveedores por correo. Bitácora inmutable en `administracion` (pantalla Actividad, con adjudicaciones y desiertas; pantalla Correos) y en `negociacion`. Pantalla: aprobar o rechazar la propuesta por una persona distinta de quien propuso, el filtro «Por aprobar» de Negociaciones, el resumen con el folio del contrato y el aviso del resultado en el portal del proveedor | — |
-| 10 | Tablero | Parcial | Gasto, contratos por vencer, proveedores en riesgo y ahorro potencial | Estado de las negociaciones y ahorro logrado |
+| 10 | Tablero | Hecho | Gasto, contratos por vencer, proveedores en riesgo y ahorro potencial, de `inteligencia`. De `negociacion` (`GET /tablero`), las negociaciones en cada estado, con acceso a la lista filtrada, y el ahorro logrado: el costo total adjudicado frente a la primera oferta de cada proveedor ganador, en MXN y en porcentaje | — |
 
 **Métricas medidas** (PRD §1.6):
 
@@ -60,8 +61,8 @@ en la interfaz, hasta el contrato registrado.
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
 
-**Lo siguiente** (decisión del 22/10/2026, PRD §6.6.2): completar el Tablero (10) hasta el 28/10
-y después el LLM recortado (N2), del 29/10 al 04/11, con fecha límite. Las propuestas (6) y el
+**Lo siguiente** (decisión del 22/10/2026, PRD §6.6.2): el LLM recortado (N2), del 29/10 al
+04/11, con fecha límite. Las propuestas (6) y el
 simulador de escenarios (8) quedan como trabajo futuro. Calendario completo en
 [`docs/MVP.md`](docs/MVP.md).
 
@@ -206,6 +207,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
   - resumen de la negociación adjudicada, con el folio del contrato, o desierta;
   - el portal del proveedor muestra el resultado mientras su enlace siga vigente;
   - Configuración tiene la sección «Adjudicación» (pesos y umbral de aprobación) y la Actividad registra el cambio.
+- **Negociaciones en el Tablero**: la fila «Negociaciones» muestra cuántas hay en cada estado, y cada número abre la lista filtrada. También muestra el ahorro logrado frente a la primera oferta; si `negociacion` no responde, solo esa fila muestra el error.
 - **Portal del proveedor** (`/portal`): el proveedor entra con el enlace de su invitación, sin cuenta. Ve qué se negocia, la conversación y la última propuesta del agente, y puede enviar ofertas o pedir hablar con una persona.
 
 ## Estructura
@@ -216,7 +218,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 | `services/proveedores` | Microservicio de proveedores, contratos, precios y desempeño |
 | `services/administracion` | Microservicio de administración: usuarios, bitácora, correos, estado del sistema y panel (`/api/administracion/`) |
 | `services/inteligencia` | Microservicio de inteligencia: precio justo, puntuación de proveedores, alertas y Tablero (`/api/inteligencia/`) |
-| `services/negociacion` | Microservicio de negociación: eventos, sesiones, motor de concesiones, portal del proveedor y bitácora (`/api/negociacion/`) |
+| `services/negociacion` | Microservicio de negociación: eventos, sesiones, motor de concesiones, portal del proveedor, adjudicación, bitácora y los indicadores de negociaciones del Tablero (`/api/negociacion/`) |
 | `tools/generador` | Datos sintéticos reproducibles del ERP simulado |
 | `tools/simulador` | Bots de proveedor que negocian por el portal y miden al agente |
 | `web` | SPA en React servida por el gateway |
