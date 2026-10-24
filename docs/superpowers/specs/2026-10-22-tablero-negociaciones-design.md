@@ -32,7 +32,7 @@ que el comprador ve al adjudicar, o que una falla de `negociacion` deje sin Tabl
 | # | Decisión | De quién |
 |---|---|---|
 | D1 | El ahorro se mide **solo frente a la primera oferta** del proveedor adjudicado | Residente |
-| D2 | El ahorro se mide **en costo total del contrato**, con la misma regla que la adjudicación (precio × cantidad, por el plazo en las unidades mensuales, más la cuota de implementación) | Claude |
+| D2 | El ahorro se mide **en costo total del contrato**, con la misma regla que la adjudicación (precio × cantidad, por el plazo en las unidades mensuales, más la cuota de implementación), **al plazo acordado**: la primera oferta conserva sus precios y su cuota. Enmendada el 23/10/2026 tras la revisión final: con el plazo propio de la primera oferta, un plazo negociado invertía o inflaba el ahorro acumulado | Claude |
 | D3 | La regla de costo total y las unidades mensuales pasan de `inteligencia` a `libs/comun`, y la usan los dos servicios | Claude |
 | D4 | Los datos los calcula `negociacion` en `GET /tablero`; el Tablero de la SPA lo consulta aparte del de `inteligencia` | Claude |
 | D5 | El monto en MXN usa el tipo de cambio implícito de la adjudicación (`costo_total_mxn / costo_total`), sin llamar a otro servicio | Claude |
@@ -50,8 +50,9 @@ la única con estado `aprobada` o `directa`, porque las `rechazadas` son histori
   la sesión adjudicada, aunque haya quedado fuera de los límites (`valida = False`): es lo primero
   que pidió el proveedor. Toda oferta guardada trae todas las líneas y palancas del evento. Su
   costo total se calcula con D2, armada igual que el candidato que
-  `negociacion` envía a la recomendación (`adjudicacion.candidatos`): el plazo y la cuota salen
-  de sus palancas o, si no los trae, del plazo del evento y de cuota 0.
+  `negociacion` envía a la recomendación (`adjudicacion.candidatos`). La cuota sale de sus
+  palancas, o vale 0 si no la trae. El plazo es el acordado, el de la última oferta del
+  proveedor, para que la diferencia sean precios y cuota y no meses de más o de menos.
 - **Costo adjudicado:** `Adjudicacion.costo_total`, ya guardado.
 - **En MXN:** las dos cifras se multiplican por `costo_total_mxn / costo_total` de esa
   adjudicación. En un evento en MXN, la tasa es 1.
@@ -64,7 +65,8 @@ la única con estado `aprobada` o `directa`, porque las `rechazadas` son histori
 
   Sin adjudicadas, los montos valen 0 y el porcentaje es `null`.
 - El ahorro puede salir negativo si la primera oferta costaba menos que lo adjudicado (por
-  ejemplo, con un plazo más largo). Se muestra tal cual, sin ocultarlo.
+  ejemplo, si el proveedor subió la cuota de implementación). Se muestra tal cual, sin
+  ocultarlo.
 - Los montos se redondean a centavos.
 
 ## 4. Lo que se construye

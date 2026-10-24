@@ -29,10 +29,15 @@ async def tablero(_: Lector, bd: Bd) -> esquemas.TableroSalida:
     # ponytail: una consulta por evento adjudicado, como en candidatos(); un JOIN si fueran cientos.
     for evento, fila, sesion in filas:
         primera = await turnos.primera_oferta_proveedor(bd, sesion.id)
-        if primera is None:
+        acordada = await turnos.ultima_oferta_proveedor(bd, sesion.id)
+        if primera is None or acordada is None:
             raise RuntimeError("Una sesión adjudicada siempre tiene una oferta del proveedor")
         lineas = await consultas.lineas_de(bd, evento.id)
         candidato = adjudicacion.candidato_de(sesion, primera, lineas, evento)
+        # Al plazo acordado: el ahorro son precios y cuota, no meses de más o de menos (spec D2).
+        candidato["plazo_meses"] = adjudicacion.candidato_de(sesion, acordada, lineas, evento)[
+            "plazo_meses"
+        ]
         tasa = fila.costo_total_mxn / fila.costo_total if fila.costo_total else Decimal(1)
         adjudicadas.append(Adjudicada(adjudicacion.costo_de(candidato), fila.costo_total, tasa))
     resultado = ahorro(adjudicadas)

@@ -369,6 +369,18 @@ describe("Tablero", () => {
     expect(ahorro).not.toHaveTextContent("%")
   })
 
+  it("si la inteligencia no responde, la fila de negociaciones carga por su cuenta", async () => {
+    api(() => new Response("", { status: 502 }))
+    renderizarPagina(<Tablero />)
+
+    expect(
+      await screen.findByRole("button", { name: "Ahorro logrado" })
+    ).toBeInTheDocument()
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El servicio no está disponible"
+    )
+  })
+
   it("un ahorro negativo se muestra con su signo y como advertencia", async () => {
     const negativo = {
       ...NEGOCIACIONES,

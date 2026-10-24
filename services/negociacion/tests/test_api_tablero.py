@@ -129,3 +129,44 @@ async def test_una_propuesta_rechazada_no_se_cuenta_dos_veces(
         "ahorro_mxn": "0.00",
         "ahorro_pct": 0.0,
     }
+
+
+async def test_la_primera_oferta_se_costea_con_el_plazo_acordado(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    nueva_compra: Any,
+    ofertar: Any,
+    acordar: Any,
+    proponer: Any,
+    ids: dict[str, str],
+) -> None:
+    """Un plazo distinto en la primera oferta no cuenta como ahorro: se comparan precios y cuota
+    al plazo que se acordó (si no, abrir en 12 meses y acordar 1 parecería un ahorro de 94 %)."""
+    evento = await nueva_compra(plazo_meses=1, proveedores=[ids["nube_norte"]])
+    palancas = [
+        {"clave": "precio", "peso": 80},
+        {"clave": "plazo_meses", "peso": 20, "ideal": "1", "limite": "12"},
+    ]
+    editado = await cliente.patch(
+        f"/eventos/{evento['id']}", json={"version": 1, "palancas": palancas}, headers=comprador
+    )
+    assert editado.status_code == 200, editado.text
+    publicado = await cliente.post(f"/eventos/{evento['id']}/publicar", headers=comprador)
+    assert publicado.status_code == 200, publicado.text
+    evento, enlaces = publicado.json()["evento"], publicado.json()["enlaces"]
+    linea = str(evento["lineas"][0]["id"])
+    primera = await ofertar(enlaces[0], {linea: "40.00"}, {"plazo_meses": "12"})
+    assert primera.status_code == 200, primera.text
+    await acordar(enlaces[0], linea, "30.00", {"plazo_meses": "1"})
+    propuesta = await proponer(comprador, evento, enlaces[0])
+    assert propuesta.json()["vigente"]["estado"] == "directa", propuesta.text
+
+    tablero = await _tablero(cliente, comprador)
+
+    assert tablero["ahorro"] == {
+        "adjudicadas": 1,
+        "primera_oferta_mxn": "80000.00",  # 40.00 por 100 por 1 mes (el acordado) por 20 MXN/USD
+        "adjudicado_mxn": "60000.00",
+        "ahorro_mxn": "20000.00",
+        "ahorro_pct": 25.0,
+    }

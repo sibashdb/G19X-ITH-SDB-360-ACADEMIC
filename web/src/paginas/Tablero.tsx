@@ -9,6 +9,7 @@ import {
   TriangleAlert,
   Wallet,
 } from "lucide-react"
+import type { UseQueryResult } from "@tanstack/react-query"
 import { useAuth } from "react-oidc-context"
 import { Link } from "react-router"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
@@ -80,6 +81,8 @@ export function Tablero() {
   const nombre =
     auth.user?.profile.given_name ?? auth.user?.profile.preferred_username
   const tablero = useInteligencia<TableroDatos>("/tablero")
+  // Se pide aquí, en paralelo con inteligencia, para que la fila no dependa de ella (spec §4).
+  const negociaciones = useNegociacion<TableroNegociacion>("/tablero")
   return (
     <section className="space-y-6">
       <EncabezadoPagina
@@ -88,13 +91,20 @@ export function Tablero() {
       />
       <GuiaUso />
       <ContenidoConsulta consulta={tablero}>
-        {(datos) => <Contenido datos={datos} />}
+        {(datos) => <Contenido datos={datos} negociaciones={negociaciones} />}
       </ContenidoConsulta>
+      {tablero.isError && <FilaNegociaciones consulta={negociaciones} />}
     </section>
   )
 }
 
-function Contenido({ datos }: { datos: TableroDatos }) {
+function Contenido({
+  datos,
+  negociaciones,
+}: {
+  datos: TableroDatos
+  negociaciones: UseQueryResult<TableroNegociacion>
+}) {
   const umbral = useUmbralRiesgo()
   const variacion = datos.variacion_pct
   return (
@@ -144,7 +154,7 @@ function Contenido({ datos }: { datos: TableroDatos }) {
           tono="exito"
         />
       </div>
-      <FilaNegociaciones />
+      <FilaNegociaciones consulta={negociaciones} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Seccion
           titulo="Gasto por categoría"
@@ -231,8 +241,11 @@ function Contenido({ datos }: { datos: TableroDatos }) {
 const ESTADOS = Object.keys(NOMBRES_FILTRO_ESTADO) as EstadoEvento[]
 
 /** Las negociaciones por estado y el ahorro logrado; carga y falla por su cuenta (spec del Tablero, §4). */
-function FilaNegociaciones() {
-  const consulta = useNegociacion<TableroNegociacion>("/tablero")
+function FilaNegociaciones({
+  consulta,
+}: {
+  consulta: UseQueryResult<TableroNegociacion>
+}) {
   if (!consulta.isSuccess)
     return (
       <Seccion titulo="Estado de las negociaciones">

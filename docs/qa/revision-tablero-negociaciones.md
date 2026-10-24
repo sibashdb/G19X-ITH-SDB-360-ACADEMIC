@@ -53,7 +53,15 @@
 
 ## Defectos
 
-Ninguno.
+La revisión en el navegador no encontró ninguno. La revisión final de la rama encontró dos, que se corrigieron después de esta revisión:
+
+1. **Un plazo negociado distorsionaba el ahorro.** La primera oferta se costeaba con su propio plazo, así que abrir en 12 meses y acordar 1 contaba como 94 % de ahorro.
+   - Ahora se costea al plazo acordado, con sus propios precios y su cuota (spec, D2 enmendada).
+   - Prueba: `test_la_primera_oferta_se_costea_con_el_plazo_acordado`.
+   - Los datos de esta revisión no negocian el plazo, así que sus cifras no cambian.
+2. **La fila dependía de `inteligencia`.** Solo aparecía cuando el Tablero de `inteligencia` había cargado.
+   - Ahora la consulta empieza en paralelo y la fila se muestra también si `inteligencia` falla.
+   - Prueba: «si la inteligencia no responde, la fila de negociaciones carga por su cuenta».
 
 ## Observación
 
