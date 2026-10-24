@@ -64,6 +64,9 @@ mensajes salen con sus acentos.
     `micromatch` e `ip-address`).
 
   Se atendieron el 23/10/2026, como pidió el asesor (ver abajo).
+- **Docker Desktop apagado.** Si el demonio no responde, el paso de `docker compose` termina con
+  el error de Docker («failed to connect to the docker API») y `arrancar.py` reporta el código de
+  salida. El README ya pide Docker Desktop en sus Requisitos.
 
 ## Vulnerabilidades de npm (23/10/2026)
 
@@ -93,6 +96,3 @@ desde el 22/10. Todas tenían arreglo sin `--force`.
   - Se comprobó que `dist/assets/` no contiene código de zod.
 
   Aun así se actualizaron, porque se usan al construir la imagen y al desarrollar.
-- **Docker Desktop apagado.** Si el demonio no responde, el paso de `docker compose` termina con
-  el error de Docker («failed to connect to the docker API») y `arrancar.py` reporta el código de
-  salida. El README ya pide Docker Desktop en sus Requisitos.
