@@ -57,14 +57,42 @@ mensajes salen con sus acentos.
 
 ## Observaciones para la fase de calidad
 
-- **`npm ci` reporta 9 vulnerabilidades (8 altas, 1 moderada)** en dependencias del frontend:
+- **`npm ci` reportaba 9 vulnerabilidades (8 altas, 1 moderada)** en dependencias del
+  frontend:
   - el servidor de desarrollo de vite (`launch-editor`);
   - la CLI de shadcn (`@modelcontextprotocol/sdk`, `ts-morph`, `fast-glob`, `braces`,
     `micromatch` e `ip-address`).
 
-  Son herramientas de construcción y de desarrollo. La imagen del gateway solo sirve con Nginx
-  los archivos ya construidos. Se revisan en las pruebas de seguridad del Reporte QA
-  (entregable 6).
+  Se atendieron el 23/10/2026, como pidió el asesor (ver abajo).
+
+## Vulnerabilidades de npm (23/10/2026)
+
+El 23/10, `npm audit` reportaba 8 vulnerabilidades (6 altas y 2 moderadas), con avisos nuevos
+desde el 22/10. Todas tenían arreglo sin `--force`.
+
+- **Arreglo:** `npm audit fix`, sin `--force`. Solo cambió `web/package-lock.json`, sin subir
+  ninguna versión mayor:
+
+  | Paquete | Antes | Después | Lo trae |
+  |---|---|---|---|
+  | vite | 8.3.1 | 8.3.5 | Construcción y servidor de desarrollo |
+  | shadcn | 4.21.0 | 4.22.1 | CLI de componentes; la app solo importa su CSS |
+  | @modelcontextprotocol/sdk | 1.31.0 | 1.32.2 | CLI de shadcn |
+  | zod | 4.6.5 | 4.6.7 | `eslint-plugin-react-hooks` y la CLI de shadcn |
+  | undici | 7.30.0 | 7.30.1 | jsdom (pruebas) y la CLI de shadcn |
+  | body-parser | 2.3.0 | 2.4.0 | CLI de shadcn |
+  | fast-uri | 3.1.8 | 3.1.9 | CLI de shadcn |
+  | ip-address | 10.7.2 | 10.7.4 | CLI de shadcn |
+
+- **Resultado:** `npm audit` reporta **0 vulnerabilidades**.
+- **Verificación:** `npm run lint`, `npx tsc -b`, `npm run build` y las 832 pruebas de Vitest
+  terminan bien.
+- **Imagen de Nginx:** ninguno de esos paquetes llega a ella.
+  - El código de `web/src/` no importa ninguno.
+  - La imagen del gateway solo sirve con Nginx los archivos de `npm run build`.
+  - Se comprobó que `dist/assets/` no contiene código de zod.
+
+  Aun así se actualizaron, porque se usan al construir la imagen y al desarrollar.
 - **Docker Desktop apagado.** Si el demonio no responde, el paso de `docker compose` termina con
   el error de Docker («failed to connect to the docker API») y `arrancar.py` reporta el código de
   salida. El README ya pide Docker Desktop en sus Requisitos.

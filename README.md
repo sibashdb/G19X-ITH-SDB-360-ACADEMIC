@@ -115,8 +115,9 @@ El script se puede repetir sin dañar nada:
    contrato registrado en `proveedores`.
 
 Desde un clon limpio, en el equipo de desarrollo, tarda de 3 a 8 minutos según la red
-([`docs/qa/arranque-desde-cero.md`](docs/qa/arranque-desde-cero.md)), sin contar la descarga de
-las imágenes base de Docker la primera vez.
+([`docs/qa/arranque-desde-cero.md`](docs/qa/arranque-desde-cero.md)). La primera vez en un
+equipo nuevo, Docker además descarga las imágenes base (PostgreSQL, RabbitMQ, Keycloak, Python,
+Node, Nginx, Mailpit y curl), unos 1.9 GB sin comprimir; ese tiempo depende de la conexión.
 
 Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
 `aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
