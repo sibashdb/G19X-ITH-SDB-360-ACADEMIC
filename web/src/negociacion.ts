@@ -270,6 +270,7 @@ export const NOMBRES_FILTRO_ESTADO: Record<EstadoEvento, string> = {
 /** GET /tablero de negociacion: cuántas hay en cada estado y el ahorro frente a la primera oferta. */
 export type TableroNegociacion = {
   por_estado: Record<EstadoEvento, number>
+  escaladas: number // sesiones que esperan a una persona; están en negociaciones abiertas
   ahorro: {
     adjudicadas: number
     primera_oferta_mxn: string

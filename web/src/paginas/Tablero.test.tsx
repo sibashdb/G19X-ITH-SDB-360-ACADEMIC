@@ -98,6 +98,7 @@ const NEGOCIACIONES = {
     desierto: 1,
     cancelado: 0,
   },
+  escaladas: 2,
   ahorro: {
     adjudicadas: 3,
     primera_oferta_mxn: "1250000.00",
@@ -109,6 +110,7 @@ const NEGOCIACIONES = {
 
 const SIN_ADJUDICADAS = {
   por_estado: { ...NEGOCIACIONES.por_estado, adjudicado: 0 },
+  escaladas: 0,
   ahorro: {
     adjudicadas: 0,
     primera_oferta_mxn: "0.00",
@@ -328,7 +330,10 @@ describe("Tablero", () => {
       within(ahorro).getByRole("link", { name: "Ver adjudicadas" })
     ).toHaveAttribute("href", "/negociaciones?estado=adjudicado")
     const estados = seccion("Estado de las negociaciones")
-    expect(within(estados).getAllByRole("link")).toHaveLength(7)
+    expect(within(estados).getAllByRole("link")).toHaveLength(8)
+    expect(
+      within(estados).getByRole("link", { name: "Escaladas 2" })
+    ).toHaveAttribute("href", "/negociaciones?estado=abierto")
     expect(
       within(estados).getByRole("link", { name: "Abierta 2" })
     ).toHaveAttribute("href", "/negociaciones?estado=abierto")

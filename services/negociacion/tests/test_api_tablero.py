@@ -35,6 +35,7 @@ async def test_sin_negociaciones_todo_vale_cero(
     tablero = await _tablero(cliente, comprador)
 
     assert tablero["por_estado"] == dict.fromkeys(ESTADOS, 0)
+    assert tablero["escaladas"] == 0
     assert tablero["ahorro"] == {
         "adjudicadas": 0,
         "primera_oferta_mxn": "0.00",
@@ -170,3 +171,21 @@ async def test_la_primera_oferta_se_costea_con_el_plazo_acordado(
         "ahorro_mxn": "20000.00",
         "ahorro_pct": 25.0,
     }
+
+
+async def test_cuenta_las_sesiones_escaladas(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    publicar: Any,
+    portal: Any,
+    ids: dict[str, str],
+) -> None:
+    """Las sesiones que esperan a una persona, para que el comprador las atienda."""
+    _, enlaces = await publicar(proveedores=[ids["nube_norte"], ids["datos_sur"]])
+    escalada = await cliente.post("/portal/escalar", headers=portal(enlaces[0]))
+    assert escalada.status_code == 200, escalada.text
+
+    tablero = await _tablero(cliente, comprador)
+
+    assert tablero["escaladas"] == 1
+    assert tablero["por_estado"]["abierto"] == 1

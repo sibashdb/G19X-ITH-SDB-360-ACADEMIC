@@ -470,4 +470,5 @@ class AhorroSalida(BaseModel):
 
 class TableroSalida(BaseModel):
     por_estado: dict[EstadoEvento, int]  # siempre los 7 estados, en 0 si no hay
+    escaladas: int  # sesiones que esperan a una persona
     ahorro: AhorroSalida

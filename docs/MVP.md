@@ -95,7 +95,7 @@ El calendario completo hasta el 07/12, con el backlog y los riesgos, está en el
 
 | Fechas | Trabajo |
 |---|---|
-| 22/10 – 28/10 | Atender las revisiones del asesor del 22/10 y del 23/10. Ya hecho: este documento y el PRD corto, el uso de IA en el README, la prueba de arranque desde cero, el Tablero (10), las vulnerabilidades de npm y el plan del proyecto (entregable 4). Falta: el recorrido de demostración y el contador de sesiones escaladas en el Tablero |
+| 22/10 – 28/10 | Atender las revisiones del asesor del 22/10 y del 23/10. Ya hecho: este documento y el PRD corto, el uso de IA en el README, la prueba de arranque desde cero, el Tablero (10) con sus sesiones escaladas, las vulnerabilidades de npm, el plan del proyecto (entregable 4) y el recorrido de demostración |
 | 29/10 – 04/11 | El LLM recortado (N2) |
 | 05/11 – 11/11 | Imágenes en GitHub Container Registry, sistema funcional (entregable 5) e inicio del manual de usuario |
 | 12/11 – 07/12 | Reporte QA (6), manuales (7), plan de mantenimiento (8), capacitación (9) e informe final (10) |

@@ -77,7 +77,7 @@ export const ARTICULOS: Articulo[] = [
       {
         parrafos: [
           "La guía del Tablero muestra su avance en estos pasos. Puede ocultarla y volver a mostrarla desde el menú de su cuenta, abajo a la izquierda.",
-          "En el Tablero, la fila «Negociaciones» muestra cuántas hay en cada estado, y cada número abre la lista filtrada. También muestra el ahorro logrado: cuánto bajó el costo total de lo adjudicado frente a la primera oferta de cada proveedor ganador.",
+          "En el Tablero, la fila «Negociaciones» muestra cuántas hay en cada estado y cuántas sesiones escaladas esperan a una persona; cada número abre la lista filtrada. También muestra el ahorro logrado: cuánto bajó el costo total de lo adjudicado frente a la primera oferta de cada proveedor ganador.",
         ],
       },
     ],

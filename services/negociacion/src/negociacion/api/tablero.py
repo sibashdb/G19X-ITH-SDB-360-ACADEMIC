@@ -18,6 +18,7 @@ router = APIRouter(tags=["tablero"])
 async def tablero(_: Lector, bd: Bd) -> esquemas.TableroSalida:
     por_estado = await bd.execute(select(Evento.estado, func.count()).group_by(Evento.estado))
     conteos = {estado: cuantos for estado, cuantos in por_estado}
+    escaladas = await bd.scalar(select(func.count()).where(SesionNegociacion.estado == "escalada"))
     # La adjudicación vigente de cada evento adjudicado; las rechazadas son historial.
     filas = await bd.execute(
         select(Evento, Adjudicacion, SesionNegociacion)
@@ -43,6 +44,7 @@ async def tablero(_: Lector, bd: Bd) -> esquemas.TableroSalida:
     resultado = ahorro(adjudicadas)
     return esquemas.TableroSalida(
         por_estado={estado: conteos.get(estado, 0) for estado in ESTADOS_EVENTO},
+        escaladas=escaladas or 0,
         ahorro=esquemas.AhorroSalida(
             adjudicadas=resultado.adjudicadas,
             primera_oferta_mxn=resultado.primera_oferta_mxn,

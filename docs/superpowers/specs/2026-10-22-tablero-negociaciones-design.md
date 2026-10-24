@@ -37,6 +37,7 @@ que el comprador ve al adjudicar, o que una falla de `negociacion` deje sin Tabl
 | D4 | Los datos los calcula `negociacion` en `GET /tablero`; el Tablero de la SPA lo consulta aparte del de `inteligencia` | Claude |
 | D5 | El monto en MXN usa el tipo de cambio implícito de la adjudicación (`costo_total_mxn / costo_total`), sin llamar a otro servicio | Claude |
 | D6 | Se cuentan todas las negociaciones adjudicadas, sin filtro de fechas | Claude |
+| D7 | También se cuentan las **sesiones escaladas** (las que esperan a una persona). Lo pidió el asesor el 23/10/2026 y lo aprobó el residente; abren las negociaciones abiertas, donde la lista ya las marca | Residente |
 
 ## 3. Cómo se calcula
 
@@ -82,6 +83,7 @@ definirlas y las importa: su comportamiento y sus pruebas no cambian.
   {
     "por_estado": {"borrador": 0, "abierto": 2, "en_evaluacion": 1, "pendiente_aprobacion": 1,
                    "adjudicado": 3, "desierto": 1, "cancelado": 0},
+    "escaladas": 1,
     "ahorro": {"adjudicadas": 3, "primera_oferta_mxn": "1250000.00",
                "adjudicado_mxn": "1100000.00", "ahorro_mxn": "150000.00", "ahorro_pct": 12.0}
   }

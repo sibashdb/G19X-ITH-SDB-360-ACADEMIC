@@ -252,7 +252,22 @@ function FilaNegociaciones({
         <ContenidoConsulta consulta={consulta}>{() => null}</ContenidoConsulta>
       </Seccion>
     )
-  const { por_estado, ahorro } = consulta.data
+  const { por_estado, escaladas, ahorro } = consulta.data
+  const elementos = [
+    ...ESTADOS.map((estado) => ({
+      clave: estado,
+      etiqueta: NOMBRES_FILTRO_ESTADO[estado],
+      cuantos: por_estado[estado],
+      ruta: `/negociaciones?estado=${estado}`,
+    })),
+    // Las sesiones escaladas solo existen en negociaciones abiertas; la lista las marca.
+    {
+      clave: "escaladas",
+      etiqueta: "Escaladas",
+      cuantos: escaladas,
+      ruta: "/negociaciones?estado=abierto",
+    },
+  ]
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <TarjetaKpi
@@ -266,15 +281,15 @@ function FilaNegociaciones({
       />
       <Seccion titulo="Estado de las negociaciones" className="lg:col-span-2">
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {ESTADOS.map((estado) => (
-            <li key={estado}>
+          {elementos.map(({ clave, etiqueta, cuantos, ruta }) => (
+            <li key={clave}>
               <Link
-                to={`/negociaciones?estado=${estado}`}
+                to={ruta}
                 className="flex items-baseline justify-between gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted"
               >
-                <span>{NOMBRES_FILTRO_ESTADO[estado]}</span>{" "}
+                <span>{etiqueta}</span>{" "}
                 <span className="text-lg font-semibold tabular-nums">
-                  {por_estado[estado].toLocaleString("es-MX")}
+                  {cuantos.toLocaleString("es-MX")}
                 </span>
               </Link>
             </li>

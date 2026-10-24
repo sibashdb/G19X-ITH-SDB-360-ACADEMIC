@@ -69,6 +69,7 @@ describe("contenido de la ayuda", () => {
     )
     expect(texto).toContain("«Negociaciones»")
     expect(texto).toContain("ahorro logrado")
+    expect(texto).toContain("sesiones escaladas")
   })
 
   it("encuentra un artículo por su slug", () => {
