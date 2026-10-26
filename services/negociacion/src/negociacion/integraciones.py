@@ -226,3 +226,39 @@ class Integraciones:
             log.warning("Respuesta mal formada de %s: %r", respuesta.url.path, exc)
             raise no_disponible(SIN_RECOMENDACION) from exc
         return dict(datos)
+
+
+class ClienteIA:
+    """Cliente del servicio ia (N2). Cualquier falla devuelve None: el agente usa su plantilla.
+
+    Los turnos sí llaman a ia, pero solo para el texto: el motor decide igual sin él, así que la
+    negociación se sigue reproduciendo desde la bitácora.
+    """
+
+    def __init__(self, http: httpx.AsyncClient, url: str) -> None:
+        self._http = http
+        self.url = url.rstrip("/")
+
+    async def _pedir(
+        self, ruta: str, cuerpo: dict[str, Any], espera_s: float
+    ) -> dict[str, Any] | None:
+        if not self.url or espera_s <= 0:
+            return None
+        try:
+            respuesta = await self._http.post(f"{self.url}/{ruta}", json=cuerpo, timeout=espera_s)
+        except httpx.HTTPError as exc:
+            log.warning("ia no respondió en %s: %r", ruta, exc)
+            return None
+        if respuesta.status_code != 200:
+            return None
+        try:
+            datos = respuesta.json()
+        except ValueError:
+            return None
+        return datos if isinstance(datos, dict) else None
+
+    async def redactar(self, cuerpo: dict[str, Any], espera_s: float) -> dict[str, Any] | None:
+        return await self._pedir("redactar", cuerpo, espera_s)
+
+    async def interpretar(self, cuerpo: dict[str, Any], espera_s: float) -> dict[str, Any] | None:
+        return await self._pedir("interpretar", cuerpo, espera_s)

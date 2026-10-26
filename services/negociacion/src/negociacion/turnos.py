@@ -4,9 +4,11 @@ Cada turno corre en una transacción con la sesión bloqueada (FOR UPDATE): dos 
 procesan una tras otra y la ronda nunca se salta.
 """
 
+import time
 import uuid
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from comun.errores import ErrorDominio
 from comun.outbox import registrar_evento
@@ -17,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from negociacion import consultas, textos
 from negociacion.api import esquemas
 from negociacion.bitacora import AGENTE, SISTEMA, Actor, registrar
-from negociacion.dominio.motor import BETA, Estado, decidir
+from negociacion.dominio.motor import BETA, Decision, Estado, decidir, dudosas
 from negociacion.dominio.terminos import (
     Terminos,
     Valores,
@@ -27,9 +29,29 @@ from negociacion.dominio.terminos import (
     utilidad,
 )
 from negociacion.errores import conflicto, invalidos, no_existe
-from negociacion.modelos import FINALES, Evento, Mensaje, Oferta, Outbox, SesionNegociacion
+from negociacion.integraciones import ClienteIA
+from negociacion.modelos import (
+    FINALES,
+    Bitacora,
+    Evento,
+    Linea,
+    Mensaje,
+    Oferta,
+    Outbox,
+    Palanca,
+    SesionNegociacion,
+)
+from negociacion.redactor import redactar_respuesta
 
 LIMITE_POR_MINUTO = 10  # mensajes del proveedor por sesión (spec §8.2)
+CONFIANZA_MINIMA = 0.5  # con menos, la interpretación cuenta como fallida (spec N2, §3)
+# La acción del motor, como la nombra el contrato de ia (spec N2, §4).
+TIPO_DE_ACCION = {
+    "aceptar": "aceptar",
+    "contraofertar": "contraoferta",
+    "pedir_aclaracion": "pedir_aclaracion",
+    "cerrar_sin_acuerdo": "cerrar_sin_acuerdo",
+}
 CUATRO_DECIMALES = Decimal("0.0001")
 
 
@@ -125,6 +147,7 @@ def guardar_oferta(
     valores: Valores,
     momento: datetime,
     confirmada: bool = False,
+    origen: str = "formulario",
 ) -> Oferta:
     oferta = Oferta(
         sesion_id=sesion_id,
@@ -133,6 +156,7 @@ def guardar_oferta(
         valores=valores.a_json(),
         utilidad=Decimal(repr(utilidad(terminos, valores))).quantize(CUATRO_DECIMALES),
         valida=es_valida(terminos, valores),
+        origen=origen,
         fuera_de_limites_confirmada=confirmada,
         creado_en=momento,
     )
@@ -169,8 +193,14 @@ async def responder(
     ronda: int,
     confirmar: bool,
     momento: datetime,
+    ia: ClienteIA,
+    hasta: float,
 ) -> None:
-    """El agente decide con el motor y responde; la traza queda en la bitácora."""
+    """El agente decide con el motor y responde; la traza queda en la bitácora.
+
+    # ponytail: ia se llama con la sesión bloqueada (los mensajes son de solo inserción, así que el
+    # texto debe existir antes de guardarlo); `hasta` acota la espera.
+    """
     estado = Estado(
         ronda=ronda,
         rondas=evento.rondas_max,
@@ -189,10 +219,22 @@ async def responder(
         await bd.flush()
         propuesta_id = propuesta.id
     nombres = {linea.id: linea.nombre for linea in terminos.lineas}
+    texto, redaccion = await redactar_respuesta(
+        ia,
+        TIPO_DE_ACCION[decision.accion],
+        decision.contraoferta,
+        terminos,
+        evento,
+        None,  # la nota de la oferta es para compras, no para el agente (spec N2, D5)
+        hasta,
+        textos.respuesta_del_agente(decision, nombres),
+        hay_mejor_oferta=bool(decision.traza.get("hay_mejor_oferta")),
+        ultima_ronda=decision.ultima_ronda,
+    )
     mensaje = Mensaje(
         sesion_id=sesion.id,
         autor="agente",
-        texto=textos.respuesta_del_agente(decision, nombres),
+        texto=texto,
         ronda=ronda,
         oferta_id=propuesta_id,
         creado_en=momento,
@@ -205,7 +247,7 @@ async def responder(
         AGENTE,
         evento_id=evento.id,
         sesion_id=sesion.id,
-        detalle=decision.traza | {"mensaje_id": str(mensaje.id)},
+        detalle=decision.traza | {"mensaje_id": str(mensaje.id), "redaccion": redaccion},
         fecha=momento,
     )
     if decision.accion == "aceptar":
@@ -291,6 +333,8 @@ async def recibir_oferta(
     entrada: esquemas.OfertaPortal,
     clave: str,
     momento: datetime,
+    ia: ClienteIA,
+    hasta: float,
 ) -> None:
     sesion, evento = await bloquear(bd, sesion_id)
     if await ya_recibido(bd, sesion.id, clave):
@@ -300,7 +344,9 @@ async def recibir_oferta(
     terminos = await consultas.terminos_de(bd, evento)
     oferta = valores_de(terminos, entrada.valores, "valores")
     ronda = sesion.ronda + 1
-    fila = guardar_oferta(bd, sesion.id, "proveedor", ronda, terminos, oferta, momento)
+    fila = guardar_oferta(
+        bd, sesion.id, "proveedor", ronda, terminos, oferta, momento, origen=entrada.origen
+    )
     await bd.flush()
     bd.add(
         Mensaje(
@@ -347,8 +393,211 @@ async def recibir_oferta(
             ronda,
             entrada.confirmar_valores,
             momento,
+            ia,
+            hasta,
         )
     await cerrar_eventos_terminados(bd, momento, evento.id)
+
+
+def _esquema_ia(evento: Evento, lineas: list[Linea], palancas: list[Palanca]) -> dict[str, Any]:
+    """Lo que ia necesita para interpretar: nunca ideales, límites, pesos ni la referencia."""
+    return {
+        "moneda": evento.moneda,
+        "lineas": [
+            {"id": str(linea.id), "nombre": linea.nombre, "unidad": linea.unidad}
+            for linea in lineas
+        ],
+        "palancas": [
+            {"clave": p.clave, "nombre": nombre, "unidad": unidad}
+            for p in palancas
+            for nombre, unidad in [textos.nombre_y_unidad(p.clave, evento.moneda)]
+        ],
+    }
+
+
+def _valores_interpretados(interpretacion: dict[str, Any], terminos: Terminos) -> Valores:
+    """Solo los valores de líneas y palancas de la negociación, como Decimal positivo."""
+
+    def filtrar(crudos: Any, validas: set[str]) -> dict[str, Decimal]:
+        salida: dict[str, Decimal] = {}
+        for clave, valor in (crudos or {}).items():
+            try:
+                numero = Decimal(str(valor))
+            except (InvalidOperation, ValueError):
+                continue
+            if clave in validas and numero.is_finite() and numero > 0:
+                salida[clave] = numero
+        return salida
+
+    return Valores(
+        filtrar(interpretacion.get("precios"), {linea.id for linea in terminos.lineas}),
+        filtrar(interpretacion.get("palancas"), {p.clave for p in terminos.palancas}),
+    )
+
+
+async def _fallida_anterior(bd: AsyncSession, sesion_id: uuid.UUID, mensaje_id: uuid.UUID) -> bool:
+    """Si el mensaje anterior del proveedor también fue un mensaje libre mal interpretado."""
+    anterior = await bd.scalar(
+        select(Mensaje)
+        .where(
+            Mensaje.sesion_id == sesion_id,
+            Mensaje.autor == "proveedor",
+            Mensaje.id != mensaje_id,
+        )
+        .order_by(Mensaje.secuencia.desc())
+        .limit(1)
+    )
+    if anterior is None or anterior.oferta_id is not None:
+        return False
+    detalle = await bd.scalar(
+        select(Bitacora.detalle).where(
+            Bitacora.sesion_id == sesion_id,
+            Bitacora.accion == "mensaje.interpretado",
+            Bitacora.detalle["mensaje_id"].astext == str(anterior.id),
+        )
+    )
+    return bool(detalle and detalle.get("fallida"))
+
+
+async def _contestar(
+    bd: AsyncSession,
+    sesion: SesionNegociacion,
+    evento: Evento,
+    texto: str,
+    redaccion: dict[str, Any],
+    momento: datetime,
+) -> None:
+    """La respuesta del agente a un mensaje libre: no cambia la oferta ni gasta ronda."""
+    mensaje = Mensaje(
+        sesion_id=sesion.id, autor="agente", texto=texto, ronda=sesion.ronda, creado_en=momento
+    )
+    bd.add(mensaje)
+    await bd.flush()
+    registrar(
+        bd,
+        "agente.respuesta",
+        AGENTE,
+        evento_id=evento.id,
+        sesion_id=sesion.id,
+        detalle={"mensaje_id": str(mensaje.id), "redaccion": redaccion},
+        fecha=momento,
+    )
+
+
+async def recibir_mensaje(
+    bd: AsyncSession,
+    sesion_id: uuid.UUID,
+    entrada: esquemas.MensajeEntrada,
+    clave: str,
+    momento: datetime,
+    ia: ClienteIA,
+    hasta: float,
+) -> Valores | None:
+    """El proveedor le escribe al agente (spec N2, §3). Devuelve la sugerencia para su formulario.
+
+    Nada de aquí crea una oferta ni gasta una ronda: una oferta solo nace del formulario confirmado.
+    """
+    sesion, evento = await bloquear(bd, sesion_id)
+    if await ya_recibido(bd, sesion.id, clave):
+        return None
+    exigir_en_curso(sesion, evento, momento)
+    await exigir_tasa(bd, sesion.id, momento)
+    mensaje = Mensaje(
+        sesion_id=sesion.id,
+        autor="proveedor",
+        texto=entrada.texto,
+        ronda=sesion.ronda,
+        clave_idempotencia=clave,
+        creado_en=momento,
+    )
+    bd.add(mensaje)
+    await bd.flush()
+    if sesion.estado == "invitada":
+        sesion.estado = "activa"
+    sesion.actualizado_en = momento
+    terminos = await consultas.terminos_de(bd, evento)
+    lineas = await consultas.lineas_de(bd, evento.id)
+    palancas = [
+        p for p in (await consultas.palancas_de(bd, evento.id)).values() if p.clave != "precio"
+    ]
+    interpretacion = await ia.interpretar(
+        _esquema_ia(evento, lineas, palancas), hasta - time.monotonic()
+    )
+    valores = _valores_interpretados(interpretacion, terminos) if interpretacion else None
+    intencion = interpretacion.get("intencion") if interpretacion else None
+    try:
+        confianza = float(interpretacion.get("confianza") or 0) if interpretacion else 0.0
+    except (TypeError, ValueError):
+        confianza = 0.0
+    fallida = interpretacion is not None and (intencion == "otro" or confianza < CONFIANZA_MINIMA)
+    registrar(
+        bd,
+        "mensaje.interpretado",
+        actor_proveedor(sesion),
+        evento_id=evento.id,
+        sesion_id=sesion.id,
+        detalle={
+            "mensaje_id": str(mensaje.id),
+            "intencion": intencion,
+            "precios": {k: str(v) for k, v in valores.precios.items()} if valores else {},
+            "palancas": {k: str(v) for k, v in valores.palancas.items()} if valores else {},
+            "confianza": confianza,
+            "modelo": interpretacion.get("modelo") if interpretacion else None,
+            "version_prompt": interpretacion.get("version_prompt") if interpretacion else None,
+            "fallida": fallida,
+        },
+        fecha=momento,
+    )
+    raras: tuple[str, ...] = ()
+    sugerencia = None
+    if intencion == "oferta" and valores and (valores.precios or valores.palancas):
+        con_precio = tuple(linea for linea in terminos.lineas if linea.id in valores.precios)
+        raras = dudosas(
+            Terminos(terminos.peso_precio, con_precio, terminos.palancas),
+            Valores(valores.precios, {}),
+        )
+        sugerencia = None if raras else valores
+    if sesion.modo == "comprador":  # la persona al mando ve el mensaje y lo interpretado
+        return sugerencia
+    if interpretacion is None:
+        sin_ia = {"origen": "plantilla", "modelo": None, "version_prompt": None, "motivo": "sin_ia"}
+        await _contestar(bd, sesion, evento, textos.USE_EL_FORMULARIO, sin_ia, momento)
+        return None
+    if intencion == "pide_persona" or (
+        fallida and await _fallida_anterior(bd, sesion.id, mensaje.id)
+    ):
+        _escalar(bd, sesion, evento, momento)
+        return None
+    if sugerencia is not None:
+        plantilla = {"origen": "plantilla", "modelo": None, "version_prompt": None, "motivo": None}
+        await _contestar(bd, sesion, evento, textos.SUGERENCIA, plantilla, momento)
+        return sugerencia
+    if raras:
+        nombres = {linea.id: linea.nombre for linea in terminos.lineas}
+        aclaracion = Decision(accion="pedir_aclaracion", dudosas=raras)
+        texto, redaccion = await redactar_respuesta(
+            ia,
+            "pedir_aclaracion",
+            None,
+            terminos,
+            evento,
+            entrada.texto,
+            hasta,
+            textos.respuesta_del_agente(aclaracion, nombres),
+        )
+    else:
+        texto, redaccion = await redactar_respuesta(
+            ia,
+            "respuesta",
+            await consultas.ultima_contraoferta(bd, sesion.id),
+            terminos,
+            evento,
+            entrada.texto,
+            hasta,
+            textos.RESPUESTA,
+        )
+    await _contestar(bd, sesion, evento, texto, redaccion, momento)
+    return None
 
 
 async def escalar(bd: AsyncSession, sesion_id: uuid.UUID, clave: str, momento: datetime) -> None:
@@ -367,6 +616,13 @@ async def escalar(bd: AsyncSession, sesion_id: uuid.UUID, clave: str, momento: d
             creado_en=momento,
         )
     )
+    _escalar(bd, sesion, evento, momento)
+
+
+def _escalar(
+    bd: AsyncSession, sesion: SesionNegociacion, evento: Evento, momento: datetime
+) -> None:
+    """La sesión pasa a una persona; si ya estaba escalada, no se repite el aviso."""
     if sesion.estado == "escalada":
         return
     bd.add(
@@ -419,7 +675,12 @@ async def oferta_sin_respuesta(bd: AsyncSession, sesion_id: uuid.UUID) -> Oferta
 
 
 async def devolver_control(
-    bd: AsyncSession, sesion_id: uuid.UUID, actor: Actor, momento: datetime
+    bd: AsyncSession,
+    sesion_id: uuid.UUID,
+    actor: Actor,
+    momento: datetime,
+    ia: ClienteIA,
+    hasta: float,
 ) -> None:
     """El agente retoma la sesión y responde la oferta que quedó pendiente."""
     sesion, evento = await bloquear(bd, sesion_id)
@@ -447,6 +708,8 @@ async def devolver_control(
             sesion.ronda,
             False,
             momento,
+            ia,
+            hasta,
         )
         await cerrar_eventos_terminados(bd, momento, evento.id)
 

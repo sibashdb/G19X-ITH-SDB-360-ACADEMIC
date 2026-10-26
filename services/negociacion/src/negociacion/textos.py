@@ -17,6 +17,10 @@ EXPIRADA = "La fecha límite pasó sin acuerdo. Gracias por su tiempo."
 EN_REVISION = "Una persona del equipo de compras revisará su oferta y le responderá."
 ESCALADA = "Avisamos al equipo de compras; una persona le responderá aquí."
 PIDE_PERSONA = "Pidió hablar con una persona del equipo de compras."
+# Mensajes libres del proveedor (spec N2, §3).
+USE_EL_FORMULARIO = "Por ahora use el formulario de oferta."
+RESPUESTA = "Gracias por su mensaje. Para avanzar, envíe su oferta con el formulario."
+SUGERENCIA = "Entendimos esta oferta; revísela y pulse «Enviar oferta» para confirmarla."
 
 PALANCAS: dict[str, tuple[str, str | None]] = {
     "precio": ("Precio unitario", None),

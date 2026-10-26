@@ -287,8 +287,16 @@ Nota = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 
 class OfertaPortal(BaseModel):
     valores: ValoresEntrada
-    nota: Nota = ""  # el comprador la ve tal cual; nadie la interpreta hasta N2
+    nota: Nota = ""  # para una persona de compras: el LLM nunca la interpreta (spec N2, D5)
     confirmar_valores: bool = False
+    # «texto» si el proveedor confirmó lo que el LLM interpretó de su mensaje (spec N2, §3).
+    origen: Literal["formulario", "texto"] = "formulario"
+
+
+class MensajeEntrada(BaseModel):
+    """Lo que el proveedor le escribe al agente con sus palabras (spec N2, §3)."""
+
+    texto: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 
 
 class LineaPortal(BaseModel):
@@ -330,6 +338,8 @@ class VistaPortal(BaseModel):
     palancas: list[PalancaPortal]
     mensajes: list[MensajePortal]
     ultima_propuesta: ValoresSalida | None
+    # Solo en la respuesta a un mensaje: lo interpretado, para llenar el formulario. No es oferta.
+    sugerencia: ValoresSalida | None = None
 
 
 class Control(BaseModel):
@@ -388,6 +398,10 @@ class MensajeDetalle(BaseModel):
     fecha: datetime
     oferta_id: uuid.UUID | None
     decision: dict[str, Any] | None  # la traza del motor en las respuestas del agente
+    interpretacion: dict[str, Any] | None = None  # lo que entendió ia del mensaje del proveedor
+    redaccion: dict[str, Any] | None = (
+        None  # si el texto del agente salió del LLM o de la plantilla
+    )
 
 
 class SesionDetalle(BaseModel):

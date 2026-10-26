@@ -265,3 +265,29 @@ async def test_la_misma_clave_de_respuesta_no_se_aplica_dos_veces(
             cliente, comprador, sesion, "misma-clave-01", tipo="mensaje", texto="Hola"
         )
     assert [m["autor"] for m in respuesta.json()["mensajes"]] == ["comprador"]
+
+
+async def test_la_sesion_muestra_lo_interpretado(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    publicar: Any,
+    portal: Any,
+    externos: Any,
+) -> None:
+    evento, enlaces = await publicar()
+    linea = str(evento["lineas"][0]["id"])
+    externos.interpretar = lambda _: {
+        "intencion": "oferta",
+        "precios": {linea: "31.00"},
+        "palancas": {},
+        "confianza": 0.9,
+    }
+    await cliente.post(
+        "/portal/mensajes", json={"texto": "31 por usuario"}, headers=portal(enlaces[0])
+    )
+
+    detalle = await cliente.get(f"/sesiones/{enlaces[0]['sesion_id']}", headers=comprador)
+
+    [del_proveedor] = [m for m in detalle.json()["mensajes"] if m["autor"] == "proveedor"]
+    assert del_proveedor["interpretacion"]["intencion"] == "oferta"
+    assert del_proveedor["interpretacion"]["precios"] == {linea: "31.00"}

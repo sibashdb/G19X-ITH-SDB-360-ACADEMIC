@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from negociacion import consultas, turnos
 from negociacion.api import esquemas
-from negociacion.api.dependencias import Bd, ClaveIdempotencia, Reloj
+from negociacion.api.dependencias import IA, Bd, ClaveIdempotencia, Hasta, Reloj
 from negociacion.modelos import Evento, SesionNegociacion
 from negociacion.tokens import hash_de
 
@@ -59,10 +59,31 @@ async def ofertar(
     clave: ClaveIdempotencia,
     bd: Bd,
     reloj: Reloj,
+    ia: IA,
+    hasta: Hasta,
 ) -> esquemas.VistaPortal:
     async with bd.begin():
-        await turnos.recibir_oferta(bd, sesion_id, datos, clave, reloj())
+        await turnos.recibir_oferta(bd, sesion_id, datos, clave, reloj(), ia, hasta)
     return await consultas.vista_portal(bd, sesion_id)
+
+
+@router.post("/mensajes")
+async def escribir(
+    datos: esquemas.MensajeEntrada,
+    sesion_id: SesionDelEnlace,
+    clave: ClaveIdempotencia,
+    bd: Bd,
+    reloj: Reloj,
+    ia: IA,
+    hasta: Hasta,
+) -> esquemas.VistaPortal:
+    """El proveedor le escribe al agente; lo interpretado vuelve como sugerencia, no como oferta."""
+    async with bd.begin():
+        sugerencia = await turnos.recibir_mensaje(bd, sesion_id, datos, clave, reloj(), ia, hasta)
+    vista = await consultas.vista_portal(bd, sesion_id)
+    if sugerencia is not None:
+        vista.sugerencia = consultas.valores_salida(sugerencia)
+    return vista
 
 
 @router.post("/escalar")

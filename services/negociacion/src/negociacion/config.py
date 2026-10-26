@@ -22,3 +22,7 @@ class Configuracion(ConfiguracionBase):
     url_publica: str = "http://localhost:8080"
     # La tarea que expira las sesiones al llegar la fecha límite (spec §8.4).
     tareas_periodicas: bool = True
+    # Servicio ia (N2): vacío = sin LLM, el agente usa sus plantillas. El presupuesto acota lo que
+    # un turno espera al LLM: la respuesta del agente debe quedar bajo 20 s (spec N2, §1).
+    ia_url: str = ""
+    ia_presupuesto_s: float = 18.0

@@ -73,6 +73,7 @@ async def test_el_portal_no_acepta_jwt(cliente: httpx.AsyncClient, claves: Clave
         ("GET", "/portal/sesion"),
         ("POST", "/portal/ofertas"),
         ("POST", "/portal/escalar"),
+        ("POST", "/portal/mensajes"),
     ):
         respuesta = await cliente.request(metodo, ruta, headers=comprador)
         assert respuesta.status_code == 401, ruta

@@ -7,11 +7,13 @@ from fastapi import APIRouter
 from negociacion import consultas, publicacion, turnos
 from negociacion.api import esquemas
 from negociacion.api.dependencias import (
+    IA,
     Bd,
     ClaveIdempotencia,
     Comprador,
     Config,
     Correo,
+    Hasta,
     Lector,
     Reloj,
 )
@@ -51,14 +53,20 @@ async def ver_sesion(sesion_id: uuid.UUID, _: Lector, bd: Bd) -> esquemas.Sesion
 
 @router.post("/sesiones/{sesion_id}/control")
 async def cambiar_control(
-    sesion_id: uuid.UUID, datos: esquemas.Control, usuario: Comprador, bd: Bd, reloj: Reloj
+    sesion_id: uuid.UUID,
+    datos: esquemas.Control,
+    usuario: Comprador,
+    bd: Bd,
+    reloj: Reloj,
+    ia: IA,
+    hasta: Hasta,
 ) -> esquemas.SesionDetalle:
     actor = de_usuario(usuario)
     async with bd.begin():
         if datos.accion == "tomar":
             await turnos.tomar_control(bd, sesion_id, actor, reloj())
         else:
-            await turnos.devolver_control(bd, sesion_id, actor, reloj())
+            await turnos.devolver_control(bd, sesion_id, actor, reloj(), ia, hasta)
     return await consultas.sesion_detalle(bd, sesion_id)
 
 

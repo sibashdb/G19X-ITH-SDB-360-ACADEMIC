@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import uuid
@@ -179,6 +180,29 @@ class Externos:
     # Ajusta el cuerpo de la recomendación antes de responderlo (una respuesta incoherente).
     ajustar_recomendacion: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None = None
     peticiones: list[httpx.Request] = field(default_factory=list)
+    # ia (host ia): sin función, responde 503 y el agente usa sus plantillas, como sin LLM.
+    redactar: Callable[[dict[str, Any]], str] | None = None
+    interpretar: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+    retraso_ia: float = 0.0
+
+    def cuerpos_ia(self, ruta: str) -> list[dict[str, Any]]:
+        """Los cuerpos que recibió ia en esa ruta («/redactar» o «/interpretar»)."""
+        return [
+            json.loads(p.content)
+            for p in self.peticiones
+            if p.url.host == "ia" and p.url.path == ruta
+        ]
+
+    async def _ia(self, peticion: httpx.Request) -> httpx.Response:
+        if self.retraso_ia:
+            await asyncio.sleep(self.retraso_ia)
+        cuerpo = json.loads(peticion.content)
+        meta = {"modelo": "falso", "version_prompt": "1"}
+        if peticion.url.path == "/redactar" and self.redactar is not None:
+            return httpx.Response(200, json={"texto": self.redactar(cuerpo)} | meta)
+        if peticion.url.path == "/interpretar" and self.interpretar is not None:
+            return httpx.Response(200, json=self.interpretar(cuerpo) | meta)
+        return httpx.Response(503, json={"codigo": "llm_no_disponible"})
 
     def recomendaciones(self) -> list[dict[str, Any]]:
         """Los cuerpos de las peticiones de recomendación que recibió inteligencia."""
@@ -252,6 +276,8 @@ class Externos:
             if banda is None:
                 return httpx.Response(404, json={"codigo": "sin_observaciones"})
             return httpx.Response(200, json={"codigo": partes[2], **banda})
+        if peticion.url.host == "ia":
+            return await self._ia(peticion)
         if peticion.url.host == "prov":
             contratos = self.contratos.get(partes[1])
             if contratos is None:
@@ -359,6 +385,7 @@ def app(
             usar_rabbitmq=False,
             inteligencia_url="http://intel",
             proveedores_url="http://prov",
+            ia_url="http://ia",
         ),
         claves.validador(),
         fabrica,

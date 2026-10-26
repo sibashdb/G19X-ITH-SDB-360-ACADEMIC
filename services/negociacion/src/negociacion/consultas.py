@@ -330,7 +330,18 @@ async def vista_portal(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.Vista
         )
     ]
     en_curso = sesion.estado not in FINALES
-    conversacion = [m for m, _ in filas if m.autor != "sistema"]
+    # Los mensajes libres del proveedor y las respuestas del agente a ellos (N2) no son parte del
+    # turno de ofertas: no abren ni cierran una aclaración pendiente.
+    detalles: Sequence[dict[str, Any]] = (
+        await bd.scalars(
+            select(Bitacora.detalle).where(
+                Bitacora.sesion_id == sesion.id,
+                Bitacora.accion.in_(("mensaje.interpretado", "agente.respuesta")),
+            )
+        )
+    ).all()
+    libres = {str(detalle.get("mensaje_id")) for detalle in detalles}
+    conversacion = [m for m, _ in filas if m.autor != "sistema" and str(m.id) not in libres]
     # Una respuesta del agente sin propuesta, con la sesión en curso, es una aclaración pendiente.
     pide = (
         en_curso
@@ -398,14 +409,22 @@ async def sesion_detalle(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.Ses
             select(Oferta).where(Oferta.sesion_id == sesion.id).order_by(Oferta.secuencia)
         )
     ).all()
-    trazas = {
-        str(fila.detalle.get("mensaje_id")): fila.detalle
-        for fila in await bd.scalars(
-            select(Bitacora).where(
-                Bitacora.sesion_id == sesion.id, Bitacora.accion == "motor.decision"
-            )
+    trazas: dict[str, dict[str, Any]] = {}
+    interpretaciones: dict[str, dict[str, Any]] = {}
+    redacciones: dict[str, dict[str, Any]] = {}
+    for fila in await bd.scalars(
+        select(Bitacora).where(
+            Bitacora.sesion_id == sesion.id,
+            Bitacora.accion.in_(("motor.decision", "mensaje.interpretado", "agente.respuesta")),
         )
-    }
+    ):
+        mensaje_id = str(fila.detalle.get("mensaje_id"))
+        if fila.accion == "motor.decision":
+            trazas[mensaje_id] = fila.detalle
+        elif fila.accion == "mensaje.interpretado":
+            interpretaciones[mensaje_id] = fila.detalle
+        if fila.detalle.get("redaccion"):
+            redacciones[mensaje_id] = fila.detalle["redaccion"]
     return esquemas.SesionDetalle(
         id=sesion.id,
         evento_id=evento.id,
@@ -453,6 +472,8 @@ async def sesion_detalle(bd: AsyncSession, sesion_id: uuid.UUID) -> esquemas.Ses
                 fecha=m.creado_en,
                 oferta_id=m.oferta_id,
                 decision=trazas.get(str(m.id)),
+                interpretacion=interpretaciones.get(str(m.id)),
+                redaccion=redacciones.get(str(m.id)),
             )
             for m in mensajes
         ],

@@ -1,5 +1,6 @@
 """Base de datos, roles, reloj y dependencias externas para las rutas."""
 
+import time
 from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from negociacion.config import Configuracion
 from negociacion.correo import EnviarCorreo
 from negociacion.db import obtener_sesion
-from negociacion.integraciones import Integraciones
+from negociacion.integraciones import ClienteIA, Integraciones
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -52,6 +53,21 @@ Aprobador = Annotated[Usuario, Depends(requiere_rol("aprobador"))]
 TokenUsuario = Annotated[str, Depends(_token)]
 Reloj = Annotated[Callable[[], datetime], Depends(_reloj)]
 Integ = Annotated[Integraciones, Depends(_integraciones)]
+
+
+def _ia(request: Request) -> ClienteIA:
+    ia: ClienteIA = request.app.state.ia
+    return ia
+
+
+def _hasta(request: Request) -> float:
+    """Hasta cuándo puede esperar al LLM este turno: el presupuesto corre desde que llega."""
+    configuracion: Configuracion = request.app.state.config
+    return time.monotonic() + configuracion.ia_presupuesto_s
+
+
+IA = Annotated[ClienteIA, Depends(_ia)]
+Hasta = Annotated[float, Depends(_hasta)]
 Correo = Annotated[EnviarCorreo, Depends(_enviar_correo)]
 Config = Annotated[Configuracion, Depends(_config)]
 ClaveIdempotencia = Annotated[

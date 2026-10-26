@@ -24,7 +24,7 @@ from negociacion.api import sesiones as rutas_sesiones  # `sesiones` es la fábr
 from negociacion.config import Configuracion
 from negociacion.correo import EnviarCorreo, enviador_smtp
 from negociacion.eventos import atendedor
-from negociacion.integraciones import Integraciones
+from negociacion.integraciones import ClienteIA, Integraciones
 from negociacion.modelos import Outbox
 
 
@@ -83,6 +83,7 @@ def crear_app(
     app.state.reloj = ahora
     app.state.integraciones = Integraciones(http, config.inteligencia_url, config.proveedores_url)
     app.state.enviar_correo = enviar
+    app.state.ia = ClienteIA(http, config.ia_url)
     app.state.validador = validador or validador_desde_jwks(
         config.oidc_issuer, config.oidc_audience, config.oidc_jwks_url
     )
