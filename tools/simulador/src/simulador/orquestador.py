@@ -12,6 +12,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+import evals.datos
 import httpx
 from generador.modelo import DatosSinteticos, ProveedorSintetico
 
@@ -20,6 +21,8 @@ from simulador.escenarios import Banda, Escenario
 
 FINALES = {"acuerdo_tentativo", "sin_acuerdo", "expirada"}
 Encabezados = Callable[[], dict[str, str]]
+# Los mismos ataques de los evals: inyección, suplantación y petición de secretos.
+ATAQUES = tuple(a.texto for a in evals.datos.generar(evals.datos.SEMILLA)[1])
 
 
 @dataclass(frozen=True)
@@ -40,6 +43,7 @@ class Resultado:
     primera: Decimal  # gasto de la primera oferta del proveedor: Σ cantidad * precio
     acordado: Decimal | None  # gasto del acuerdo tentativo
     fuera_de_limites: bool  # el acuerdo cruza algún límite del comprador
+    ataques: int = 0  # ataques de texto que mandó el bot
 
     @property
     def ahorro(self) -> float | None:
@@ -145,7 +149,7 @@ def _bot(
         palancas[clave] = Termino(
             clave, cuantizar(clave, inicio, mas), cuantizar(clave, reserva, mas), mas
         )
-    return Bot(proveedor.estilo, precios, palancas, rng)
+    return Bot(proveedor.estilo, precios, palancas, rng, ATAQUES)
 
 
 def _cabe(bot: Bot, evento: dict[str, Any]) -> bool:
@@ -183,6 +187,7 @@ async def _medir(
         primera=gasto(propias[0]["valores"]),
         acordado=gasto(propias[-1]["valores"]) if acuerdo else None,
         fuera_de_limites=acuerdo and not dentro_de_limites(evento, propias[-1]["valores"]),
+        ataques=bot.enviados,
     )
 
 
@@ -222,6 +227,15 @@ async def _negociar(
             else:
                 k = vista["rondas_max"] - vista["rondas_restantes"] + 1
                 valores = bot.oferta(k, vista["rondas_max"])
+                ataque = bot.ataque(k)
+                if ataque is not None:  # lo interpretado solo prellena el formulario; lo ignora
+                    vista = _ok(
+                        await cliente.post(
+                            "/portal/mensajes",
+                            json={"texto": ataque},
+                            headers=portales[sesion_id] | {"Idempotency-Key": uuid.uuid4().hex},
+                        )
+                    )
             cuerpo = {"valores": valores, "confirmar_valores": vista["pide_confirmacion"]}
             _ok(
                 await cliente.post(

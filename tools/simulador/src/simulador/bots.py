@@ -30,8 +30,10 @@ ESTILOS: dict[str, tuple[float, Decimal]] = {
     "duro": (0.4, Decimal("0.15")),
     "flexible": (2.0, Decimal("0.05")),
     "erratico": (1.0, Decimal("0.10")),
-    "manipulador": (0.4, Decimal("0.15")),  # sus ataques de texto llegan en N2
+    "manipulador": (0.4, Decimal("0.15")),  # concede como el duro y además ataca con texto
 }
+# Con el reloj fijo de las pruebas, 3 ataques y 6 ofertas caben en los 10 mensajes por minuto.
+RONDAS_CON_ATAQUE = 3
 
 
 def cuantizar(clave: str, valor: Decimal, mas_es_mejor: bool) -> Decimal:
@@ -67,6 +69,8 @@ class Bot:
     precios: dict[str, Termino]  # por id de línea
     palancas: dict[str, Termino]
     rng: random.Random
+    ataques: tuple[str, ...] = ()  # los textos con que ataca el manipulador
+    enviados: int = 0  # ataques que mandó
     _avance: float = field(default=0.0, repr=False)
 
     def oferta(self, k: int, rondas: int) -> dict[str, dict[str, str]]:
@@ -82,6 +86,13 @@ class Bot:
             "precios": {linea: str(t.en(avance)) for linea, t in self.precios.items()},
             "palancas": {clave: str(t.en(avance)) for clave, t in self.palancas.items()},
         }
+
+    def ataque(self, k: int) -> str | None:
+        """El texto con que el manipulador abre su ronda k, si en esa ronda ataca (spec N2, §4)."""
+        if self.estilo != "manipulador" or k > RONDAS_CON_ATAQUE or not self.ataques:
+            return None
+        self.enviados += 1
+        return self.rng.choice(self.ataques)
 
     def acepta(self, propuesta: dict[str, Any]) -> bool:
         return all(

@@ -1952,12 +1952,14 @@ name = "simulador"
 version = "0.1.0"
 source = { editable = "tools/simulador" }
 dependencies = [
+    { name = "evals" },
     { name = "generador" },
     { name = "httpx" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "evals", editable = "tools/evals" },
     { name = "generador", editable = "tools/generador" },
     { name = "httpx", specifier = ">=0.28" },
 ]

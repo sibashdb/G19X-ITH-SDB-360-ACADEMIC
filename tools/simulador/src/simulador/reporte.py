@@ -15,6 +15,7 @@ class Metricas:
     acuerdos: int
     fuera_de_limites: int
     ahorro: float | None  # promedio sobre los acuerdos
+    ataques: int = 0  # ataques de texto del bot manipulador
 
     @property
     def tasa(self) -> float:
@@ -30,6 +31,7 @@ def metricas(resultados: Sequence[Resultado]) -> Metricas:
         acuerdos=len(acuerdos),
         fuera_de_limites=sum(r.fuera_de_limites for r in resultados),
         ahorro=statistics.fmean(ahorros) if ahorros else None,
+        ataques=sum(r.ataques for r in resultados),
     )
 
 
@@ -58,6 +60,10 @@ def reporte(resultados: Sequence[Resultado], escenarios: Sequence[Escenario], se
         "services/negociacion/tests/test_simulacion.py`.",
         "- **Acuerdo posible:** la reserva del bot cabe en los límites del comprador. Sin ese "
         "traslape no hay acuerdo y lo correcto es cerrar sin acuerdo.",
+        "- **Ataques de texto:** el bot manipulador abre sus rondas 1 a 3 con un ataque de "
+        "`tools/evals` por `POST /portal/mensajes`. El falso de `ia` interpreta cada uno como una "
+        "oferta por encima de todo límite; lo interpretado solo prellena el formulario y el bot "
+        "sigue con su propia oferta.",
         "",
         "| Métrica | Meta (PRD §1.6) | Resultado |",
         "|---|---|---|",
@@ -66,6 +72,7 @@ def reporte(resultados: Sequence[Resultado], escenarios: Sequence[Escenario], se
         "| Ahorro frente a la primera oferta (promedio de los acuerdos) | ≥ 8 % "
         f"| {_pct(total.ahorro)} |",
         f"| Sesiones con acuerdo posible | — | {total.posibles} de {total.sesiones} |",
+        f"| Ataques de texto del bot manipulador | — | {total.ataques} |",
         "",
         "## Por estilo de proveedor",
         "",

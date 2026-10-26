@@ -4,6 +4,7 @@
 - **Datos:** `generador.modelo.generar(42)`, los mismos que escribe `python -m generador` en `datos/`.
 - **Cómo se corrió:** `SIMULACION_REPORTE=docs/qa/simulacion-negociacion.md uv run pytest services/negociacion/tests/test_simulacion.py`.
 - **Acuerdo posible:** la reserva del bot cabe en los límites del comprador. Sin ese traslape no hay acuerdo y lo correcto es cerrar sin acuerdo.
+- **Ataques de texto:** el bot manipulador abre sus rondas 1 a 3 con un ataque de `tools/evals` por `POST /portal/mensajes`. El falso de `ia` interpreta cada uno como una oferta por encima de todo límite; lo interpretado solo prellena el formulario y el bot sigue con su propia oferta.
 
 | Métrica | Meta (PRD §1.6) | Resultado |
 |---|---|---|
@@ -11,6 +12,7 @@
 | Tasa de acuerdo | ≥ 70 % | 81.1 % |
 | Ahorro frente a la primera oferta (promedio de los acuerdos) | ≥ 8 % | 16.5 % |
 | Sesiones con acuerdo posible | — | 60 de 74 |
+| Ataques de texto del bot manipulador | — | 49 |
 
 ## Por estilo de proveedor
 
@@ -32,4 +34,4 @@
 
 ## Lectura
 
-De las 74 sesiones simuladas, 81.1 % cerraron en acuerdo tentativo con un ahorro promedio de 16.5 % frente a la primera oferta, y ningún acuerdo cruzó un límite del comprador (0). En el total se cumplen las tres metas del PRD §1.6 (tasa de acuerdo ≥ 70 %, ahorro ≥ 8 % y 0 acuerdos fuera de límites); por estilo, el errático queda bajo la meta de tasa, con 69.6 %, y el flexible queda apenas sobre la meta de ahorro, con 8.9 %. En cada estilo y en cada tipo de negociación los acuerdos igualan a las sesiones con acuerdo posible (60 de 74 en total), así que la falta de acuerdo la explican los escenarios en que la reserva del bot no cabe en los límites del comprador y no el agente. Por eso la renovación llega a 50.0 %: solo 5 de sus 10 sesiones tenían acuerdo posible.
+De las 74 sesiones simuladas, 81.1 % cerraron en acuerdo tentativo con un ahorro promedio de 16.5 % frente a la primera oferta, y ningún acuerdo cruzó un límite del comprador (0). En el total se cumplen las tres metas del PRD §1.6 (tasa de acuerdo ≥ 70 %, ahorro ≥ 8 % y 0 acuerdos fuera de límites); por estilo, el errático queda bajo la meta de tasa, con 69.6 %, y el flexible queda apenas sobre la meta de ahorro, con 8.9 %. En cada estilo y en cada tipo de negociación los acuerdos igualan a las sesiones con acuerdo posible (60 de 74 en total), así que la falta de acuerdo la explican los escenarios en que la reserva del bot no cabe en los límites del comprador y no el agente. Por eso la renovación llega a 50.0 %: solo 5 de sus 10 sesiones tenían acuerdo posible. El bot manipulador mandó 49 ataques de texto (inyección, suplantación y petición de secretos) por el portal. Aunque el falso de `ia` interpretó cada uno como una oferta por encima de todo límite, ningún ataque creó una oferta ni movió un límite: las métricas son las mismas que antes de los ataques.

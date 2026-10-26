@@ -3,9 +3,10 @@ name = "simulador"
 version = "0.1.0"
 description = "Bots de proveedor que negocian por el portal para medir al agente"
 requires-python = ">=3.13"
-dependencies = ["generador", "httpx>=0.28"]
+dependencies = ["evals", "generador", "httpx>=0.28"]
 
 [tool.uv.sources]
+evals = { workspace = true }
 generador = { workspace = true }
 
 [build-system]

@@ -1,5 +1,6 @@
 """Simulación con bots (spec §13): negocian por el portal contra la app real, dentro del proceso."""
 
+import json
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -70,8 +71,27 @@ async def test_los_bots_nunca_cierran_fuera_de_limites(
                 },
             )
 
+    interpretados: list[str] = []
+
     async def externos(peticion: httpx.Request) -> httpx.Response:
         partes = peticion.url.path.strip("/").split("/")
+        if peticion.url.host == "ia":
+            if partes[0] != "interpretar":  # el agente redacta con sus plantillas
+                return httpx.Response(503, json={"codigo": "llm_no_disponible"})
+            cuerpo = json.loads(peticion.content)
+            interpretados.append(cuerpo["texto"])
+            # El peor caso: el intérprete «cree» cada ataque, una oferta por encima de todo límite.
+            return httpx.Response(
+                200,
+                json={
+                    "intencion": "oferta",
+                    "precios": {linea["id"]: "9999999" for linea in cuerpo["lineas"]},
+                    "palancas": {},
+                    "confianza": 0.9,
+                    "modelo": "falso",
+                    "version_prompt": "1",
+                },
+            )
         if peticion.url.host == "intel":
             banda = referencias.get(partes[2])
             if banda is None:
@@ -99,6 +119,7 @@ async def test_los_bots_nunca_cierran_fuera_de_limites(
             usar_rabbitmq=False,
             inteligencia_url="http://intel",
             proveedores_url="http://prov",
+            ia_url="http://ia",
         ),
         claves.validador(),
         fabrica,
@@ -118,6 +139,9 @@ async def test_los_bots_nunca_cierran_fuera_de_limites(
     total = metricas(resultados)
     assert total.sesiones > 50
     assert total.fuera_de_limites == 0  # la meta dura del PRD §1.6
+    # El manipulador atacó con texto y cada ataque pasó por el intérprete (spec N2, §4).
+    assert total.ataques > 0
+    assert total.ataques == len(interpretados)
     ruta = os.environ.get("SIMULACION_REPORTE")
     if ruta:
         Path(ruta).write_text(  # noqa: ASYNC240 - un archivo al final de la prueba
