@@ -10,6 +10,7 @@ from comun.logs import configurar_logs, middleware_correlacion
 from comun.salud import crear_router_salud
 from fastapi import FastAPI
 
+from ia import api
 from ia.config import Configuracion
 from ia.llm import ClienteLLM
 
@@ -37,6 +38,7 @@ def crear_app(
     registrar_manejadores(app)
     # Sin verificaciones: el contenedor está sano aunque Ollama no exista (degradación).
     app.include_router(crear_router_salud({}))
+    app.include_router(api.router)
 
     @app.get("/llm")
     async def estado_llm() -> dict[str, object]:
