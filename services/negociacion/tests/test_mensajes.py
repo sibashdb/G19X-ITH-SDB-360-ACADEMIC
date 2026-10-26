@@ -75,6 +75,8 @@ async def test_una_oferta_interpretada_llena_el_formulario_sin_crear_oferta(
 
     assert respuesta.status_code == 200, respuesta.text
     assert D(respuesta.json()["sugerencia"]["precios"][linea]) == D("31.00")
+    [cuerpo] = externos.cuerpos_ia("/interpretar")
+    assert cuerpo["texto"] == "Le dejo el usuario en 31 pesos"
     assert await _ofertas(fabrica) == 0
     sesion = await _sesion(cliente, comprador, enlaces[0])
     assert _ultimo(sesion, "agente")["texto"] == textos.SUGERENCIA

@@ -399,9 +399,12 @@ async def recibir_oferta(
     await cerrar_eventos_terminados(bd, momento, evento.id)
 
 
-def _esquema_ia(evento: Evento, lineas: list[Linea], palancas: list[Palanca]) -> dict[str, Any]:
+def _peticion_ia(
+    texto: str, evento: Evento, lineas: list[Linea], palancas: list[Palanca]
+) -> dict[str, Any]:
     """Lo que ia necesita para interpretar: nunca ideales, límites, pesos ni la referencia."""
     return {
+        "texto": texto,
         "moneda": evento.moneda,
         "lineas": [
             {"id": str(linea.id), "nombre": linea.nombre, "unidad": linea.unidad}
@@ -521,7 +524,7 @@ async def recibir_mensaje(
         p for p in (await consultas.palancas_de(bd, evento.id)).values() if p.clave != "precio"
     ]
     interpretacion = await ia.interpretar(
-        _esquema_ia(evento, lineas, palancas), hasta - time.monotonic()
+        _peticion_ia(entrada.texto, evento, lineas, palancas), hasta - time.monotonic()
     )
     valores = _valores_interpretados(interpretacion, terminos) if interpretacion else None
     intencion = interpretacion.get("intencion") if interpretacion else None

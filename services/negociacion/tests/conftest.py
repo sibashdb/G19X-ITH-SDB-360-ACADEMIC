@@ -16,9 +16,11 @@ from alembic import command
 from alembic.config import Config
 from comun.pruebas import ClavesPrueba
 from fastapi import FastAPI
+from ia.esquemas import InterpretarEntrada, RedactarEntrada
 from negociacion.config import Configuracion
 from negociacion.eventos import aplicar
 from negociacion.main import crear_app
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -164,6 +166,12 @@ CONTRATO = {
 }
 
 
+CONTRATO_IA: dict[str, type[BaseModel]] = {
+    "/redactar": RedactarEntrada,
+    "/interpretar": InterpretarEntrada,
+}
+
+
 @dataclass
 class Externos:
     """Lo que responden inteligencia (host intel) y proveedores (host prov) en las pruebas."""
@@ -197,6 +205,10 @@ class Externos:
         if self.retraso_ia:
             await asyncio.sleep(self.retraso_ia)
         cuerpo = json.loads(peticion.content)
+        try:  # el contrato de ia, como lo validaría su FastAPI
+            CONTRATO_IA[peticion.url.path].model_validate(cuerpo)
+        except ValidationError as error:
+            return httpx.Response(422, json={"detail": str(error)})
         meta = {"modelo": "falso", "version_prompt": "1"}
         if peticion.url.path == "/redactar" and self.redactar is not None:
             return httpx.Response(200, json={"texto": self.redactar(cuerpo)} | meta)
