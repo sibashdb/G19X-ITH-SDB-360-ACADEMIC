@@ -38,6 +38,7 @@ negociacion = { workspace = true }
 proveedores = { workspace = true }
 generador = { workspace = true }
 simulador = { workspace = true }
+ia = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["libs", "services", "tools"]
@@ -61,6 +62,7 @@ source = [
     "inteligencia",
     "negociacion",
     "simulador",
+    "ia",
 ]
 
 [tool.coverage.report]
@@ -92,6 +94,7 @@ packages = [
     "inteligencia",
     "negociacion",
     "simulador",
+    "ia",
 ]
 plugins = ["pydantic.mypy"]
 

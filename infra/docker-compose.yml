@@ -200,6 +200,27 @@ services:
       retries: 12
       start_period: 20s
 
+  ia:
+    build:
+      context: ..
+      dockerfile: services/ia/Dockerfile
+    # Solo en la red interna: sin `ports` ni ruta en Nginx (spec D3 y D6).
+    environment:
+      LLM_URL: ${LLM_URL:-}
+      LLM_MODELO: ${LLM_MODELO:-llama3.2:3b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/salud/listo', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   negociacion:
     build:
       context: ..
@@ -217,6 +238,7 @@ services:
       SMTP_PUERTO: "1025"
       SMTP_REMITENTE: compras@plataforma.example
       URL_PUBLICA: http://localhost:8080
+      IA_URL: http://ia:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -225,6 +247,8 @@ services:
       rabbitmq-topologia:
         condition: service_completed_successfully
       mailpit:
+        condition: service_healthy
+      ia:
         condition: service_healthy
     healthcheck:
       test:
