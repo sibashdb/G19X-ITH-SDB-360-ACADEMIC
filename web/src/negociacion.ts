@@ -162,6 +162,22 @@ export type MensajeSesion = {
   fecha: string
   oferta_id: string | null
   decision: Decision | null
+  /** Lo que entendió el LLM de un mensaje libre del proveedor (N2). */
+  interpretacion?: Interpretacion | null
+  /** Si el texto del agente salió del LLM o de la plantilla (N2). */
+  redaccion?: Redaccion | null
+}
+export type Interpretacion = {
+  intencion: "oferta" | "pregunta" | "rechazo" | "pide_persona" | "otro" | null
+  precios: Record<string, string>
+  palancas: Record<string, string>
+  confianza: number
+  modelo: string | null
+}
+export type Redaccion = {
+  origen: "llm" | "plantilla"
+  modelo: string | null
+  motivo: "sin_ia" | "verificacion" | "sin_tiempo" | null
 }
 export type OfertaSesion = {
   id: string
@@ -244,6 +260,19 @@ export type VistaPortal = {
   palancas: PalancaPortal[]
   mensajes: MensajePortal[]
   ultima_propuesta: Valores | null
+  /** Solo en la respuesta a un mensaje: lo interpretado, para llenar el formulario (no es oferta). */
+  sugerencia?: Valores | null
+}
+
+export const NOMBRES_INTENCION: Record<
+  NonNullable<Interpretacion["intencion"]>,
+  string
+> = {
+  oferta: "oferta",
+  pregunta: "pregunta",
+  rechazo: "rechazo",
+  pide_persona: "pide hablar con una persona",
+  otro: "otro",
 }
 
 export const NOMBRES_TIPO: Record<TipoEvento, string> = {

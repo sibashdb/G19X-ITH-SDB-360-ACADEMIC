@@ -30,6 +30,7 @@ import { ProveedorTema } from "@/tema"
 const SESION = "/api/negociacion/portal/sesion"
 const OFERTAS = "/api/negociacion/portal/ofertas"
 const ESCALAR = "/api/negociacion/portal/escalar"
+const MENSAJES = "/api/negociacion/portal/mensajes"
 
 const RECHAZADO = {
   title: "No autorizado",
@@ -175,6 +176,102 @@ describe("Portal", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Portal de proveedores" })
     ).toBeInTheDocument()
+  })
+
+  it("escribirle al agente llena el formulario con lo interpretado", async () => {
+    const api = simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(VISTA),
+      [`POST ${MENSAJES}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          sugerencia: { precios: { l1: "1300" }, palancas: {} },
+        }),
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Mensaje para el agente"),
+      "Le dejo el usuario en mil trescientos"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar mensaje" })
+    )
+    expect(
+      await screen.findByText(
+        "Entendimos esta oferta; revísela y pulse «Enviar oferta» para confirmarla."
+      )
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Precio de Correo en la nube")).toHaveValue(
+      1300
+    )
+    expect(screen.getByLabelText("Mensaje para el agente")).toHaveValue("")
+    const { cuerpo, cabeceras } = llamadaA(api, MENSAJES, "POST")
+    expect(cuerpo).toEqual({ texto: "Le dejo el usuario en mil trescientos" })
+    expect(cabeceras.get("Authorization")).toBe("Invitacion tok-123")
+    expect(cabeceras.get("Idempotency-Key")).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it("al confirmar la oferta interpretada se envía con origen texto", async () => {
+    const api = simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(VISTA),
+      [`POST ${MENSAJES}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          sugerencia: { precios: { l1: "1300" }, palancas: {} },
+        }),
+      [`POST ${OFERTAS}`]: () => respuestaJson(VISTA),
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Mensaje para el agente"),
+      "1,300 por usuario"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar mensaje" })
+    )
+    await screen.findByText(
+      "Entendimos esta oferta; revísela y pulse «Enviar oferta» para confirmarla."
+    )
+    await userEvent.type(screen.getByLabelText("Plazo de pago (días)"), "30")
+    await userEvent.click(screen.getByRole("button", { name: "Enviar oferta" }))
+    await screen.findByText("Se envió su oferta.")
+    expect(llamadaA(api, OFERTAS, "POST").cuerpo).toEqual({
+      valores: { precios: { l1: "1300" }, palancas: { plazo_pago_dias: "30" } },
+      nota: "",
+      confirmar_valores: false,
+      origen: "texto",
+    })
+  })
+
+  it("sin sugerencia solo se agrega la respuesta a la conversación", async () => {
+    const respuesta = {
+      autor: "agente",
+      texto: "Sí, el soporte está incluido. Envíe su oferta con el formulario.",
+      ronda: 1,
+      fecha: "2026-10-14T18:12:00Z",
+      oferta: null,
+    }
+    simularRutas({
+      [`GET ${SESION}`]: () => respuestaJson(VISTA),
+      [`POST ${MENSAJES}`]: () =>
+        respuestaJson({
+          ...VISTA,
+          mensajes: [...VISTA.mensajes, respuesta],
+          sugerencia: null,
+        }),
+    })
+    abrirCon()
+    await userEvent.type(
+      await screen.findByLabelText("Mensaje para el agente"),
+      "¿Incluye soporte?"
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enviar mensaje" })
+    )
+    expect(await screen.findByText(respuesta.texto)).toBeInTheDocument()
+    expect(screen.getByText("Se envió su mensaje.")).toBeInTheDocument()
+    expect(screen.getByLabelText("Precio de Correo en la nube")).toHaveValue(
+      null
+    )
   })
 
   it("muestra qué se negocia, la conversación y la última propuesta", async () => {

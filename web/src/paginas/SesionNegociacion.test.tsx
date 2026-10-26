@@ -197,6 +197,58 @@ describe("SesionNegociacion", () => {
     await esperarSinViolaciones(container)
   })
 
+  it("muestra lo interpretado del mensaje del proveedor", async () => {
+    const libre = {
+      id: "m3",
+      autor: "proveedor",
+      texto: "Le dejo el usuario en 1,300",
+      ronda: 1,
+      fecha: "2026-10-14T18:12:00Z",
+      oferta_id: null,
+      decision: null,
+      interpretacion: {
+        intencion: "oferta",
+        precios: { l1: "1300" },
+        palancas: {},
+        confianza: 0.82,
+        modelo: "qwen2.5:3b",
+      },
+      redaccion: null,
+    }
+    simularRutas({
+      [`GET ${RUTA}`]: () =>
+        respuestaJson({ ...SESION, mensajes: [...SESION.mensajes, libre] }),
+    })
+    abrir()
+    expect(
+      await screen.findByText("Interpretado: oferta · confianza 82 %")
+    ).toBeInTheDocument()
+  })
+
+  it("dice si la respuesta la redactó el LLM o la plantilla", async () => {
+    const [primero, segundo] = SESION.mensajes
+    const delLlm = {
+      ...segundo,
+      redaccion: { origen: "llm", modelo: "qwen2.5:3b", motivo: null },
+    }
+    const dePlantilla = {
+      ...segundo,
+      id: "m4",
+      oferta_id: null,
+      decision: null,
+      redaccion: { origen: "plantilla", modelo: null, motivo: "sin_ia" },
+    }
+    simularRutas({
+      [`GET ${RUTA}`]: () =>
+        respuestaJson({ ...SESION, mensajes: [primero, delLlm, dePlantilla] }),
+    })
+    abrir()
+    expect(
+      await screen.findByText("Redactado por el LLM (qwen2.5:3b)")
+    ).toBeInTheDocument()
+    expect(screen.getByText("Respuesta de plantilla")).toBeInTheDocument()
+  })
+
   it("un mensaje anterior a la primera oferta no dice «Ronda 0»", async () => {
     const escalada = {
       id: "m0",

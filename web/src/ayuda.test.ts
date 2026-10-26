@@ -72,6 +72,14 @@ describe("contenido de la ayuda", () => {
     expect(texto).toContain("sesiones escaladas")
   })
 
+  it("la ayuda del agente dice que el proveedor puede escribirle y cuándo cuenta la oferta", () => {
+    const texto = JSON.stringify(
+      articuloPorSlug("como-negocia-el-agente")?.secciones
+    )
+    expect(texto).toContain("escribirle al agente")
+    expect(texto).toContain("solo cuenta cuando la confirma")
+  })
+
   it("encuentra un artículo por su slug", () => {
     expect(articuloPorSlug("importar-datos")?.titulo).toBe(
       "Importar los datos del ERP"

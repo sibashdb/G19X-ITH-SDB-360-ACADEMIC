@@ -9,6 +9,7 @@ import {
   CircleOff,
   FileX,
   Handshake,
+  MessageSquare,
   Link2Off,
   Send,
   UserRound,
@@ -345,7 +346,16 @@ function enfocarContenido() {
   document.getElementById("contenido")?.focus()
 }
 
-type Oferta = { valores: Valores; nota: string; confirmar_valores: boolean }
+type Oferta = {
+  valores: Valores
+  nota: string
+  confirmar_valores: boolean
+  /** Solo si el formulario se llenó con lo que el agente entendió de un mensaje (N2). */
+  origen?: "texto"
+}
+
+const SUGERENCIA =
+  "Entendimos esta oferta; revísela y pulse «Enviar oferta» para confirmarla."
 
 function Ofertar({
   token,
@@ -361,10 +371,14 @@ function Ofertar({
   const enviarBoton = useRef<HTMLButtonElement>(null)
   const [claves] = useState(crearClaves)
   const [clavesEscalar] = useState(crearClaves)
+  const [clavesMensaje] = useState(crearClaves)
   const [valores, setValores] = useState<Valores>(() =>
     valoresVacios(vista.lineas, vista.palancas)
   )
   const [nota, setNota] = useState("")
+  const [mensaje, setMensaje] = useState("")
+  // El formulario se llenó con lo interpretado de un mensaje: la oferta se envía con origen texto.
+  const [deTexto, setDeTexto] = useState(false)
   const [confirmo, setConfirmo] = useState(false)
   const [aviso, setAviso] = useState("")
 
@@ -422,6 +436,7 @@ function Ofertar({
       }
       setValores(valoresVacios(vista.lineas, vista.palancas))
       setNota("")
+      setDeTexto(false)
       setAviso("Se envió su oferta.")
     },
     onError: alFallar,
@@ -436,6 +451,38 @@ function Ofertar({
       clavesEscalar.olvidar()
       cliente.setQueryData(clave, nueva)
       setAviso("Avisamos al equipo de compras; una persona le responderá aquí.")
+    },
+    onError: alFallar,
+  })
+  const escribir = useMutation({
+    mutationFn: (texto: string) => {
+      const json = JSON.stringify({ texto })
+      return pedirPortal<VistaPortal>("/mensajes", token, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": clavesMensaje.para(json),
+        },
+        body: json,
+      })
+    },
+    onSuccess: (nueva) => {
+      clavesMensaje.olvidar()
+      cliente.setQueryData(clave, nueva)
+      setMensaje("")
+      const sugerencia = nueva.sugerencia
+      if (!sugerencia) {
+        setAviso("Se envió su mensaje.")
+        return
+      }
+      // Solo se llenan los campos que trae lo interpretado; la oferta cuenta al confirmarla.
+      setValores((actuales) => ({
+        precios: { ...actuales.precios, ...sugerencia.precios },
+        palancas: { ...actuales.palancas, ...sugerencia.palancas },
+      }))
+      setDeTexto(true)
+      setAviso(SUGERENCIA)
+      enviarBoton.current?.focus()
     },
     onError: alFallar,
   })
@@ -472,6 +519,7 @@ function Ofertar({
       valores: valoresCapturados(valores),
       nota: nota.trim(),
       confirmar_valores: vista.pide_confirmacion && confirmo,
+      ...(deTexto ? { origen: "texto" as const } : {}),
     })
   }
 
@@ -493,6 +541,47 @@ function Ofertar({
           </div>
         </Seccion>
       )}
+      <Seccion
+        titulo="Escríbale al agente"
+        descripcion="Con sus palabras: una oferta, una pregunta o lo que necesite. Si es una oferta, llenamos el formulario de abajo para que la confirme."
+      >
+        <form
+          className="space-y-3"
+          onSubmit={(evento) => {
+            evento.preventDefault()
+            const texto = mensaje.trim()
+            if (texto && !escribir.isPending) escribir.mutate(texto)
+          }}
+        >
+          <Campo
+            id={`${id}-mensaje`}
+            etiqueta="Mensaje para el agente"
+            ayuda={`${mensaje.length.toLocaleString("es-MX")} de 2,000 caracteres.`}
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                maxLength={2000}
+                value={mensaje}
+                onChange={(e) => setMensaje(e.target.value)}
+              />
+            )}
+          </Campo>
+          <Button
+            type="submit"
+            variant="outline"
+            aria-disabled={escribir.isPending}
+          >
+            <MessageSquare aria-hidden />
+            Enviar mensaje
+          </Button>
+          {escribir.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {escribir.error.message}
+            </p>
+          )}
+        </form>
+      </Seccion>
       <Seccion
         titulo="Su oferta"
         descripcion={

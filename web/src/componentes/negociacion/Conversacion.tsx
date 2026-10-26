@@ -4,9 +4,24 @@ import { formatoFechaHora } from "@/fechas"
 import { cn } from "@/lib/utils"
 import {
   NOMBRES_AUTOR,
+  NOMBRES_INTENCION,
   explicarDecision,
+  formatoUtilidad,
+  type MensajeSesion,
   type SesionDetalle,
 } from "@/negociacion"
+
+/** «Interpretado: oferta · confianza 82 %», o que el LLM no respondió. */
+function textoInterpretacion(i: NonNullable<MensajeSesion["interpretacion"]>) {
+  if (i.intencion === null) return "Sin interpretar: el LLM no respondió."
+  return `Interpretado: ${NOMBRES_INTENCION[i.intencion]} · confianza ${formatoUtilidad(i.confianza)}`
+}
+
+function textoRedaccion(r: NonNullable<MensajeSesion["redaccion"]>) {
+  return r.origen === "llm"
+    ? `Redactado por el LLM (${r.modelo ?? "modelo desconocido"})`
+    : "Respuesta de plantilla"
+}
 
 /** La conversación por ronda; cada respuesta del agente explica por qué respondió así. */
 export function Conversacion({ datos }: { datos: SesionDetalle }) {
@@ -51,6 +66,27 @@ export function Conversacion({ datos }: { datos: SesionDetalle }) {
                 palancas={datos.palancas}
                 moneda={datos.moneda}
               />
+            )}
+            {m.interpretacion && (
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>{textoInterpretacion(m.interpretacion)}</p>
+                {m.interpretacion.intencion === "oferta" && (
+                  <ValoresOferta
+                    valores={{
+                      precios: m.interpretacion.precios,
+                      palancas: m.interpretacion.palancas,
+                    }}
+                    lineas={datos.lineas}
+                    palancas={datos.palancas}
+                    moneda={datos.moneda}
+                  />
+                )}
+              </div>
+            )}
+            {m.redaccion && (
+              <p className="text-xs text-muted-foreground">
+                {textoRedaccion(m.redaccion)}
+              </p>
             )}
             {m.decision && (
               <details className="text-sm">

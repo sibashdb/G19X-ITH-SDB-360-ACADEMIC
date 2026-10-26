@@ -246,6 +246,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Lo que nunca hace",
         parrafos: [
           "No acepta nada fuera de sus límites, y nunca muestra al proveedor sus límites, sus pesos ni las ofertas de otros proveedores. Si otro proveedor ofreció algo mejor, solo dice que hay propuestas más competitivas.",
+          "El proveedor también puede escribirle al agente con sus palabras. Si su mensaje trae una oferta, la plataforma llena el formulario con lo que entendió y la oferta solo cuenta cuando la confirma el proveedor. Si pregunta algo, el agente le contesta sin cambiar la oferta ni gastar una ronda. Los números de las respuestas del agente siempre salen de su decisión, nunca del texto que escribe el modelo de lenguaje.",
           "Si un precio parece un error de captura (menos de la décima parte o más de 10 veces la referencia de precio o, si no hay referencia, su límite), le pide al proveedor confirmarlo antes de responder, y esa respuesta no cuenta como ronda.",
         ],
       },
