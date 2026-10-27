@@ -207,7 +207,7 @@ services:
     # Solo en la red interna: sin `ports` ni ruta en Nginx (spec D3 y D6).
     environment:
       LLM_URL: ${LLM_URL:-}
-      LLM_MODELO: ${LLM_MODELO:-llama3.2:3b}
+      LLM_MODELO: ${LLM_MODELO:-qwen2.5:3b}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

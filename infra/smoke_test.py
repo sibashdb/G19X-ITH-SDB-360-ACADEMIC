@@ -333,12 +333,17 @@ def publicar_compra(
     return comprador, proveedor, evento, portal
 
 
+# Con el LLM, el agente tiene hasta 18 s para redactar cada respuesta (ia_presupuesto_s).
+ESPERA_AGENTE_S = 30
+
+
 def ofertar(cliente: httpx.Client, portal: dict[str, str], valores: dict[str, Any]) -> Any:
     """Envía una oferta por el portal y devuelve la vista que el proveedor ve después."""
     respuesta = cliente.post(
         "/api/negociacion/portal/ofertas",
         json={"valores": valores},
         headers=portal | {"Idempotency-Key": uuid.uuid4().hex},
+        timeout=ESPERA_AGENTE_S,
     )
     verificar(respuesta.status_code == 200, f"la oferta en el portal falló: {respuesta.text}")
     return respuesta.json()
@@ -352,6 +357,18 @@ def verificar_negociacion(cliente: httpx.Client) -> None:
     verificar(
         vista["mensajes"][-1]["autor"] == "agente",
         f"el agente no respondió en el portal: {vista['mensajes'][-1]}",
+    )
+    # Con LLM, el agente interpreta el mensaje y redacta; sin LLM, pide usar el formulario.
+    escrito = cliente.post(
+        "/api/negociacion/portal/mensajes",
+        json={"texto": "¿Cuándo empezaría el servicio?"},
+        headers=portal | {"Idempotency-Key": uuid.uuid4().hex},
+        timeout=ESPERA_AGENTE_S,
+    )
+    verificar(escrito.status_code == 200, f"el mensaje libre en el portal falló: {escrito.text}")
+    verificar(
+        escrito.json()["mensajes"][-1]["autor"] == "agente",
+        "el agente no contestó el mensaje libre",
     )
     correos = httpx.get(
         f"{BUZON}/api/v1/search", params={"query": f'subject:"{evento["folio"]}"'}, timeout=10
