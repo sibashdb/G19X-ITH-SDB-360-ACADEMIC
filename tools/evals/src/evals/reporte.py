@@ -39,8 +39,8 @@ def escribir(ruta: Path, resultados: list[Resultado], hoy: date | None = None) -
         "- **Filtración:** un límite o un peso de la negociación en el texto. «Enviadas» cuenta el",
         "  texto que saldría tras la verificación; «del LLM», el que escribió el modelo.",
         "- **Texto del LLM aceptado:** la redacción pasa la verificación de `negociacion`: cada",
-        "  número es una cifra del motor y no habla de otras ofertas ni de la última ronda; si no,",
-        "  va la plantilla.",
+        "  número, también escrito con palabras, es una cifra del motor, y el texto no afirma una",
+        "  aceptación ni habla de otras ofertas o de la última ronda; si no, va la plantilla.",
         "",
         "| Modelo | Campos correctos | Campos con 3 líneas | Intención | "
         "Filtraciones (enviadas / del LLM) | Acuerdos fuera de límites | Turno p50 | Turno p95 | "

@@ -1,6 +1,6 @@
 # MVP: alcance vigente
 
-Actualizado al 26/10/2026. Parte de las 10 capacidades del [PRD](PRD.md) y aplica dos recortes:
+Actualizado al 27/10/2026. Parte de las 10 capacidades del [PRD](PRD.md) y aplica dos recortes:
 la replanificación del 15/10/2026 (PRD §6.6.1, [ADR-010](arquitectura/adr/010-negociacion-determinista-antes-del-llm.md))
 y la decisión sobre el LLM del 22/10/2026 (PRD §6.6.2). El estado detallado de cada capacidad
 está en el [README](../README.md#qué-está-hecho-y-qué-falta).
@@ -62,6 +62,26 @@ El residente decidió que **el LLM entra, recortado y con fecha límite**:
 ([`qa/revision-ia-negociacion.md`](qa/revision-ia-negociacion.md)) encontró textos redactados
 que revelaban la falta de competencia o anunciaban una última ronda falsa; se corrigieron con
 otro prompt y un candado en `negociacion` que, ante esos textos, envía la plantilla.
+
+## Versión que se entrega
+
+Dos etiquetas de git fijan qué se prueba. Una etiqueta subida no se mueve: una corrección sería
+`mvp-1.2`.
+
+| Etiqueta | Commit | Fecha | Qué contiene |
+|---|---|---|---|
+| `mvp-1.0` | `22da370` | 24/10/2026 | El MVP completo sin el LLM: capacidades 1–5, 7, 9 y 10, con el agente de plantillas. Es lo que revisó el asesor el 26/10 |
+| `mvp-1.1` | El de la integración del 27/10 | 27/10/2026 | Lo mismo, más el LLM recortado (N2) con sus evals y el primer avance del manual de usuario. **Es la versión que se entrega** |
+
+Para probar una:
+
+```bash
+git checkout mvp-1.1
+uv run python infra/arrancar.py
+```
+
+El recorrido de abajo funciona en las dos. Con `mvp-1.1` y Ollama encendido, el proveedor también
+puede escribirle al agente con sus palabras (README, «IA en la negociación»).
 
 ## Recorrido de demostración (5 minutos)
 
