@@ -26,7 +26,7 @@ pero cada cifra la sigue decidiendo el motor.
 | 2 | Inteligencia de precios | Hecho | `services/inteligencia`: precio justo P25 · P50 · P75 (línea base y modelo), sobreprecios y vencimientos; pantallas Precios y Alertas | — |
 | 3 | Desempeño del proveedor | Hecho | Puntuación de 0 a 100 con pesos configurables; Ranking y ficha del proveedor | — |
 | 4 | Eventos de negociación | Hecho | `services/negociacion`: compra o renovación, líneas, invitados, ideal y límite por término, palancas con peso y fecha límite; pantalla Negociaciones | — |
-| 5 | Negociación con agente en el portal | Hecho | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual. Con el LLM local (`services/ia`, Ollama con `qwen2.5:3b`), el proveedor le escribe al agente con sus palabras: lo interpretado llena el formulario, que el proveedor confirma, y el agente redacta sus respuestas. Cada número del texto redactado debe ser una cifra del motor; si no, va la plantilla. Sin el LLM, el agente negocia con sus plantillas | — |
+| 5 | Negociación con agente en el portal | Hecho | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual. Con el LLM local (`services/ia`, Ollama con `qwen2.5:3b`), el proveedor le escribe al agente con sus palabras: lo interpretado llena el formulario, que el proveedor confirma, y el agente redacta sus contraofertas y respuestas (aceptar y cerrar sin acuerdo van siempre con su plantilla). Cada número del texto redactado, también escrito con palabras, debe ser una cifra del motor, y el texto no puede afirmar una aceptación ni hablar de otras ofertas sin que el motor lo decida; si no, va la plantilla. Sin el LLM, el agente negocia con sus plantillas | — |
 | 6 | Propuestas de negociación | Falta | — | Documento de estrategia y argumentos para negociar a mano |
 | 7 | Recomendación de adjudicación | Hecho | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta. Pantalla: la evaluación de los acuerdos con la recomendación explicada y los pesos ajustables, la propuesta con su justificación y el resumen de la negociación adjudicada o desierta; en Configuración, la sección «Adjudicación» con los pesos y el umbral | — |
 | 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
@@ -50,7 +50,8 @@ pero cada cifra la sigue decidiendo el motor.
   aprobaciones hechas por quien propuso (pruebas de la API de `negociacion`); cada adjudicación
   aprobada llega a un contrato registrado en `proveedores` (prueba de humo).
 - LLM en la negociación, con `qwen2.5:3b` en la GPU de desarrollo: 99.0 % de campos
-  interpretados correctamente en 150 mensajes etiquetados (meta ≥ 90 %), 0 filtraciones de
+  interpretados correctamente en 150 mensajes etiquetados y 100 % en 30 mensajes sobre una
+  negociación de 3 líneas (meta ≥ 90 %), 0 filtraciones de
   límites o pesos ante 30 ataques (meta 0), 0 acuerdos fuera de límites y un turno de 1.7 s en
   el percentil 95 (meta < 20 s), en [`docs/qa/evals-llm.md`](docs/qa/evals-llm.md), con la
   comparación de tres modelos en [ADR-009](docs/arquitectura/adr/009-eleccion-del-llm-por-evals.md).
@@ -155,7 +156,7 @@ El LLM es opcional: sin él, el agente negocia igual, con sus plantillas. Para e
 
 2. Defina `OLLAMA_KEEP_ALIVE=30m` como variable de entorno del usuario y reinicie Ollama. Sin
    ella, Ollama descarga el modelo a los 5 minutos sin uso y la siguiente respuesta paga la carga
-   en frío (unos 6 s).
+   en frío (de 6 a 9 s).
 3. Deje en `infra/.env` las variables `LLM_URL` y `LLM_MODELO` de `infra/.env.example`; con
    `LLM_URL` vacía, el LLM queda apagado. Con el stack levantado, compruebe que `ia` alcanza el
    modelo:

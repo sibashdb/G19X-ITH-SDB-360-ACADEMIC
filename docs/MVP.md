@@ -55,8 +55,8 @@ El residente decidió que **el LLM entra, recortado y con fecha límite**:
   unos 3 mil millones de parámetros, cuantizados.
 
 **Resultado (26/10/2026):** N2 se terminó antes de su ventana y cumple las tres metas con
-`qwen2.5:3b`: 99.0 % de campos interpretados bien, 0 filtraciones ante 30 ataques y un turno de
-1.7 s en el percentil 95. Se comparó con `llama3.2:3b` y `gemma3:4b`
+`qwen2.5:3b`: 99.0 % de campos interpretados bien (100 % en una negociación de 3 líneas),
+0 filtraciones ante 30 ataques y un turno de 1.7 s en el percentil 95. Se comparó con `llama3.2:3b` y `gemma3:4b`
 ([ADR-009](arquitectura/adr/009-eleccion-del-llm-por-evals.md),
 [`qa/evals-llm.md`](qa/evals-llm.md)). La revisión en el navegador
 ([`qa/revision-ia-negociacion.md`](qa/revision-ia-negociacion.md)) encontró textos redactados

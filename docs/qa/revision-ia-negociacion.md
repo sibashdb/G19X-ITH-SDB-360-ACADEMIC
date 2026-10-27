@@ -108,6 +108,17 @@ Los dos se corrigieron en `7890129`.
    - Los evals se repitieron con el prompt v2 y el candado
      ([`evals-llm.md`](evals-llm.md)).
 
+## Después de la revisión
+
+La revisión final de la rama (`16e87b0`) cambió dos cosas que esta revisión vio:
+
+- **Las aceptaciones y los cierres sin acuerdo van siempre con su plantilla.** Ningún texto que
+  el proveedor le dicte al LLM puede decir «aceptamos» por el motor. El paso 3 de la tabla hoy
+  sería igual, porque fue una contraoferta, pero una aceptación ya no pasaría por el LLM.
+- **La verificación es más estricta.** También lee los números escritos con palabras y rechaza
+  un texto que afirme una aceptación o una aprobación. Además, el texto del proveedor llega al
+  modelo sin «<» ni «>», así que no puede cerrar la etiqueta que lo marca como dato.
+
 ## Observaciones
 
 - La respuesta a la pregunta mezcla «tu consulta» con «envíe». La contraoferta redactada es

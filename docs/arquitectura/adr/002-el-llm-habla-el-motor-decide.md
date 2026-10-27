@@ -22,5 +22,8 @@ oferta estructurada y redacta mensajes y explicaciones.
 - En N1 se cumplía de la forma más estricta: no había LLM y el agente usaba plantillas.
 - Con N2 (26/10/2026), el LLM no cambia montos ni ve límites: el intérprete no recibe ideales,
   límites, pesos ni referencias; lo que interpreta solo llena el formulario, que el proveedor
-  confirma; y cada número del texto que redacta debe ser una cifra que decidió el motor, o se
-  envía la plantilla.
+  confirma; y cada número del texto que redacta, también escrito con palabras, debe ser una
+  cifra que decidió el motor, o se envía la plantilla.
+- Las aceptaciones y los cierres sin acuerdo van siempre con su plantilla. El texto redactado
+  tampoco puede afirmar una aceptación ni hablar de otras ofertas o de la última ronda si la
+  decisión no lo dice (revisión final de N2).
