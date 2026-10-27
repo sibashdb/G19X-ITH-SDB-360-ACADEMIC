@@ -13,7 +13,8 @@ web/dist/
 # Entorno y datos generados
 .env
 infra/.env
-datos/
+# Solo los de la raíz (python -m generador): tools/evals/datos/ sí se versiona.
+/datos/
 # Documento base con datos de la empresa
 *.pdf
 # Editores y herramientas locales

@@ -52,6 +52,10 @@ TIPO_DE_ACCION = {
     "pedir_aclaracion": "pedir_aclaracion",
     "cerrar_sin_acuerdo": "cerrar_sin_acuerdo",
 }
+# Aceptar y cerrar sin acuerdo tienen peso comercial: siempre con su plantilla, para que ningún
+# texto que el proveedor le dicte al LLM hable por el motor (revisión final de N2, I3).
+SIEMPRE_PLANTILLA = {"aceptar", "cerrar_sin_acuerdo"}
+PLANTILLA = {"origen": "plantilla", "modelo": None, "version_prompt": None, "motivo": None}
 CUATRO_DECIMALES = Decimal("0.0001")
 
 
@@ -199,7 +203,9 @@ async def responder(
     """El agente decide con el motor y responde; la traza queda en la bitácora.
 
     # ponytail: ia se llama con la sesión bloqueada (los mensajes son de solo inserción, así que el
-    # texto debe existir antes de guardarlo); `hasta` acota la espera.
+    # texto debe existir antes de guardarlo); `hasta` acota la espera. Mientras tanto el turno
+    # retiene una conexión del pool (5 más 10 de desborde): con carga sostenida y el LLM encendido,
+    # redactar fuera de la transacción.
     """
     estado = Estado(
         ronda=ronda,
@@ -219,18 +225,24 @@ async def responder(
         await bd.flush()
         propuesta_id = propuesta.id
     nombres = {linea.id: linea.nombre for linea in terminos.lineas}
-    texto, redaccion = await redactar_respuesta(
-        ia,
-        TIPO_DE_ACCION[decision.accion],
-        decision.contraoferta,
-        terminos,
-        evento,
-        None,  # la nota de la oferta es para compras, no para el agente (spec N2, D5)
-        hasta,
-        textos.respuesta_del_agente(decision, nombres),
-        hay_mejor_oferta=bool(decision.traza.get("hay_mejor_oferta")),
-        ultima_ronda=decision.ultima_ronda,
-    )
+    respaldo = textos.respuesta_del_agente(decision, nombres)
+    if decision.accion in SIEMPRE_PLANTILLA:
+        texto, redaccion = respaldo, PLANTILLA
+    else:
+        # Como la plantilla: solo la contraoferta habla de la competencia y de la última ronda.
+        contraoferta = decision.accion == "contraofertar"
+        texto, redaccion = await redactar_respuesta(
+            ia,
+            TIPO_DE_ACCION[decision.accion],
+            decision.contraoferta,
+            terminos,
+            evento,
+            None,  # la nota de la oferta es para compras, no para el agente (spec N2, D5)
+            hasta,
+            respaldo,
+            hay_mejor_oferta=contraoferta and bool(decision.traza.get("hay_mejor_oferta")),
+            ultima_ronda=contraoferta and decision.ultima_ronda,
+        )
     mensaje = Mensaje(
         sesion_id=sesion.id,
         autor="agente",
@@ -572,8 +584,7 @@ async def recibir_mensaje(
         _escalar(bd, sesion, evento, momento)
         return None
     if sugerencia is not None:
-        plantilla = {"origen": "plantilla", "modelo": None, "version_prompt": None, "motivo": None}
-        await _contestar(bd, sesion, evento, textos.SUGERENCIA, plantilla, momento)
+        await _contestar(bd, sesion, evento, textos.SUGERENCIA, PLANTILLA, momento)
         return sugerencia
     if raras:
         nombres = {linea.id: linea.nombre for linea in terminos.lineas}

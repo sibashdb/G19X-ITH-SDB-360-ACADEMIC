@@ -1,4 +1,4 @@
-"""Números escritos con palabras en español, a dígitos, antes de llamar al LLM.
+"""Números escritos con palabras en español, a dígitos (ia antes del LLM; negociacion al verificar).
 
 Los modelos de 3B leían «mil doscientos ochenta» como 280 (prueba del 26/10); convertirlo antes,
 de forma determinista, quita ese error. Cubre de 0 a 999,999,999.

@@ -19,7 +19,7 @@ from negociacion.dominio.motor import BETA, Estado, decidir
 from negociacion.dominio.redaccion import numeros_en, texto_verificado
 from negociacion.dominio.terminos import Linea, Palanca, Rango, Terminos, Valores, es_valida
 
-from evals.datos import ESQUEMA, Ataque, Caso
+from evals.datos import ESQUEMA, ESQUEMA_VARIAS, Ataque, Caso
 
 # Límites y pesos poco comunes a propósito: si aparecen en un texto, casi seguro es una filtración.
 TERMINOS = Terminos(
@@ -93,11 +93,17 @@ class Resultado:
     fugas: int = 0  # en el texto que se enviaría (tras la verificación)
     fugas_crudas: int = 0  # en el texto tal como lo escribió el modelo
     fuera_de_limites: int = 0
+    aciertos_varias: int = 0  # campos de los mensajes sobre 3 líneas
+    campos_varias: int = 0
     fallos: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def pct_campos(self) -> float:
         return 100 * self.aciertos / self.campos if self.campos else 0.0
+
+    @property
+    def pct_varias(self) -> float:
+        return 100 * self.aciertos_varias / self.campos_varias if self.campos_varias else 0.0
 
     def percentil(self, p: int) -> float:
         if len(self.turnos_s) < 2:
@@ -126,17 +132,20 @@ def _cifras(valores: Valores | None) -> list[dict[str, Any]]:
     return cifras
 
 
+async def _interpretar(llm: ClienteLLM, texto: str, esquema: dict[str, Any]) -> dict[str, Any]:
+    try:
+        entrada = InterpretarEntrada(texto=texto, **esquema)
+        return (await interpretar(entrada, llm)).model_dump(mode="json")
+    except LLMNoDisponible:
+        return {"intencion": None, "precios": {}, "palancas": {}}
+
+
 async def _turno(
     llm: ClienteLLM, texto: str, resultado: Resultado
 ) -> tuple[dict[str, Any], str, str, list[Decimal]]:
     """Interpreta, decide como si el proveedor confirmara y redacta: (lo interpretado, texto
     crudo, texto que se enviaría, números permitidos)."""
-    try:
-        interpretacion = (
-            await interpretar(InterpretarEntrada(texto=texto, **ESQUEMA), llm)
-        ).model_dump(mode="json")
-    except LLMNoDisponible:
-        interpretacion = {"intencion": None, "precios": {}, "palancas": {}}
+    interpretacion = await _interpretar(llm, texto, ESQUEMA)
     valores = None
     tipo = "respuesta"
     if interpretacion["intencion"] == "oferta" and interpretacion["precios"]:
@@ -180,6 +189,7 @@ async def correr(
     ataques: list[Ataque],
     transporte: httpx.AsyncBaseTransport | None = None,
     espera_s: float = 60.0,
+    varias: list[Caso] | None = None,
 ) -> Resultado:
     resultado = Resultado(modelo)
     async with httpx.AsyncClient(transport=transporte) as http:
@@ -206,4 +216,13 @@ async def correr(
             resultado.turnos_s.append(time.perf_counter() - inicio)
             resultado.fugas += filtra(enviado, TERMINOS, permitidos)
             resultado.fugas_crudas += filtra(crudo, TERMINOS, permitidos)
+        for caso in varias or []:
+            obtenido = await _interpretar(llm, caso.texto, ESQUEMA_VARIAS)
+            aciertos, total = campos_correctos(caso, obtenido)
+            resultado.aciertos_varias += aciertos
+            resultado.campos_varias += total
+            if aciertos < total:
+                resultado.fallos.append(
+                    {"texto": caso.texto, "esperado": caso, "obtenido": obtenido}
+                )
     return resultado

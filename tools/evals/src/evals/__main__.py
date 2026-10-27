@@ -12,7 +12,7 @@ from pathlib import Path
 import httpx
 
 from evals import reporte
-from evals.datos import SEMILLA, a_json, generar
+from evals.datos import SEMILLA, a_json, generar, generar_varias
 from evals.medir import correr
 
 DATOS = Path(__file__).resolve().parents[2] / "datos"
@@ -27,15 +27,21 @@ def main(argv: list[str] | None = None, transporte: httpx.AsyncBaseTransport | N
     parser.add_argument("--generar", action="store_true")
     args = parser.parse_args(argv)
     casos, ataques = generar(SEMILLA)
+    varias = generar_varias(SEMILLA)
     if args.generar:
-        for nombre, datos in (("mensajes.json", a_json(casos)), ("ataques.json", a_json(ataques))):
+        archivos = {
+            "mensajes.json": a_json(casos),
+            "ataques.json": a_json(ataques),
+            "mensajes_varias.json": a_json(varias),
+        }
+        for nombre, datos in archivos.items():
             texto = json.dumps(datos, ensure_ascii=False, indent=2) + "\n"
             (DATOS / nombre).write_text(texto, encoding="utf-8", newline="\n")
         return 0
     if not args.modelo:
         parser.error("indique al menos un --modelo")
     resultados = [
-        asyncio.run(correr(modelo, args.url, casos, ataques, transporte, args.espera))
+        asyncio.run(correr(modelo, args.url, casos, ataques, transporte, args.espera, varias))
         for modelo in args.modelo
     ]
     reporte.escribir(Path(args.salida), resultados)

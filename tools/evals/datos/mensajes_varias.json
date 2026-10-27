@@ -1,0 +1,302 @@
+[
+  {
+    "texto": "Le dejamos el gerente de proyecto a 1,565 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l2": "1565"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Nuestra oferta: la hora de desarrollo senior a 1,385 y el gerente de proyecto a 1,250 por hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1385",
+      "l2": "1250"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "El desarrollador senior a 1,140, el gerente de proyecto a 1,455 y las pruebas de calidad a 1,455 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1140",
+      "l2": "1455",
+      "l3": "1455"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "El desarrollador senior a 1,725 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1725"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el gerente de proyecto a 1,230 y las pruebas de calidad a 1,690 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l2": "1230",
+      "l3": "1690"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 1,585, la gerencia del proyecto a 970 y el analista de QA a 1,530 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1585",
+      "l2": "970",
+      "l3": "1530"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el analista de QA a 1,155 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l3": "1155"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Nuestra oferta: la gerencia del proyecto a 1,420 y las pruebas de calidad a 1,000 por hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l2": "1420",
+      "l3": "1000"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el desarrollador senior a 1,000, la gerencia del proyecto a 990 y las pruebas de calidad a 1,045 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1000",
+      "l2": "990",
+      "l3": "1045"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 1,630 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1630"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos la gerencia del proyecto a 1,390 y las pruebas de calidad a 1,015 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l2": "1390",
+      "l3": "1015"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 950, el gerente de proyecto a 1,100 y el analista de QA a 1,465 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "950",
+      "l2": "1100",
+      "l3": "1465"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Las pruebas de calidad a 1,595 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l3": "1595"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "El desarrollador senior a 1,590 y las pruebas de calidad a 1,500 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1590",
+      "l3": "1500"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos la hora de desarrollo senior a 1,630, el gerente de proyecto a 1,200 y las pruebas de calidad a 1,500 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1630",
+      "l2": "1200",
+      "l3": "1500"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Nuestra oferta: el analista de QA a 1,735 por hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l3": "1735"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Nuestra oferta: el desarrollador senior a 1,190 y la gerencia del proyecto a 960 por hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1190",
+      "l2": "960"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el desarrollador senior a 1,270, el gerente de proyecto a 1,795 y el analista de QA a 1,175 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1270",
+      "l2": "1795",
+      "l3": "1175"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La gerencia del proyecto a 1,190 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l2": "1190"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "El desarrollador senior a 1,215 y la gerencia del proyecto a 1,205 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1215",
+      "l2": "1205"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Nuestra oferta: la hora de desarrollo senior a 1,145, la gerencia del proyecto a 1,225 y las pruebas de calidad a 930 por hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1145",
+      "l2": "1225",
+      "l3": "930"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Nuestra oferta: el desarrollador senior a 1,485 por hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1485"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 1,185 y la gerencia del proyecto a 1,735 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1185",
+      "l2": "1735"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 1,610, el gerente de proyecto a 1,670 y el analista de QA a 1,750 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1610",
+      "l2": "1670",
+      "l3": "1750"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "El desarrollador senior a 1,550 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1550"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el desarrollador senior a 945 y las pruebas de calidad a 1,135 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "945",
+      "l3": "1135"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 1,225, el gerente de proyecto a 1,510 y las pruebas de calidad a 1,180 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1225",
+      "l2": "1510",
+      "l3": "1180"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el analista de QA a 1,320 la hora.",
+    "formato": "1_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l3": "1320"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "Le dejamos el desarrollador senior a 1,415 y el analista de QA a 1,090 la hora.",
+    "formato": "2_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1415",
+      "l3": "1090"
+    },
+    "palancas": {}
+  },
+  {
+    "texto": "La hora de desarrollo senior a 1,390, la gerencia del proyecto a 1,495 y el analista de QA a 1,585 la hora.",
+    "formato": "3_de_3_lineas",
+    "intencion": "oferta",
+    "precios": {
+      "l1": "1390",
+      "l2": "1495",
+      "l3": "1585"
+    },
+    "palancas": {}
+  }
+]

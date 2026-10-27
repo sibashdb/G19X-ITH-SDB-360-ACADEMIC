@@ -21,6 +21,24 @@ def cliente(manejador: Manejador, url: str = URL, espera_s: float = 1.0) -> Clie
     return ClienteLLM(http, url, "llama3.2:3b", espera_s)
 
 
+async def test_la_espera_en_la_cola_cuenta_dentro_del_tope() -> None:
+    """Ninguna petición vive más que la espera desde que llega, ni haciendo fila (revisión, I5)."""
+
+    async def lento(_: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0.3)
+        return respuesta("{}")
+
+    llm = cliente(lento, espera_s=0.45)
+    primera, segunda = await asyncio.gather(
+        llm.completar_json("s", "u", ESQUEMA, 10),
+        llm.completar_json("s", "u", ESQUEMA, 10),
+        return_exceptions=True,
+    )
+    assert primera == {}
+    assert isinstance(segunda, LLMNoDisponible)  # 0.3 s en la fila y 0.3 s de respuesta
+    assert segunda.motivo == "sin_respuesta"
+
+
 async def test_completar_json_devuelve_el_objeto_del_modelo() -> None:
     peticiones: list[httpx.Request] = []
 

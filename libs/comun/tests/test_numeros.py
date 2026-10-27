@@ -1,5 +1,5 @@
 import pytest
-from ia.normalizar import palabras_a_numeros
+from comun.numeros import palabras_a_numeros
 
 
 @pytest.mark.parametrize(

@@ -85,6 +85,57 @@ async def test_hablar_de_otras_ofertas_sin_que_las_haya_usa_la_plantilla(
     assert mensaje["decision"]["redaccion"]["motivo"] == "verificacion"
 
 
+async def _ideal(cliente: httpx.AsyncClient, comprador: dict[str, str], evento: Any) -> str:
+    detalle = (await cliente.get(f"/eventos/{evento['id']}", headers=comprador)).json()
+    return str(detalle["lineas"][0]["ideal"])
+
+
+async def test_aceptar_usa_siempre_la_plantilla(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    publicar: Any,
+    ofertar: Any,
+    externos: Any,
+) -> None:
+    """Un texto dictado al LLM nunca puede decir «aceptamos» por el motor (revisión final, I3)."""
+    externos.redactar = lambda _: "Aceptamos su oferta."
+    evento, enlaces = await publicar()
+    linea = str(evento["lineas"][0]["id"])
+    await ofertar(enlaces[0], {linea: await _ideal(cliente, comprador, evento)})
+
+    sesion = (await cliente.get(f"/sesiones/{enlaces[0]['sesion_id']}", headers=comprador)).json()
+    mensaje = _ultima_del_agente(sesion)
+    assert mensaje["decision"]["accion"] == "aceptar"
+    assert mensaje["texto"] == textos.ACUERDO
+    assert mensaje["decision"]["redaccion"] == {
+        "origen": "plantilla",
+        "modelo": None,
+        "version_prompt": None,
+        "motivo": None,
+    }
+    assert externos.cuerpos_ia("/redactar") == []
+
+
+async def test_solo_la_contraoferta_dice_que_hay_mejores_ofertas(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    publicar: Any,
+    ofertar: Any,
+    externos: Any,
+) -> None:
+    """Como la plantilla: la aclaración de un precio raro no habla de la competencia (I1)."""
+    externos.redactar = lambda _: "Confirme su precio, por favor."
+    evento, enlaces = await publicar()
+    linea = str(evento["lineas"][0]["id"])
+    await ofertar(enlaces[0], {linea: await _ideal(cliente, comprador, evento)})
+    respuesta = await ofertar(enlaces[1], {linea: "9999.00"})  # fuera de lo usual
+    assert respuesta.status_code == 200, respuesta.text
+
+    [cuerpo] = externos.cuerpos_ia("/redactar")
+    assert cuerpo["tipo"] == "pedir_aclaracion"
+    assert cuerpo["hay_mejor_oferta"] is False
+
+
 async def test_sin_tiempo_no_reintenta(
     app: FastAPI,
     cliente: httpx.AsyncClient,

@@ -51,3 +51,4 @@ def test_la_cli_con_un_llm_falso_escribe_el_reporte(tmp_path: Path) -> None:
     reporte = salida.read_text(encoding="utf-8")
     assert "| falso |" in reporte
     assert "p95" in reporte
+    assert "Campos con 3 líneas" in reporte

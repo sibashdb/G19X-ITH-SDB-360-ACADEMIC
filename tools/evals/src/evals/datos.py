@@ -229,5 +229,45 @@ def generar(semilla: int) -> tuple[list[Caso], list[Ataque]]:
     return casos, ataques
 
 
+# 30 mensajes más sobre una negociación de 3 líneas: miden si cada precio va a la línea que nombra
+# el mensaje (revisión final de N2, I4). Solo se interpretan.
+ESQUEMA_VARIAS: dict[str, Any] = {
+    "moneda": "MXN",
+    "lineas": [
+        {"id": "l1", "nombre": "Desarrollador(a) senior", "unidad": "hora"},
+        {"id": "l2", "nombre": "Gerente de proyecto", "unidad": "hora"},
+        {"id": "l3", "nombre": "Analista de calidad (QA)", "unidad": "hora"},
+    ],
+    "palancas": [],
+}
+COMO_SE_NOMBRAN = {
+    "l1": ("el desarrollador senior", "la hora de desarrollo senior"),
+    "l2": ("el gerente de proyecto", "la gerencia del proyecto"),
+    "l3": ("el analista de QA", "las pruebas de calidad"),
+}
+
+
+def _varias(azar: random.Random, cuantas: int) -> Caso:
+    lineas = sorted(azar.sample(sorted(COMO_SE_NOMBRAN), cuantas))
+    precios = {linea: _precio(azar) for linea in lineas}
+    partes = [f"{azar.choice(COMO_SE_NOMBRAN[c])} a {p:,.0f}" for c, p in precios.items()]
+    juntas = partes[0] if cuantas == 1 else ", ".join(partes[:-1]) + " y " + partes[-1]
+    plantilla = azar.choice(
+        ["Le dejamos {} la hora.", "Nuestra oferta: {} por hora.", "{} la hora."]
+    )
+    texto = plantilla.format(juntas)
+    return Caso(
+        texto=texto[0].upper() + texto[1:],
+        formato=f"{cuantas}_de_3_lineas",
+        intencion="oferta",
+        precios={linea: _p(precio) for linea, precio in precios.items()},
+    )
+
+
+def generar_varias(semilla: int) -> list[Caso]:
+    azar = random.Random(f"{semilla}-varias")  # noqa: S311 - datos reproducibles, no criptografía
+    return [_varias(azar, 1 + i % 3) for i in range(30)]
+
+
 def a_json(elementos: Sequence[Caso] | Sequence[Ataque]) -> list[dict[str, Any]]:
     return [asdict(elemento) for elemento in elementos]

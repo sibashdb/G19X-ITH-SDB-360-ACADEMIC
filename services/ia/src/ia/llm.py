@@ -45,16 +45,18 @@ class ClienteLLM:
                 "json_schema": {"name": "respuesta", "schema": esquema},
             },
         }
-        async with self._cola:
-            try:
+        # La espera cuenta desde que llega la petición, también en la fila: si no, con dos turnos
+        # a la vez el atraso crece sin tope y la GPU sigue con lo que negociacion ya abandonó.
+        try:
+            async with asyncio.timeout(self._espera_s), self._cola:
                 respuesta = await self._http.post(
                     f"{self._url}/chat/completions", json=cuerpo, timeout=self._espera_s
                 )
                 respuesta.raise_for_status()
                 contenido = respuesta.json()["choices"][0]["message"]["content"]
-            except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-                log.warning("El LLM no respondió: %r", exc)
-                raise LLMNoDisponible("sin_respuesta") from exc
+        except (TimeoutError, httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+            log.warning("El LLM no respondió: %r", exc)
+            raise LLMNoDisponible("sin_respuesta") from exc
         try:
             objeto = json.loads(contenido)
         except (TypeError, ValueError) as exc:

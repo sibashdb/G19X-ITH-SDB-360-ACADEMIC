@@ -1056,6 +1056,78 @@
         }
       }
     },
+    "/portal/mensajes": {
+      "post": {
+        "tags": [
+          "portal"
+        ],
+        "summary": "Escribir",
+        "description": "El proveedor le escribe al agente; lo interpretado vuelve como sugerencia, no como oferta.",
+        "operationId": "escribir_portal_mensajes_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MensajeEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VistaPortal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/portal/escalar": {
       "post": {
         "tags": [
@@ -2372,6 +2444,30 @@
               }
             ],
             "title": "Decision"
+          },
+          "interpretacion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interpretacion"
+          },
+          "redaccion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redaccion"
           }
         },
         "type": "object",
@@ -2385,6 +2481,22 @@
           "decision"
         ],
         "title": "MensajeDetalle"
+      },
+      "MensajeEntrada": {
+        "properties": {
+          "texto": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "title": "MensajeEntrada",
+        "description": "Lo que el proveedor le escribe al agente con sus palabras (spec N2, §3)."
       },
       "MensajePortal": {
         "properties": {
@@ -2490,6 +2602,15 @@
             "type": "boolean",
             "title": "Confirmar Valores",
             "default": false
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "formulario",
+              "texto"
+            ],
+            "title": "Origen",
+            "default": "formulario"
           }
         },
         "type": "object",
@@ -3297,6 +3418,16 @@
             "title": "Mensajes"
           },
           "ultima_propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValoresSalida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sugerencia": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ValoresSalida"
