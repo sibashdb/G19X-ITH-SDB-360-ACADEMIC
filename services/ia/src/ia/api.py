@@ -106,9 +106,27 @@ async def interpretar(entrada: InterpretarEntrada, llm: ClienteLLM) -> Interpret
     )
 
 
+def _instrucciones(entrada: RedactarEntrada) -> str:
+    """La decisión en palabras. Un modelo pequeño repite lo que ve, así que solo recibe las
+    condiciones que se cumplen y nunca el estilo como etiqueta."""
+    lineas = [prompts.TIPOS[entrada.tipo], f"Tono: {prompts.TONOS[entrada.estilo]}."]
+    if entrada.cifras:
+        lineas.append(
+            "Cifras: "
+            + "; ".join(f"{c.nombre}: {c.valor} {c.unidad}" for c in entrada.cifras)
+            + "."
+        )
+    else:
+        lineas.append("No hay cifras: no escriba números.")
+    if entrada.hay_mejor_oferta:
+        lineas.append(prompts.HAY_MEJOR_OFERTA)
+    if entrada.ultima_ronda:
+        lineas.append(prompts.ULTIMA_RONDA)
+    return "\n".join(lineas)
+
+
 async def redactar(entrada: RedactarEntrada, llm: ClienteLLM) -> Redaccion:
-    datos = entrada.model_dump(mode="json", exclude={"mensaje_proveedor"})
-    usuario = f"Decisión del agente: {json.dumps(datos, ensure_ascii=False)}"
+    usuario = _instrucciones(entrada)
     if entrada.mensaje_proveedor:
         usuario += f"\n<mensaje_del_proveedor>{entrada.mensaje_proveedor}</mensaje_del_proveedor>"
     esquema = {

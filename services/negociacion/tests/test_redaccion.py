@@ -67,6 +67,24 @@ async def test_un_numero_que_el_motor_no_decidio_usa_la_plantilla(
     }
 
 
+async def test_hablar_de_otras_ofertas_sin_que_las_haya_usa_la_plantilla(
+    cliente: httpx.AsyncClient,
+    comprador: dict[str, str],
+    publicar: Any,
+    ofertar: Any,
+    externos: Any,
+) -> None:
+    externos.redactar = lambda cuerpo: (
+        f"Le proponemos {_precio_propuesto(cuerpo)}. No hay mejores ofertas."
+    )
+    _, sesion = await _ofertar_y_ver(cliente, comprador, publicar, ofertar)
+
+    mensaje = _ultima_del_agente(sesion)
+    assert externos.cuerpos_ia("/redactar")[0]["hay_mejor_oferta"] is False
+    assert mensaje["texto"] == textos.CONTRAOFERTA
+    assert mensaje["decision"]["redaccion"]["motivo"] == "verificacion"
+
+
 async def test_sin_tiempo_no_reintenta(
     app: FastAPI,
     cliente: httpx.AsyncClient,

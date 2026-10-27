@@ -23,7 +23,7 @@ async def test_salud_responde_aunque_no_haya_llm() -> None:
 
 async def test_llm_dice_si_esta_disponible() -> None:
     respuesta = await _get(_app(""), "/llm")
-    assert respuesta.json() == {"disponible": False, "modelo": "llama3.2:3b"}
+    assert respuesta.json() == {"disponible": False, "modelo": "qwen2.5:3b"}
 
 
 async def test_al_arrancar_precarga_el_modelo() -> None:

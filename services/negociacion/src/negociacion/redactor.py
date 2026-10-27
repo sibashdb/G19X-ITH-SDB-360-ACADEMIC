@@ -68,7 +68,9 @@ async def redactar_respuesta(
             break
         modelo, version = respuesta.get("modelo"), respuesta.get("version_prompt")
         texto = str(respuesta.get("texto", "")).strip()
-        if texto and texto_verificado(texto, permitidos):
+        if texto and texto_verificado(
+            texto, permitidos, hay_mejor_oferta=hay_mejor_oferta, ultima_ronda=ultima_ronda
+        ):
             return texto, {
                 "origen": "llm",
                 "modelo": modelo,

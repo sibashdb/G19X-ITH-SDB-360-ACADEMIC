@@ -69,7 +69,7 @@ async def test_interpretar_devuelve_la_intencion_y_los_valores() -> None:
     assert D(cuerpo["precios"]["l1"]) == D("1300")
     assert D(cuerpo["palancas"]["plazo_meses"]) == D("24")
     assert cuerpo["confianza"] == 0.9
-    assert (cuerpo["modelo"], cuerpo["version_prompt"]) == ("llama3.2:3b", "1")
+    assert (cuerpo["modelo"], cuerpo["version_prompt"]) == ("qwen2.5:3b", "2")
 
 
 async def test_interpretar_descarta_lineas_y_palancas_desconocidas_y_precios_no_positivos() -> None:
@@ -121,3 +121,27 @@ async def test_llm_apagado_responde_503() -> None:
     respuesta = await _post(LLMFalso(), "/interpretar", ESQUEMA | {"texto": "x"}, url="")
     assert respuesta.status_code == 503
     assert respuesta.json()["codigo"] == "llm_no_disponible"
+
+
+CIFRA = {"nombre": "Desarrollador(a) senior", "valor": "1318.90", "unidad": "MXN por hora"}
+
+
+async def test_redactar_solo_pide_lo_que_aplica() -> None:
+    """Un modelo pequeño repite lo que ve: ni condiciones falsas ni el estilo como etiqueta."""
+    llm = LLMFalso({"texto": "Le proponemos 1318.90 MXN por hora."})
+    await _post(
+        llm, "/redactar", {"tipo": "contraoferta", "estilo": "balanceado", "cifras": [CIFRA]}
+    )
+    usuario = llm.contenido("user")
+    assert "Desarrollador(a) senior: 1318.90 MXN por hora" in usuario
+    for palabra in ("competitiv", "última", "balanceado", "hay_mejor_oferta", "false"):
+        assert palabra not in usuario, palabra
+
+
+async def test_redactar_avisa_la_competencia_y_la_ultima_ronda_solo_si_aplican() -> None:
+    llm = LLMFalso({"texto": "Le proponemos 1318.90 MXN por hora."})
+    cuerpo = {"tipo": "contraoferta", "estilo": "firme", "cifras": [CIFRA]}
+    await _post(llm, "/redactar", cuerpo | {"hay_mejor_oferta": True, "ultima_ronda": True})
+    usuario = llm.contenido("user")
+    assert "más competitivas" in usuario
+    assert "última" in usuario
