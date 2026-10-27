@@ -643,6 +643,12 @@ El avance frente a las capacidades se mantiene en el README, en «Qué está hec
   calendario.
 - El Tablero (10) se completa antes de N2, del 22/10 al 28/10.
 
+**Resultado (26/10/2026).** N2 se terminó antes de su ventana y cumple las tres metas con
+`qwen2.5:3b`: 99.0 % de campos interpretados correctamente, 0 filtraciones ante 30 ataques,
+0 acuerdos fuera de límites y un turno de 1.7 s en el percentil 95. La elección entre tres
+modelos está en ADR-009 y las cifras, en `docs/qa/evals-llm.md`. El servicio `ia` (2.1) quedó
+como el único acceso al LLM, y sin él el agente negocia con sus plantillas.
+
 El alcance y el calendario vigentes están en [`docs/MVP.md`](../../MVP.md).
 
 ### 6.7 Priorización MoSCoW (qué se recorta si hay retrasos)

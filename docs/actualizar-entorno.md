@@ -128,6 +128,20 @@ Git Bash, ejecute antes `export MSYS_NO_PATHCONV=1`).
    `negociacion.eventos` muestre 0 mensajes listos (*Ready*). La cola `negociacion.eventos.dlq`
    debe quedar vacía.
 
+## Activar el LLM en un entorno ya creado
+
+El servicio `ia` no tiene base de datos, pero un `infra/.env` creado antes de él no trae sus dos
+variables, y sin `LLM_URL` el agente negocia con sus plantillas.
+
+1. Copie `LLM_URL` y `LLM_MODELO` de `infra/.env.example` a `infra/.env`.
+2. Instale Ollama y descargue el modelo, como dice el README
+   ([IA en la negociación](../README.md#ia-en-la-negociación)).
+3. Levante el stack para que se construya `ia` y `negociacion` reciba su URL:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d --build --wait
+   ```
+
 ## Negociaciones de antes de la adjudicación
 
 - Las negociaciones que quedaron en evaluación sin ningún acuerdo no pasan solas a «desierta»: el

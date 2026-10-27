@@ -14,10 +14,11 @@ IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
 ## Qué está hecho y qué falta
 
-Estado al 22/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación
-determinista y la adjudicación con aprobación ya funcionan de punta a punta, en los servicios y
-en la interfaz, hasta el contrato registrado, y el Tablero muestra cómo van las negociaciones y
-cuánto se ahorró.
+Estado al 26/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación y la
+adjudicación con aprobación ya funcionan de punta a punta, en los servicios y en la interfaz,
+hasta el contrato registrado, y el Tablero muestra cómo van las negociaciones y cuánto se ahorró.
+Con un LLM local, el agente entiende lo que el proveedor le escribe y redacta sus respuestas,
+pero cada cifra la sigue decidiendo el motor.
 
 | # | Capacidad del PRD | Estado | Dónde | Qué falta |
 |---|---|---|---|---|
@@ -25,7 +26,7 @@ cuánto se ahorró.
 | 2 | Inteligencia de precios | Hecho | `services/inteligencia`: precio justo P25 · P50 · P75 (línea base y modelo), sobreprecios y vencimientos; pantallas Precios y Alertas | — |
 | 3 | Desempeño del proveedor | Hecho | Puntuación de 0 a 100 con pesos configurables; Ranking y ficha del proveedor | — |
 | 4 | Eventos de negociación | Hecho | `services/negociacion`: compra o renovación, líneas, invitados, ideal y límite por término, palancas con peso y fecha límite; pantalla Negociaciones | — |
-| 5 | Negociación con agente en el portal | Parcial | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual | Los mensajes del agente son plantillas y la nota del proveedor no se interpreta (el LLM llega con N2) |
+| 5 | Negociación con agente en el portal | Hecho | Motor de concesiones determinista, portal del proveedor, escalamiento a una persona y control manual. Con el LLM local (`services/ia`, Ollama con `qwen2.5:3b`), el proveedor le escribe al agente con sus palabras: lo interpretado llena el formulario, que el proveedor confirma, y el agente redacta sus respuestas. Cada número del texto redactado debe ser una cifra del motor; si no, va la plantilla. Sin el LLM, el agente negocia con sus plantillas | — |
 | 6 | Propuestas de negociación | Falta | — | Documento de estrategia y argumentos para negociar a mano |
 | 7 | Recomendación de adjudicación | Hecho | `services/inteligencia`: `POST /adjudicacion/recomendacion` ordena los acuerdos por costo total, desempeño, riesgo y SLA (pesos configurables, 40 · 30 · 15 · 15 por defecto) y explica el orden con plantillas y un análisis de sensibilidad. Acierto top-1 de 85.0 % en 200 eventos simulados (ver Métricas); `services/negociacion`: propuesta del comprador, que justifica si se aparta de la recomendación, y desierta. Pantalla: la evaluación de los acuerdos con la recomendación explicada y los pesos ajustables, la propuesta con su justificación y el resumen de la negociación adjudicada o desierta; en Configuración, la sección «Adjudicación» con los pesos y el umbral | — |
 | 8 | Simulador de escenarios | Falta | — | Después de la adjudicación, si hay tiempo |
@@ -48,7 +49,13 @@ cuánto se ahorró.
 - Aprobación: 0 adjudicaciones sin aprobación cuando superan el umbral o salen de límites y 0
   aprobaciones hechas por quien propuso (pruebas de la API de `negociacion`); cada adjudicación
   aprobada llega a un contrato registrado en `proveedores` (prueba de humo).
-- Faltan las métricas del LLM (interpretación, filtraciones y latencia), que dependen de N2.
+- LLM en la negociación, con `qwen2.5:3b` en la GPU de desarrollo: 99.0 % de campos
+  interpretados correctamente en 150 mensajes etiquetados (meta ≥ 90 %), 0 filtraciones de
+  límites o pesos ante 30 ataques (meta 0), 0 acuerdos fuera de límites y un turno de 1.7 s en
+  el percentil 95 (meta < 20 s), en [`docs/qa/evals-llm.md`](docs/qa/evals-llm.md), con la
+  comparación de tres modelos en [ADR-009](docs/arquitectura/adr/009-eleccion-del-llm-por-evals.md).
+  En la simulación, el bot manipulador mandó 49 ataques de texto por el portal y no movió
+  ningún límite.
 
 **Entregables del cronograma** (PRD §6.5):
 
@@ -62,10 +69,10 @@ cuánto se ahorró.
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
 
-**Lo siguiente** (decisión del 22/10/2026, PRD §6.6.2): el LLM recortado (N2), del 29/10 al
-04/11, con fecha límite. Las propuestas (6) y el
-simulador de escenarios (8) quedan como trabajo futuro. Calendario completo en
-[`docs/MVP.md`](docs/MVP.md).
+**Lo siguiente:** el LLM recortado (N2, PRD §6.6.2) se terminó el 26/10, antes de su ventana
+del 29/10 al 04/11, y cumple sus tres metas. Siguen las imágenes en GitHub Container Registry,
+el sistema funcional (entregable 5) y el manual de usuario. Las propuestas (6) y el simulador de
+escenarios (8) quedan como trabajo futuro. Calendario completo en [`docs/MVP.md`](docs/MVP.md).
 
 ## Cómo se trabajó con IA
 
@@ -97,6 +104,8 @@ usado (Opus, Sonnet o Haiku). El método:
 - Docker Desktop (WSL 2 en Windows)
 - [uv](https://docs.astral.sh/uv/)
 - Node 24, solo para desarrollar la SPA (la imagen del gateway la construye por su cuenta)
+- [Ollama](https://ollama.com), opcional: sin él, el agente negocia con sus plantillas
+  (ver [IA en la negociación](#ia-en-la-negociación))
 
 Si `uv` no encuentra su Python administrado, indíquele la versión con `export UV_PYTHON=3.13`.
 
@@ -132,6 +141,30 @@ de las recomendaciones que se calculen después. Solo afecta al entorno local.
 
 Si su entorno ya existía antes de alguno de los servicios, siga
 [`docs/actualizar-entorno.md`](docs/actualizar-entorno.md).
+
+### IA en la negociación
+
+El LLM es opcional: sin él, el agente negocia igual, con sus plantillas. Para encenderlo:
+
+1. Instale [Ollama](https://ollama.com) en el equipo (fuera de Docker, para que use la GPU) y
+   descargue el modelo, unos 1.9 GB:
+
+   ```bash
+   ollama pull qwen2.5:3b
+   ```
+
+2. Defina `OLLAMA_KEEP_ALIVE=30m` como variable de entorno del usuario y reinicie Ollama. Sin
+   ella, Ollama descarga el modelo a los 5 minutos sin uso y la siguiente respuesta paga la carga
+   en frío (unos 6 s).
+3. Deje en `infra/.env` las variables `LLM_URL` y `LLM_MODELO` de `infra/.env.example`; con
+   `LLM_URL` vacía, el LLM queda apagado. Con el stack levantado, compruebe que `ia` alcanza el
+   modelo:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml exec ia python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/llm').read().decode())"
+   ```
+
+   Debe responder `{"disponible":true,"modelo":"qwen2.5:3b"}`.
 
 ### Secretos de `infra/.env`
 
@@ -179,6 +212,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 | Exportar los contratos OpenAPI a `docs/arquitectura/openapi/` (con el stack levantado) | `uv run python infra/exportar_contratos.py` |
 | Validación de la inteligencia contra la verdad oculta (escribe `docs/qa/validacion-inteligencia.md`) | `uv run python -m inteligencia.validacion --verdad datos/verdad_oculta.json` |
 | Simulación con bots (escribe `docs/qa/simulacion-negociacion.md`) | `SIMULACION_REPORTE=docs/qa/simulacion-negociacion.md uv run pytest services/negociacion/tests/test_simulacion.py` |
+| Evals del LLM, con Ollama en marcha (escribe `docs/qa/evals-llm.md`) | `uv run python -m evals --modelo <modelo> [--modelo <modelo>…]` |
 | Mailpit, buzón de desarrollo de los correos de Keycloak y de las invitaciones a negociar (solo en este equipo) | <http://localhost:8025> |
 | Versión que muestra el Estado del sistema | variable `VERSION_APP` de `infra/.env` (por defecto `desarrollo`) |
 
@@ -210,7 +244,8 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
   - el portal del proveedor muestra el resultado mientras su enlace siga vigente;
   - Configuración tiene la sección «Adjudicación» (pesos y umbral de aprobación) y la Actividad registra el cambio.
 - **Negociaciones en el Tablero**: la fila «Negociaciones» muestra cuántas hay en cada estado y cuántas sesiones escaladas esperan a una persona, y cada número abre la lista filtrada. También muestra el ahorro logrado frente a la primera oferta; si `negociacion` no responde, solo esa fila muestra el error.
-- **Portal del proveedor** (`/portal`): el proveedor entra con el enlace de su invitación, sin cuenta. Ve qué se negocia, la conversación y la última propuesta del agente, y puede enviar ofertas o pedir hablar con una persona.
+- **Portal del proveedor** (`/portal`): el proveedor entra con el enlace de su invitación, sin cuenta. Ve qué se negocia, la conversación y la última propuesta del agente, y puede enviar ofertas o pedir hablar con una persona. Con el LLM, también puede escribirle al agente con sus palabras: lo interpretado llena el formulario y la oferta solo sale cuando el proveedor la confirma.
+- **Supervisión con el LLM**: en la conversación de cada sesión, el comprador ve qué interpretó el LLM de cada mensaje (con su confianza) y si cada respuesta del agente la redactó el LLM o es la plantilla.
 
 ## Estructura
 
@@ -221,8 +256,10 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 | `services/administracion` | Microservicio de administración: usuarios, bitácora, correos, estado del sistema y panel (`/api/administracion/`) |
 | `services/inteligencia` | Microservicio de inteligencia: precio justo, puntuación de proveedores, alertas y Tablero (`/api/inteligencia/`) |
 | `services/negociacion` | Microservicio de negociación: eventos, sesiones, motor de concesiones, portal del proveedor, adjudicación, bitácora y los indicadores de negociaciones del Tablero (`/api/negociacion/`) |
+| `services/ia` | Único acceso al LLM: interpreta los mensajes del proveedor y redacta las respuestas del agente; solo en la red interna, sin ruta en el gateway |
 | `tools/generador` | Datos sintéticos reproducibles del ERP simulado |
 | `tools/simulador` | Bots de proveedor que negocian por el portal y miden al agente |
+| `tools/evals` | Evals del LLM: 150 mensajes etiquetados y 30 ataques |
 | `web` | SPA en React servida por el gateway |
 | `infra` | Docker Compose, Nginx, Keycloak, PostgreSQL |
 
@@ -234,8 +271,10 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 - **Realm solo para desarrollo.** El realm incluido (`infra/keycloak/realm-plataforma.json`)
   trae credenciales de prueba y el cliente `pruebas-humo` con *password grant*; no debe usarse
   fuera de un entorno local.
-- **Agente sin LLM.** Los mensajes del agente son plantillas y la nota del proveedor no se
-  interpreta; la IA llega con N2.
+- **LLM pequeño y local.** La GPU de desarrollo (4 GB) solo admite modelos de unos 3 mil
+  millones de parámetros: pueden interpretar mal un mensaje. Por eso lo interpretado solo llena
+  el formulario, que el proveedor confirma, y el motor sigue decidiendo cada cifra. La nota que
+  acompaña una oferta del formulario es para compras y no se interpreta.
 - **Portal solo con HTTPS o localhost.** El portal del proveedor genera claves de idempotencia
   con `crypto.randomUUID`, que el navegador solo ofrece en un contexto seguro; publicado por HTTP
   en otro host, enviar una oferta falla.

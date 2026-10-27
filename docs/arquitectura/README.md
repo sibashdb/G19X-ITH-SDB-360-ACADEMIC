@@ -1,7 +1,7 @@
 # Documento de arquitectura
 
 Entregable 3 del cronograma (PRD §6.5). Describe la plataforma tal como está construida al
-20/10/2026, después de N1 y de la adjudicación con sus servicios y su interfaz. Lo planeado
+26/10/2026, después de N1, de la adjudicación con sus servicios y su interfaz, y del LLM (N2). Lo planeado
 aparece marcado como tal. Los requerimientos y el diseño original están en el
 [PRD](../superpowers/specs/2026-09-28-plataforma-negociacion-proveedores-design.md).
 
@@ -20,13 +20,13 @@ aparece marcado como tal. Los requerimientos y el diseño original están en el
 |---|---|---|
 | [001](adr/001-microservicios.md) | Microservicios en lugar de monolito modular | Aceptada |
 | [002](adr/002-el-llm-habla-el-motor-decide.md) | «El LLM habla, el motor decide» | Aceptada |
-| [003](adr/003-llm-local-con-ollama.md) | LLM local con Ollama detrás de una API compatible con OpenAI | Propuesta (N2) |
+| [003](adr/003-llm-local-con-ollama.md) | LLM local con Ollama detrás de una API compatible con OpenAI | Implementada (N2) |
 | [004](adr/004-keycloak-oidc.md) | Keycloak (OIDC), migrable a Entra ID | Aceptada |
 | [005](adr/005-eventos-rabbitmq-outbox.md) | RabbitMQ con outbox transaccional y consumidores idempotentes | Aceptada (aio-pika en lugar de FastStream) |
 | [006](adr/006-postgresql-una-base-por-servicio.md) | Una instancia de PostgreSQL con una base y un usuario por servicio | Aceptada |
 | [007](adr/007-concesiones-dependientes-del-tiempo.md) | Concesiones dependientes del tiempo con utilidad multiatributo | Aceptada |
 | [008](adr/008-benchmark-por-cuantiles.md) | Precio justo con regresión por cuantiles y regla de promoción | Aceptada |
-| [009](adr/009-eleccion-del-llm-por-evals.md) | Elección del LLM local según los evals | Propuesta (N2) |
+| [009](adr/009-eleccion-del-llm-por-evals.md) | Elección del LLM local según los evals | Aceptada: `qwen2.5:3b` |
 | [010](adr/010-negociacion-determinista-antes-del-llm.md) | Negociación determinista antes del LLM, y adjudicación antes que la IA | Aceptada |
 | [011](adr/011-quien-aprueba-una-adjudicacion.md) | Quién aprueba una adjudicación: el aprobador sobre el umbral o fuera de límites, si no el comprador; nunca quien propone | Aceptada |
 

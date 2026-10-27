@@ -19,5 +19,8 @@ oferta estructurada y redacta mensajes y explicaciones.
 
 - El sistema es medible: el simulador de bots comprueba que no haya acuerdos fuera de límites
   (0 en 74 sesiones).
-- Desde N1 se cumple de la forma más estricta: todavía no hay LLM, y el agente usa plantillas.
-- Cuando llegue N2, el LLM nunca podrá cambiar un monto ni ver el límite.
+- En N1 se cumplía de la forma más estricta: no había LLM y el agente usaba plantillas.
+- Con N2 (26/10/2026), el LLM no cambia montos ni ve límites: el intérprete no recibe ideales,
+  límites, pesos ni referencias; lo que interpreta solo llena el formulario, que el proveedor
+  confirma; y cada número del texto que redacta debe ser una cifra que decidió el motor, o se
+  envía la plantilla.

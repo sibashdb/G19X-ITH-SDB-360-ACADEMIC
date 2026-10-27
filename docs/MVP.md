@@ -1,6 +1,6 @@
 # MVP: alcance vigente
 
-Actualizado al 22/10/2026. Parte de las 10 capacidades del [PRD](PRD.md) y aplica dos recortes:
+Actualizado al 26/10/2026. Parte de las 10 capacidades del [PRD](PRD.md) y aplica dos recortes:
 la replanificación del 15/10/2026 (PRD §6.6.1, [ADR-010](arquitectura/adr/010-negociacion-determinista-antes-del-llm.md))
 y la decisión sobre el LLM del 22/10/2026 (PRD §6.6.2). El estado detallado de cada capacidad
 está en el [README](../README.md#qué-está-hecho-y-qué-falta).
@@ -13,7 +13,7 @@ está en el [README](../README.md#qué-está-hecho-y-qué-falta).
 | 2 | Inteligencia de precios | Must (línea base), Should (modelo) | Hecho |
 | 3 | Desempeño del proveedor | Must | Hecho |
 | 4 | Eventos de negociación | Must | Hecho |
-| 5 | Negociación con agente en el portal | Must con el agente determinista; el LLM, Should | Hecho el agente determinista; el LLM, del 29/10 al 04/11 (abajo) |
+| 5 | Negociación con agente en el portal | Must con el agente determinista; el LLM, Should | Hecho: el agente determinista y, el 26/10, el LLM, que cumple sus tres metas (abajo) |
 | 7 | Recomendación de adjudicación | Must | Hecho |
 | 9 | Aprobaciones y bitácora | Must | Hecho |
 | 10 | Tablero | Should | Hecho: incluye el estado de las negociaciones y el ahorro logrado frente a la primera oferta |
@@ -53,6 +53,15 @@ El residente decidió que **el LLM entra, recortado y con fecha límite**:
   trabajo futuro en el PRD y el 05/11 empieza el manual de usuario.
 - **Límite del equipo:** la GPU de desarrollo tiene 4 GB, así que solo caben modelos locales de
   unos 3 mil millones de parámetros, cuantizados.
+
+**Resultado (26/10/2026):** N2 se terminó antes de su ventana y cumple las tres metas con
+`qwen2.5:3b`: 99.0 % de campos interpretados bien, 0 filtraciones ante 30 ataques y un turno de
+1.7 s en el percentil 95. Se comparó con `llama3.2:3b` y `gemma3:4b`
+([ADR-009](arquitectura/adr/009-eleccion-del-llm-por-evals.md),
+[`qa/evals-llm.md`](qa/evals-llm.md)). La revisión en el navegador
+([`qa/revision-ia-negociacion.md`](qa/revision-ia-negociacion.md)) encontró textos redactados
+que revelaban la falta de competencia o anunciaban una última ronda falsa; se corrigieron con
+otro prompt y un candado en `negociacion` que, ante esos textos, envía la plantilla.
 
 ## Recorrido de demostración (5 minutos)
 
@@ -96,6 +105,6 @@ El calendario completo hasta el 07/12, con el backlog y los riesgos, está en el
 | Fechas | Trabajo |
 |---|---|
 | 22/10 – 28/10 | Atender las revisiones del asesor del 22/10 y del 23/10. Ya hecho: este documento y el PRD corto, el uso de IA en el README, la prueba de arranque desde cero, el Tablero (10) con sus sesiones escaladas, las vulnerabilidades de npm, el plan del proyecto (entregable 4) y el recorrido de demostración |
-| 29/10 – 04/11 | El LLM recortado (N2) |
+| 29/10 – 04/11 | Era la ventana del LLM recortado (N2), que se terminó el 26/10; queda de holgura |
 | 05/11 – 11/11 | Imágenes en GitHub Container Registry, sistema funcional (entregable 5) e inicio del manual de usuario |
 | 12/11 – 07/12 | Reporte QA (6), manuales (7), plan de mantenimiento (8), capacitación (9) e informe final (10) |
