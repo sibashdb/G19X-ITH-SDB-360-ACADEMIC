@@ -1,6 +1,7 @@
 """arrancar.py con y sin las imágenes publicadas en GHCR (entregable 5)."""
 
 import importlib.util
+import re
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -54,6 +55,34 @@ def test_una_etiqueta_mal_escrita_se_rechaza_sin_llamar_a_docker(
     monkeypatch.setattr(arrancar.subprocess, "run", lambda *a, **k: llamadas.append(a))
     assert arrancar.main(["--imagenes", etiqueta]) == 2
     assert llamadas == []
+
+
+def _flujo() -> str:
+    return (RAIZ / ".github" / "workflows" / "imagenes.yml").read_text(encoding="utf-8")
+
+
+def test_el_flujo_publica_los_mismos_servicios() -> None:
+    flujo = _flujo()
+    assert arrancar.IMAGENES in flujo
+    for servicio in arrancar.SERVICIOS_PROPIOS:
+        dockerfile = f"services/{servicio}/Dockerfile"
+        if servicio == "gateway":
+            dockerfile = "web/Dockerfile"
+        assert re.search(rf"servicio: {servicio}\s+dockerfile: {re.escape(dockerfile)}", flujo)
+    # El job latest recorre los mismos servicios, en el mismo orden.
+    assert f"for servicio in {' '.join(arrancar.SERVICIOS_PROPIOS)}; do" in flujo
+
+
+def test_el_flujo_corre_con_las_etiquetas_mvp() -> None:
+    flujo = _flujo()
+    assert 'tags: ["mvp-*"]' in flujo
+    assert "workflow_dispatch:" in flujo
+
+
+def test_una_candidata_no_mueve_latest() -> None:
+    latest = _flujo().split("\n  latest:\n", 1)[1]
+    assert "!contains(github.ref_name, '-rc')" in latest
+    assert "!contains(inputs.etiqueta, '-rc')" in latest
 
 
 def test_el_compose_nombra_cada_servicio_propio_con_su_imagen() -> None:
