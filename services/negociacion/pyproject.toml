@@ -12,7 +12,7 @@ dependencies = [
     "alembic>=1.14",
     "aio-pika>=9.5",
     "httpx>=0.28",
-    "tzdata>=2024.1",  # base IANA para ZoneInfo en Windows e imágenes slim
+    "tzdata>=2026.5",  # base IANA para ZoneInfo en Windows e imágenes slim
 ]
 
 [tool.uv.sources]
