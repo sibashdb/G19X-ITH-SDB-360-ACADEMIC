@@ -66,7 +66,7 @@ pero cada cifra la sigue decidiendo el motor.
 | 2 | Propuesta técnica | Hecho: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md) |
 | 3 | Documento de arquitectura | Hecho: [`docs/arquitectura/`](docs/arquitectura/README.md) (C4, modelo de datos, eventos, OpenAPI, AsyncAPI y ADR) |
 | 4 | Plan del proyecto | Hecho: [`docs/plan-del-proyecto.md`](docs/plan-del-proyecto.md) (incrementos hechos, calendario, backlog y riesgos) |
-| 5 | Sistema funcional | En curso: este repositorio, con la versión que se entrega en la etiqueta `mvp-1.1` ([`docs/MVP.md`](docs/MVP.md#versión-que-se-entrega)); falta publicar las imágenes en GHCR |
+| 5 | Sistema funcional | Hecho: este repositorio, con la versión que se entrega en la etiqueta `mvp-1.2` ([`docs/MVP.md`](docs/MVP.md#versión-que-se-entrega)), y sus imágenes en GitHub Container Registry, que arrancan sin compilar ([`docs/qa/arranque-desde-imagenes.md`](docs/qa/arranque-desde-imagenes.md)) |
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
 | 7 | Manuales | En curso: el manual de usuario ([`docs/manuales/manual-de-usuario.md`](docs/manuales/manual-de-usuario.md)) ya tiene al comprador, al proveedor y al aprobador; el del administrador y el manual técnico, del 21/11 al 28/11 |
 | 8–10 | Plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 21/11 al 07/12 |
