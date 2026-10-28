@@ -98,6 +98,21 @@ def test_el_flujo_valida_la_etiqueta_antes_de_publicar() -> None:
     assert valida < construir and tiene_imagenes < construir
 
 
+def test_el_flujo_fija_cada_accion_a_un_commit() -> None:
+    """Una etiqueta como @v3 se puede mover; un hash completo no (SonarCloud, S7637)."""
+    usos = re.findall(r"uses: (\S+)", _flujo())
+    assert usos
+    for uso in usos:
+        assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", uso), uso
+
+
+def test_probar_no_compila_paquetes_ni_resuelve_versiones() -> None:
+    """Con el lockfile y sin compilar desde el código fuente (SonarCloud, S8541 y S8544)."""
+    probar = _flujo().split("\n  probar:\n", 1)[1].split("\n  latest:\n", 1)[0]
+    assert "uv sync --all-packages --locked --no-build" in probar
+    assert 'uv run --locked --no-build python infra/arrancar.py --imagenes "$ETIQUETA"' in probar
+
+
 @pytest.mark.parametrize("etiqueta", ["mvp-1.2", "mvp-1.2-rc1", "mvp-10.0", "latest"])
 def test_las_etiquetas_validas_pasan(etiqueta: str) -> None:
     assert arrancar.ETIQUETA.fullmatch(etiqueta)
