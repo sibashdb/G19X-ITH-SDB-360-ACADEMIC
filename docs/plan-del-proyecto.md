@@ -1,6 +1,6 @@
 # Plan del proyecto
 
-Entregable 4 del cronograma. Actualizado al 26/10/2026.
+Entregable 4 del cronograma. Actualizado al 27/10/2026.
 
 Junta en un solo lugar:
 - lo hecho, por incremento y con sus fechas reales;
@@ -20,9 +20,11 @@ Cada incremento sigue el mismo ciclo, descrito en el README («Cómo se trabajó
 2. Un plan en `docs/superpowers/plans/`, también aprobado.
 3. La implementación con pruebas primero y revisión independiente.
 4. La revisión en el navegador, en `docs/qa/`.
-5. La integración a `main` y el push a GitHub.
+5. La integración a `main` con un pull request y el CI en verde, y el push a GitHub.
 
-Desde el 22/10 el trabajo se sube a GitHub cada día.
+Desde el 22/10 el trabajo se sube a GitHub cada día. Hasta N2, la integración era por avance
+rápido y el CI corría después, en `main`; desde el 27/10 cada integración entra con un pull
+request, y cada versión que se entrega lleva una etiqueta (`mvp-1.0` sin el LLM, `mvp-1.1` con él).
 
 El avance se sigue en tres lugares:
 - la tabla «Qué está hecho y qué falta» del README;
@@ -50,7 +52,7 @@ Las métricas y las revisiones de cada incremento están en [`docs/qa/`](qa/).
 | Fechas | Trabajo | Entregables |
 |---|---|---|
 | 29/10 – 04/11 | Era la ventana de N2, que se terminó el 26/10: queda de holgura | — |
-| 05/11 – 11/11 | Imágenes en GitHub Container Registry, sistema funcional, inicio del manual de usuario | 5 |
+| 05/11 – 11/11 | Imágenes en GitHub Container Registry y sistema funcional; seguir el manual de usuario | 5 |
 | 12/11 – 20/11 | Pruebas de extremo a extremo (Playwright), de carga (Locust) y de seguridad (ZAP y Trivy); Reporte QA | 6 |
 | 21/11 – 28/11 | Manual técnico y manual de usuario por rol; plan de mantenimiento | 7 y 8 |
 | 29/11 – 02/12 | Capacitación a administradores y compradores, con su acta | 9 |
@@ -88,7 +90,7 @@ Registro del PRD (§6.8), actualizado al 26/10/2026.
 | El modelo local interpreta mal las ofertas (N2) | Media | Medio | Mitigado | El proveedor confirma lo interpretado en el formulario. Con `qwen2.5:3b`, 99.0 % de campos correctos; el error que queda es poner un valor en la palanca equivocada |
 | La GPU de 4 GB no alcanza para el LLM | Alta | Medio | Cerrado | `qwen2.5:3b` cabe completo en la GPU: turno de 1.7 s en el percentil 95 y carga en frío de 6 a 9 s. Sin el LLM, el agente usa sus plantillas |
 | Los datos sintéticos inflan las métricas | Media | Medio | Mitigado | Verdad oculta y validación temporal. El acierto de 85.0 % se reporta con su intervalo (80.1 a 89.9 %) |
-| La documentación final se acumula (entregables 6 a 10) | Media | Alto | Abierto | El manual de usuario empieza el 05/11. La base ya existe: README, `docs/qa/`, arquitectura y la ayuda dentro de la aplicación |
+| La documentación final se acumula (entregables 6 a 10) | Media | Alto | Abierto | El manual de usuario empezó el 27/10: ya tiene al comprador, al proveedor y al aprobador (`docs/manuales/manual-de-usuario.md`). La base del resto ya existe: README, `docs/qa/`, arquitectura y la ayuda dentro de la aplicación |
 | Faltan las pruebas de extremo a extremo, de carga y de seguridad | Alta | Alto | Abierto | Fase de calidad del 12/11 al 20/11. Mientras tanto, la prueba de humo recorre el flujo completo en cada CI |
 | El avance no se ve en GitHub | Media | Alto | Mitigado | Push diario desde el 22/10, después de la revisión del 19/10 |
 | Dependencias vulnerables o sin versión fija | Media | Medio | Mitigado | uv fijo en 0.12.20, `npm audit` en 0 al 23/10, Dependabot activo y Trivy y ZAP en la fase de calidad |

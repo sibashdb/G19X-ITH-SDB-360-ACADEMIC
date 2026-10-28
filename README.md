@@ -14,7 +14,7 @@ IA con límites fijados por el comprador y adjudicación con aprobación humana.
 
 ## Qué está hecho y qué falta
 
-Estado al 26/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación y la
+Estado al 27/10/2026 frente a las 10 capacidades del MVP del PRD (§1.3). La negociación y la
 adjudicación con aprobación ya funcionan de punta a punta, en los servicios y en la interfaz,
 hasta el contrato registrado, y el Tablero muestra cómo van las negociaciones y cuánto se ahorró.
 Con un LLM local, el agente entiende lo que el proveedor le escribe y redacta sus respuestas,
@@ -66,9 +66,10 @@ pero cada cifra la sigue decidiendo el motor.
 | 2 | Propuesta técnica | Hecho: [`docs/propuesta-tecnica.md`](docs/propuesta-tecnica.md) |
 | 3 | Documento de arquitectura | Hecho: [`docs/arquitectura/`](docs/arquitectura/README.md) (C4, modelo de datos, eventos, OpenAPI, AsyncAPI y ADR) |
 | 4 | Plan del proyecto | Hecho: [`docs/plan-del-proyecto.md`](docs/plan-del-proyecto.md) (incrementos hechos, calendario, backlog y riesgos) |
-| 5 | Sistema funcional | En curso: este repositorio; falta publicar las imágenes en GHCR |
+| 5 | Sistema funcional | En curso: este repositorio, con la versión que se entrega en la etiqueta `mvp-1.1` ([`docs/MVP.md`](docs/MVP.md#versión-que-se-entrega)); falta publicar las imágenes en GHCR |
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
-| 7–10 | Manuales, plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 12/11 al 07/12 |
+| 7 | Manuales | En curso: el manual de usuario ([`docs/manuales/manual-de-usuario.md`](docs/manuales/manual-de-usuario.md)) ya tiene al comprador, al proveedor y al aprobador; el del administrador y el manual técnico, del 21/11 al 28/11 |
+| 8–10 | Plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 21/11 al 07/12 |
 
 **Lo siguiente:** el LLM recortado (N2, PRD §6.6.2) se terminó el 26/10, antes de su ventana
 del 29/10 al 04/11, y cumple sus tres metas. Siguen las imágenes en GitHub Container Registry,
@@ -282,6 +283,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 
 ## Convenciones
 
-- *Trunk-based*: ramas cortas `feat/…` o `fix/…` y PR hacia `main`.
+- *Trunk-based*: ramas cortas `feat/…` o `fix/…` y PR hacia `main`, que se integra solo con el CI en verde (desde el 27/10; antes se integraba por avance rápido y el CI corría después, en `main`).
+- Cada versión que se entrega lleva una etiqueta anotada `mvp-X.Y`, que no se mueve.
 - Mensajes con [Conventional Commits](https://www.conventionalcommits.org/es/).
 - Toda regla de negocio nueva se desarrolla con TDD.

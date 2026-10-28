@@ -51,6 +51,11 @@ plantillas.
 - El LLM ve las líneas como `l1`, `l2`…, no por su id. Así una negociación real se le presenta
   igual que en los evals, sin gastar tokens en los UUID. Los evals miden hasta 3 líneas; una
   negociación admite 20.
+- Los evals se definieron en la spec y el plan de N2 antes de escribir código, pero su commit
+  (`4be178f`) llegó después del primero del servicio `ia` (`319d6c5`), el mismo 26/10. La
+  elección del modelo sí se hizo con ellos. La línea base sin el LLM, que no interpreta nada
+  (0 % de campos, 0 filtraciones), se corrió el 27/10
+  ([`evals-linea-base.md`](../../qa/evals-linea-base.md)).
 - Las cifras se midieron en la GPU de desarrollo. La carga en frío varió de 6 a 9 s con
   `qwen2.5:3b` entre corridas. Otro equipo, u otro modelo, se vuelve a medir con
   `uv run python -m evals --modelo <modelo>`.
