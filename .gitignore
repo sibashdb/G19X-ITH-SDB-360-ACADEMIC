@@ -10,6 +10,9 @@ htmlcov/
 # Node
 node_modules/
 web/dist/
+# Resultados de Playwright (las capturas del manual van en docs/manuales/img/)
+web/test-results/
+web/playwright-report/
 # Entorno y datos generados
 .env
 infra/.env

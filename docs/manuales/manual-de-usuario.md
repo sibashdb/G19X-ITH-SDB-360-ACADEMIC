@@ -1,7 +1,8 @@
 # Manual de usuario de PluriOne
 
-Parte del entregable 7. Versión del 28/10/2026: ya tiene los pasos de los cuatro roles y las
-preguntas frecuentes; lo que falta está al final, en «Pendientes de este manual». La misma
+Parte del entregable 7. Versión del 28/10/2026: los pasos de los cuatro roles, con capturas de
+pantalla, y las preguntas frecuentes. Las capturas son de la versión `mvp-1.2` con datos de prueba,
+y se vuelven a tomar con un comando (ver el final). La misma
 información, más breve, está dentro de la aplicación, en el Centro de ayuda (botón «?» de la
 barra superior).
 
@@ -39,13 +40,19 @@ riesgo y el ahorro potencial. La fila «Negociaciones» dice cuántas hay en cad
 sesiones escaladas esperan a una persona; cada número abre la lista filtrada. También muestra el
 ahorro logrado: lo adjudicado frente a la primera oferta de cada proveedor ganador.
 
+![El Tablero del comprador, con la fila «Negociaciones»](img/comprador-tablero.jpg)
+
 ### 2.2 Consultar proveedores y precios
 
 1. En **Proveedores**, busque por nombre o RFC, o filtre por categoría, estado o «En riesgo».
    Abra un proveedor para ver su puntuación (de 0 a 100), sus alertas, sus contratos y su
    desempeño mensual.
+
+   ![La lista de proveedores](img/comprador-proveedores.jpg)
 2. En **Precios**, elija un servicio, ajuste la cantidad y el plazo y pulse «Calcular». Verá el
    precio de referencia con tres valores: P25 (bajo), P50 (típico) y P75 (alto).
+
+   ![Precios: la referencia P25 · P50 · P75 de un servicio](img/comprador-precios.jpg)
 3. En **Alertas** están los sobreprecios, los contratos por vencer y los proveedores en riesgo.
 
 ### 2.3 Crear y publicar una negociación
@@ -56,14 +63,20 @@ ahorro logrado: lo adjudicado frente a la primera oferta de cada proveedor ganad
    («Balanceado» por defecto) y el plazo del contrato.
 3. Elija los servicios con su cantidad y los proveedores que invita (hasta 10). Pulse «Crear
    borrador».
+
+   ![El formulario de una negociación nueva](img/comprador-nueva-negociacion.jpg)
 4. En el borrador, revise el **ideal** y el **límite** de cada servicio junto a la banda
    P25 · P50 · P75. El límite es lo más que está dispuesto a pagar; el agente nunca lo revela.
    Si queda arriba del P75, verá un aviso.
+
+   ![El borrador, con el ideal y el límite junto a la banda de referencia](img/comprador-limites.jpg)
 5. Si le importan otros términos (plazo, plazo de pago, SLA, tope de aumento o cuota de
    implementación), actívelos y reparta 100 puntos de peso entre ellos y el precio.
 6. Pulse «Guardar cambios», después «Publicar», y confirme. Cada proveedor recibe su enlace por
    correo; usted lo ve **una sola vez** para copiarlo. Si un proveedor lo pierde, use «Reenviar»
    en la tabla de sesiones: el enlace anterior deja de servir.
+
+   ![El enlace de invitación, que se muestra una sola vez (aquí, tapado)](img/comprador-enlace.jpg)
 
 ### 2.4 Supervisar e intervenir
 
@@ -80,15 +93,21 @@ ahorro logrado: lo adjudicado frente a la primera oferta de cada proveedor ganad
 - Si un proveedor pide hablar con una persona, su sesión aparece como «Escalada» hasta que usted
   la atienda y la devuelva.
 
+  ![La sesión de un proveedor: la conversación y «¿Por qué respondió esto?»](img/comprador-sesion.jpg)
+
 ### 2.5 Adjudicar
 
 1. Cuando vence la fecha límite o terminan todas las sesiones, la negociación pasa a
    «En evaluación». La sección «Evaluación» ordena los acuerdos del mejor al peor, marca el
    «Recomendado» y explica «Por qué se recomienda».
+
+   ![La evaluación de los acuerdos, con el recomendado](img/comprador-evaluacion.jpg)
 2. Pulse «Adjudicar» en la fila del proveedor que elija. Si no es el recomendado, escriba la
    justificación.
 3. La confirmación dice si la adjudicación será directa o irá a un aprobador, y por qué. Pulse
    «Confirmar».
+
+   ![La confirmación avisa que la adjudicación irá a un aprobador](img/comprador-adjudicar.jpg)
 4. Si ningún acuerdo le conviene, pulse «Declarar desierta», escriba el motivo y confirme. No se
    puede deshacer.
 
@@ -103,6 +122,8 @@ Abra el enlace de su correo de invitación. Es personal: no lo comparta. Deja de
 la fecha límite, si compras se lo reenvía o si se cancela la negociación. El portal muestra qué
 se negocia, la fecha límite, cuántas rondas le quedan y la conversación con el agente.
 
+![El portal del proveedor](img/proveedor-portal.jpg)
+
 ### 3.2 Enviar una oferta
 
 1. En «Su oferta», escriba el precio unitario de cada servicio y el valor de cada término que se
@@ -111,11 +132,15 @@ se negocia, la fecha límite, cuántas rondas le quedan y la conversación con e
 3. Pulse «Enviar oferta». El agente le responde al momento: acepta, le hace una contraoferta o
    cierra sin acuerdo. Si un precio parece un error de captura, le pide confirmarlo antes de
    responder, y eso no gasta una ronda.
+
+   ![La contraoferta del agente y «Aceptar esta propuesta»](img/proveedor-contraoferta.jpg)
 4. Para aceptar la última propuesta del agente, pulse «Aceptar esta propuesta», que llena el
    formulario, y después «Enviar oferta».
 
 Si la negociación termina con un acuerdo, es tentativo: no es vinculante hasta que la empresa lo
 adjudique y lo apruebe.
+
+![La negociación terminó con un acuerdo tentativo](img/proveedor-acuerdo.jpg)
 
 ### 3.3 Escribirle al agente
 
@@ -125,6 +150,8 @@ necesite, y pulsar «Enviar mensaje».
 - Si su mensaje trae una oferta, la plataforma llena el formulario con lo que entendió. Revísela
   y pulse «Enviar oferta» para confirmarla: solo cuenta cuando usted la confirma.
 - Si pregunta algo, el agente le contesta sin cambiar su oferta ni gastar una ronda.
+
+  ![«Escríbale al agente» con una oferta escrita con palabras](img/proveedor-escribir.jpg)
 
 ### 3.4 Hablar con una persona
 
@@ -144,6 +171,8 @@ En el Tablero, la fila «Negociaciones» marca «Por aprobar» con el número de
 esperan. Pulse ese número, o abra Negociaciones: su lista empieza en «Por aprobar» si hay
 propuestas esperando.
 
+![El Tablero del aprobador marca «Por aprobar»](img/aprobador-tablero.jpg)
+
 ### 4.2 Aprobar o rechazar
 
 1. Abra la negociación. Verá la evaluación con la propuesta resaltada, su justificación, las
@@ -151,8 +180,12 @@ propuestas esperando.
    umbral de aprobación»).
 2. Pulse «Aprobar» para adjudicar, o «Rechazar» y escriba el motivo.
 
+   ![La propuesta pendiente de aprobación, con «Aprobar» y «Rechazar»](img/aprobador-propuesta.jpg)
+
 Al aprobar, la negociación queda «Adjudicada» y se registra el contrato. Al rechazar, vuelve a
 «En evaluación» y compras puede proponer de nuevo o declararla desierta.
+
+![La negociación adjudicada, con su resultado y el folio del contrato](img/aprobador-resultado.jpg)
 
 ### 4.3 Reglas que conviene saber
 
@@ -170,6 +203,8 @@ negociaciones, pero no las cambia.
 ### 5.1 Panel de administración
 
 Es la primera pantalla del área Sistema. Cada tarjeta lleva a la pantalla con el detalle:
+
+![El Panel de administración](img/admin-panel.jpg)
 
 | Tarjeta | Qué muestra |
 |---|---|
@@ -196,6 +231,8 @@ Es la primera pantalla del área Sistema. Cada tarjeta lleva a la pantalla con e
 - **Desactivar:** las cuentas se desactivan, no se borran. La persona deja de entrar, sus
   sesiones se cierran y su historial se conserva. Puede activarla de nuevo cuando quiera.
 
+  ![La lista de usuarios](img/admin-usuarios.jpg)
+
 ### 5.3 Contraseñas y correos del sistema
 
 - **Invitación:** un correo con un enlace para que la persona defina su contraseña. Vence en
@@ -208,6 +245,8 @@ Es la primera pantalla del área Sistema. Cada tarjeta lleva a la pantalla con e
   proveedores («Resultado de negociación»).
   - Si el de una persona no salió, reintente desde su ficha o asígnele una contraseña temporal.
   - A una cuenta desactivada no se le puede enviar el correo: actívela primero.
+
+    ![Correos: cada correo enviado y si salió bien](img/admin-correos.jpg)
 
 ### 5.4 Actividad (bitácora) y su exportación
 
@@ -223,6 +262,8 @@ Es la primera pantalla del área Sistema. Cada tarjeta lleva a la pantalla con e
 2. Pulse «Exportar CSV» para descargar los registros filtrados y abrirlos en Excel. Se exportan
    como máximo los 10,000 más recientes: acote las fechas si necesita más.
 
+   ![La Actividad, con sus filtros y «Exportar CSV»](img/admin-actividad.jpg)
+
 ### 5.5 Catálogo de servicios
 
 El catálogo lista los servicios que aparecen en los contratos y en Precios. Se dan de alta, se
@@ -233,6 +274,8 @@ editan o se desactivan en **Catálogo**, y también se cargan con la importació
   moneda, porque los precios históricos dependen de ellas.
 - Un servicio desactivado deja de aparecer en Precios, pero sus contratos y su historial se
   conservan.
+
+  ![El catálogo de servicios](img/admin-catalogo.jpg)
 
 ### 5.6 Importación de los datos del ERP
 
@@ -249,6 +292,8 @@ una tabla con la fila, la columna y el problema de cada error. Corrija el archiv
 (el ERP o la hoja de cálculo), guárdelo otra vez como CSV en UTF-8 y vuelva a importarlo con
 «Elegir otro archivo». Cada intento, completo o rechazado, queda en la Actividad con quién lo
 hizo.
+
+![La importación de los datos del ERP](img/admin-importacion.jpg)
 
 ### 5.7 Configuración: puntuación, adjudicación y modelo de precios
 
@@ -276,6 +321,8 @@ adjudicación», aparte de la puntuación.
 
 Cada cambio de la configuración queda en la Actividad con quién lo hizo y qué campos cambió.
 
+![La Configuración: puntuación, adjudicación y modelo de precios](img/admin-configuracion.jpg)
+
 ### 5.8 Estado del sistema
 
 **Estado del sistema** comprueba cada 30 segundos estas piezas:
@@ -293,6 +340,8 @@ Cada cambio de la configuración queda en la Actividad con quién lo hizo y qué
 
 En la mensajería también avisa si un mensaje falló 5 veces y quedó apartado. Si un servicio sigue
 caído, avise al equipo técnico con la hora y el detalle que muestra su tarjeta.
+
+![El Estado del sistema](img/admin-estado.jpg)
 
 ## 6. Preguntas frecuentes
 
@@ -328,7 +377,21 @@ revise su carpeta de correo no deseado.
 **¿Puedo borrar un usuario o un servicio?** (administración). No. Se desactivan, para conservar
 su historial y la bitácora, y se pueden activar de nuevo cuando quiera.
 
+## Cómo se actualizan las capturas
+
+Las toma `web/e2e/capturas-manual.e2e.ts`. Con el stack levantado
+(`uv run python infra/arrancar.py`), sigue el recorrido de demostración de
+[`docs/MVP.md`](../MVP.md) con los usuarios de desarrollo y vuelve a guardar las imágenes en
+`docs/manuales/img/`:
+
+```bash
+cd web
+npx playwright test capturas-manual
+```
+
+El enlace de invitación sale tapado en su captura. Conviene correrlo sobre un stack recién creado
+para que los números sean los de un solo recorrido.
+
 ## Pendientes de este manual
 
-- Capturas de pantalla de cada paso.
 - Una revisión con una persona de compras de PluriOne antes de la capacitación (entregable 9).
