@@ -98,6 +98,7 @@ services:
       start_period: 30s
 
   proveedores:
+    image: ghcr.io/sibashdb/g19x-ith-sdb-360-academic/proveedores:${PLURIONE_VERSION:-local}
     build:
       context: ..
       dockerfile: services/proveedores/Dockerfile
@@ -128,6 +129,7 @@ services:
       start_period: 20s
 
   administracion:
+    image: ghcr.io/sibashdb/g19x-ith-sdb-360-academic/administracion:${PLURIONE_VERSION:-local}
     build:
       context: ..
       dockerfile: services/administracion/Dockerfile
@@ -169,6 +171,7 @@ services:
       start_period: 20s
 
   inteligencia:
+    image: ghcr.io/sibashdb/g19x-ith-sdb-360-academic/inteligencia:${PLURIONE_VERSION:-local}
     build:
       context: ..
       dockerfile: services/inteligencia/Dockerfile
@@ -201,6 +204,7 @@ services:
       start_period: 20s
 
   ia:
+    image: ghcr.io/sibashdb/g19x-ith-sdb-360-academic/ia:${PLURIONE_VERSION:-local}
     build:
       context: ..
       dockerfile: services/ia/Dockerfile
@@ -222,6 +226,7 @@ services:
       start_period: 10s
 
   negociacion:
+    image: ghcr.io/sibashdb/g19x-ith-sdb-360-academic/negociacion:${PLURIONE_VERSION:-local}
     build:
       context: ..
       dockerfile: services/negociacion/Dockerfile
@@ -274,6 +279,7 @@ services:
       retries: 12
 
   gateway:
+    image: ghcr.io/sibashdb/g19x-ith-sdb-360-academic/gateway:${PLURIONE_VERSION:-local}
     build:
       context: ..
       dockerfile: web/Dockerfile

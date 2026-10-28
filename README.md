@@ -131,6 +131,25 @@ Desde un clon limpio, en el equipo de desarrollo, tarda de 3 a 8 minutos según 
 equipo nuevo, Docker además descarga las imágenes base (PostgreSQL, RabbitMQ, Keycloak, Python,
 Node, Nginx, Mailpit y curl), unos 1.9 GB sin comprimir; ese tiempo depende de la conexión.
 
+**Con las imágenes publicadas, sin compilar:**
+
+```bash
+git checkout mvp-1.2
+uv run python infra/arrancar.py --imagenes mvp-1.2
+```
+
+- **Qué cambia.** En lugar de compilar las seis imágenes propias, el script descarga las de esa
+  versión de GitHub Container Registry (`ghcr.io/sibashdb/g19x-ith-sdb-360-academic/<servicio>`).
+  El resto de los pasos es igual.
+- **Qué hace falta igual.** git, uv y Docker. La configuración de Keycloak, PostgreSQL y
+  RabbitMQ se monta desde `infra/`, y uv genera los datos y corre la prueba de humo.
+- **Qué versión usar.** La misma etiqueta que clonó: la configuración de `infra/` y las imágenes
+  deben ser de la misma versión. Cada etiqueta se publica antes de probarse; en GitHub, en
+  Actions → «Imágenes», compruebe que la corrida de esa etiqueta quedó en verde: entonces sus
+  imágenes pasaron la prueba de humo. `latest` apunta a la última versión publicada que la pasó;
+  las candidatas, como `mvp-1.2-rc1`, no la mueven. El Estado del sistema muestra la versión que
+  corre.
+
 Abrir <http://localhost:8080>. Los usuarios de desarrollo (`admin1`, `comprador1`,
 `aprobador1`) y sus contraseñas están en `infra/keycloak/realm-plataforma.json`; todos entran
 con usuario y contraseña. La prueba de humo deja un usuario `humo.prueba` desactivado, que
@@ -216,7 +235,8 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 | Simulación con bots (escribe `docs/qa/simulacion-negociacion.md`) | `SIMULACION_REPORTE=docs/qa/simulacion-negociacion.md uv run pytest services/negociacion/tests/test_simulacion.py` |
 | Evals del LLM, con Ollama en marcha (escribe `docs/qa/evals-llm.md`) | `uv run python -m evals --modelo <modelo> [--modelo <modelo>…]` |
 | Mailpit, buzón de desarrollo de los correos de Keycloak y de las invitaciones a negociar (solo en este equipo) | <http://localhost:8025> |
-| Versión que muestra el Estado del sistema | variable `VERSION_APP` de `infra/.env` (por defecto `desarrollo`) |
+| Versión que muestra el Estado del sistema | variable `VERSION_APP` de `infra/.env` (por defecto `desarrollo`); con `--imagenes`, la etiqueta |
+| Publicar una versión: sus imágenes en GHCR, probadas con la prueba de humo | `git tag -a mvp-X.Y -m "…"` y `git push origin mvp-X.Y` (flujo «Imágenes», `.github/workflows/imagenes.yml`) |
 
 ## Interfaz
 

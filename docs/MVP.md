@@ -65,13 +65,14 @@ otro prompt y un candado en `negociacion` que, ante esos textos, envía la plant
 
 ## Versión que se entrega
 
-Dos etiquetas de git fijan qué se prueba. Una etiqueta subida no se mueve: una corrección sería
-`mvp-1.2`.
+Las etiquetas de git fijan qué se prueba. Una etiqueta subida no se mueve: cada cambio lleva el
+número siguiente.
 
 | Etiqueta | Commit | Fecha | Qué contiene |
 |---|---|---|---|
 | `mvp-1.0` | `22da370` | 24/10/2026 | El MVP completo sin el LLM: capacidades 1–5, 7, 9 y 10, con el agente de plantillas. Es lo que revisó el asesor el 26/10 |
-| `mvp-1.1` | El de la integración del 27/10 | 27/10/2026 | Lo mismo, más el LLM recortado (N2) con sus evals y el primer avance del manual de usuario. **Es la versión que se entrega** |
+| `mvp-1.1` | `41c0900` | 27/10/2026 | Lo mismo, más el LLM recortado (N2) con sus evals y el primer avance del manual de usuario. **Es la versión que se entrega** |
+| `mvp-1.2` | El de la integración del entregable 5 | — | Lo mismo, más las imágenes publicadas en GitHub Container Registry, que se instalan sin compilar. Se publica al integrar el entregable 5 |
 
 Para probar una:
 
