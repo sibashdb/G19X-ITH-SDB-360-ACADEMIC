@@ -68,7 +68,7 @@ pero cada cifra la sigue decidiendo el motor.
 | 4 | Plan del proyecto | Hecho: [`docs/plan-del-proyecto.md`](docs/plan-del-proyecto.md) (incrementos hechos, calendario, backlog y riesgos) |
 | 5 | Sistema funcional | Hecho: este repositorio, con la versión que se entrega en la etiqueta `mvp-1.2` ([`docs/MVP.md`](docs/MVP.md#versión-que-se-entrega)), y sus imágenes en GitHub Container Registry, que arrancan sin compilar ([`docs/qa/arranque-desde-imagenes.md`](docs/qa/arranque-desde-imagenes.md)) |
 | 6 | Reporte QA | Parcial: validaciones y revisiones en `docs/qa/` |
-| 7 | Manuales | En curso: el manual de usuario ([`docs/manuales/manual-de-usuario.md`](docs/manuales/manual-de-usuario.md)) ya tiene al comprador, al proveedor y al aprobador; el del administrador y el manual técnico, del 21/11 al 28/11 |
+| 7 | Manuales | En curso: el manual de usuario ([`docs/manuales/manual-de-usuario.md`](docs/manuales/manual-de-usuario.md)) tiene los cuatro roles con capturas de pantalla y las preguntas frecuentes; falta revisarlo con PluriOne. El manual técnico, del 21/11 al 28/11 |
 | 8–10 | Plan de mantenimiento, acta de capacitación e informe final | Falta; programados del 21/11 al 07/12 |
 
 **Lo siguiente:** el LLM recortado (N2, PRD §6.6.2) se terminó el 26/10, antes de su ventana
@@ -225,6 +225,7 @@ En Git Bash, ejecute `export MSYS_NO_PATHCONV=1` antes del último comando: Git 
 | Dependencias del frontend (una vez, antes de `npm run dev` o las pruebas) | `cd web && npm ci` |
 | SPA con recarga en caliente | `cd web && npm run dev` → <http://localhost:5173> |
 | Pruebas del frontend | `cd web && npm test -- --run` |
+| Capturas del manual de usuario, con el stack levantado (Playwright; la primera vez, `npx playwright install chromium`) | `cd web && npx playwright test capturas-manual` |
 | Contrato OpenAPI de proveedores | <http://localhost:8080/api/proveedores/docs> |
 | Consola de RabbitMQ | <http://localhost:15672> |
 | Contrato OpenAPI de administración | <http://localhost:8080/api/administracion/docs> |
