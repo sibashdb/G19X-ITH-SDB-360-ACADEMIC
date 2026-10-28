@@ -1,8 +1,7 @@
 # Manual de usuario de PluriOne
 
-Parte del entregable 7. Esta es la primera versión, del 27/10/2026: las secciones del
-comprador, del proveedor y del aprobador ya tienen sus pasos; lo marcado como **Pendiente** se
-escribe del 21/11 al 28/11, según el [plan del proyecto](../plan-del-proyecto.md). La misma
+Parte del entregable 7. Versión del 28/10/2026: ya tiene los pasos de los cuatro roles y las
+preguntas frecuentes; lo que falta está al final, en «Pendientes de este manual». La misma
 información, más breve, está dentro de la aplicación, en el Centro de ayuda (botón «?» de la
 barra superior).
 
@@ -165,43 +164,171 @@ Al aprobar, la negociación queda «Adjudicada» y se registra el contrato. Al r
 
 ## 5. Administrador
 
-**Pendiente.** Cada tema tiene ya su guía en el Centro de ayuda de la aplicación; aquí se
-escribirá con pasos y capturas de pantalla.
+El área **Sistema** del menú solo la ve el rol de Administración. Administración también ve las
+negociaciones, pero no las cambia.
 
-### 5.1 Usuarios y roles
+### 5.1 Panel de administración
 
-Pendiente.
+Es la primera pantalla del área Sistema. Cada tarjeta lleva a la pantalla con el detalle:
 
-### 5.2 Contraseñas y correos del sistema
+| Tarjeta | Qué muestra |
+|---|---|
+| Usuarios activos | Cuántas cuentas pueden entrar |
+| Intentos fallidos (24 h) | Inicios de sesión rechazados del último día |
+| Servicios con problemas | Piezas del sistema lentas o caídas |
+| Correos (7 días) | Los correos de la última semana |
+| Actividad reciente | Los últimos registros de la bitácora |
+| Estado del sistema | El resumen de la sección 5.8 |
+| Últimas importaciones | Los últimos archivos del ERP y su resultado |
+| Datos y modelo | Cuántos proveedores, servicios, contratos, líneas de contrato, registros de desempeño y tipos de cambio hay, y el modelo de precios en uso |
 
-Pendiente.
+### 5.2 Usuarios y roles
 
-### 5.3 Actividad (bitácora) y su exportación
+1. En **Usuarios**, pulse «Nuevo usuario».
+2. Escriba el nombre, los apellidos y el correo; el usuario se sugiere a partir del correo.
+3. Elija uno o más roles: Administración, Compras o Aprobación.
+4. Elija cómo obtendrá su contraseña: por invitación (recomendada) o con una contraseña temporal
+   que usted verá una sola vez.
 
-Pendiente.
+- **Cambiar los roles:** desde la ficha de cada persona.
+- **Protección:** nadie puede quitarse a sí mismo el rol de administración ni desactivarse, y
+  siempre debe quedar al menos un administrador activo.
+- **Desactivar:** las cuentas se desactivan, no se borran. La persona deja de entrar, sus
+  sesiones se cierran y su historial se conserva. Puede activarla de nuevo cuando quiera.
 
-### 5.4 Catálogo de servicios
+### 5.3 Contraseñas y correos del sistema
 
-Pendiente.
+- **Invitación:** un correo con un enlace para que la persona defina su contraseña. Vence en
+  72 horas.
+- **Restablecimiento:** a quien ya entró antes se le envía un correo que vence en 24 horas.
+- **Contraseña temporal:** se muestra una sola vez. Cópiela y entréguela por un medio seguro; la
+  persona deberá cambiarla al entrar.
+- **Correos:** muestra cada correo enviado y si salió bien. Incluye las invitaciones y los
+  restablecimientos, y también las invitaciones a negociar y los resultados que se avisan a los
+  proveedores («Resultado de negociación»).
+  - Si el de una persona no salió, reintente desde su ficha o asígnele una contraseña temporal.
+  - A una cuenta desactivada no se le puede enviar el correo: actívela primero.
 
-### 5.5 Importación de los datos del ERP
+### 5.4 Actividad (bitácora) y su exportación
 
-Pendiente.
+**Actividad** reúne lo que pasó en la plataforma, y nada de eso se puede borrar ni modificar:
+- los inicios de sesión, incluidos los intentos fallidos;
+- las acciones sobre usuarios;
+- las importaciones y los cambios del catálogo;
+- los cambios de la configuración y los entrenamientos del modelo de precios;
+- las negociaciones: su publicación, cancelación, adjudicación o declaración de desierta, y los
+  correos a los proveedores.
 
-### 5.6 Configuración: puntuación, adjudicación y modelo de precios
+1. Filtre por persona, tipo y fechas.
+2. Pulse «Exportar CSV» para descargar los registros filtrados y abrirlos en Excel. Se exportan
+   como máximo los 10,000 más recientes: acote las fechas si necesita más.
 
-Pendiente.
+### 5.5 Catálogo de servicios
 
-### 5.7 Estado del sistema y Panel
+El catálogo lista los servicios que aparecen en los contratos y en Precios. Se dan de alta, se
+editan o se desactivan en **Catálogo**, y también se cargan con la importación del ERP.
 
-Pendiente.
+- El código no cambia después de crearlo: las importaciones lo usan para identificar el servicio.
+- Si un servicio ya tiene contratos, tampoco se pueden cambiar su categoría, su unidad ni su
+  moneda, porque los precios históricos dependen de ellas.
+- Un servicio desactivado deja de aparecer en Precios, pero sus contratos y su historial se
+  conservan.
+
+### 5.6 Importación de los datos del ERP
+
+1. Abra **Importación**.
+2. Elija el tipo de archivo, en este orden: catálogo de servicios, proveedores, tipo de cambio,
+   contratos y desempeño. Contratos y desempeño se refieren a proveedores y servicios que ya
+   deben estar importados.
+3. Arrastre el archivo CSV o haga clic para elegirlo, y pulse «Importar». Se aceptan archivos
+   CSV en UTF-8, separados por coma o por punto y coma, de hasta 10 MB.
+4. Revise el resultado: filas leídas, registros guardados y omitidos.
+
+**Si el archivo tiene errores, no se guarda ninguna fila:** la importación es todo o nada. Verá
+una tabla con la fila, la columna y el problema de cada error. Corrija el archivo en su origen
+(el ERP o la hoja de cálculo), guárdelo otra vez como CSV en UTF-8 y vuelva a importarlo con
+«Elegir otro archivo». Cada intento, completo o rechazado, queda en la Actividad con quién lo
+hizo.
+
+### 5.7 Configuración: puntuación, adjudicación y modelo de precios
+
+**Puntuación de los proveedores:**
+1. Abra **Configuración** en el área Sistema.
+2. Reparta 100 puntos entre los cinco aspectos del desempeño; el total se muestra mientras
+   escribe.
+3. Fije el umbral de riesgo: un proveedor con menos puntos queda en riesgo y genera una alerta.
+4. Ajuste la inflación anual que usa la línea base de precios y pulse «Guardar cambios».
+
+Las puntuaciones, el ranking y las alertas se recalculan al guardar.
+
+**Adjudicación:** la tarjeta «Adjudicación» fija cuánto pesa cada criterio al recomendar a quién
+adjudicar (costo total, desempeño, riesgo y SLA, que deben sumar 100) y el umbral de aprobación
+en MXN. Una adjudicación con un costo total mayor necesita un aprobador. Se guarda con «Guardar
+adjudicación», aparte de la puntuación.
+
+**Modelo de precios:**
+- Se entrena solo cuando llegan 50 precios nuevos, y también puede reentrenarlo con «Reentrenar
+  modelo de precios».
+- Solo se usa si su error (MAPE) es menor que el de la línea base; si no, el precio de referencia
+  sigue con la línea base.
+- Si el modelo no se pudo cargar, por ejemplo después de una actualización, la página lo avisa y
+  se usa la línea base hasta que lo reentrene.
+
+Cada cambio de la configuración queda en la Actividad con quién lo hizo y qué campos cambió.
+
+### 5.8 Estado del sistema
+
+**Estado del sistema** comprueba cada 30 segundos estas piezas:
+- la base de datos;
+- los servicios de proveedores, de inteligencia y de negociación;
+- la identidad (Keycloak);
+- la mensajería (RabbitMQ);
+- el buzón de correo.
+
+| Estado | Qué significa |
+|---|---|
+| Sano | Responde en menos de un segundo |
+| Con problemas | Responde con lentitud, o hay muchos mensajes pendientes en una cola |
+| Caído | No responde en dos segundos, o responde con un error |
+
+En la mensajería también avisa si un mensaje falló 5 veces y quedó apartado. Si un servicio sigue
+caído, avise al equipo técnico con la hora y el detalle que muestra su tarjeta.
 
 ## 6. Preguntas frecuentes
 
-Pendiente.
+**No puedo entrar a la plataforma.** Revise que su usuario y su contraseña sean correctos.
+Después de varios intentos fallidos, la cuenta se bloquea unos minutos. Si olvidó su contraseña o
+su cuenta está desactivada, pida ayuda a administración.
+
+**Mi sesión se cerró sola.** Por seguridad, la sesión vence después de un tiempo. Vuelva a
+iniciar sesión y regresará a la página donde estaba.
+
+**No veo el área Sistema.** Es solo para el rol de Administración. Si necesita acceso, pídalo a
+una persona con ese rol.
+
+**¿Dónde cambio entre el tema claro y el oscuro?** Con el botón de tema de la barra superior:
+claro, oscuro o el del sistema. La preferencia se guarda en ese navegador.
+
+**Un proveedor dice que su enlace no sirve.** El enlace deja de servir al llegar la fecha límite,
+si se reenvía o si se cancela la negociación. Si la negociación sigue abierta, use «Reenviar» en
+la tabla de sesiones: le llega un enlace nuevo y el anterior deja de servir.
+
+**¿El agente puede aceptar algo fuera de mis límites?** No. Nunca acepta fuera de los límites ni
+los muestra al proveedor. Solo usted puede aceptar o proponer fuera de ellos, con «Tomar el
+control», y entonces la plataforma lo marca para el aprobador.
+
+**¿Qué pasa si el modelo de lenguaje no está disponible?** El agente sigue negociando igual: sus
+cifras siempre las decide su motor, y los mensajes salen de plantillas. El proveedor puede seguir
+ofertando con el formulario.
+
+**La invitación no llegó** (administración). Revise en Correos si se envió. Si no salió,
+reintente desde la ficha de la persona o asígnele una contraseña temporal. Pida también que
+revise su carpeta de correo no deseado.
+
+**¿Puedo borrar un usuario o un servicio?** (administración). No. Se desactivan, para conservar
+su historial y la bitácora, y se pueden activar de nuevo cuando quiera.
 
 ## Pendientes de este manual
 
 - Capturas de pantalla de cada paso.
-- La sección del administrador (5) y las preguntas frecuentes (6).
 - Una revisión con una persona de compras de PluriOne antes de la capacitación (entregable 9).
