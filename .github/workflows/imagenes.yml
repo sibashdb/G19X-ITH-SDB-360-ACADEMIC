@@ -46,9 +46,24 @@ jobs:
           - servicio: gateway
             dockerfile: web/Dockerfile
     steps:
+      # Antes de publicar nada: una etiqueta mal formada (mvp-1.2.1, main) o anterior al
+      # entregable 5 (mvp-1.1, cuyo arrancar.py compila en lugar de descargar) haría que probar
+      # «pasara» sin probar lo publicado y que latest se moviera a algo sin probar.
+      - name: Etiqueta válida
+        run: |
+          if [[ ! "$ETIQUETA" =~ ^mvp-[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]; then
+            echo "::error::La etiqueta debe ser como mvp-1.2 o mvp-1.2-rc1: $ETIQUETA"
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.ETIQUETA }}
+      - name: La etiqueta ya publica imágenes
+        run: |
+          grep -q PLURIONE_VERSION infra/docker-compose.yml || {
+            echo "::error::$ETIQUETA es anterior al entregable 5: no publica imágenes"
+            exit 1
+          }
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:

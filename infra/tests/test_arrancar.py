@@ -83,6 +83,24 @@ def test_una_candidata_no_mueve_latest() -> None:
     latest = _flujo().split("\n  latest:\n", 1)[1]
     assert "!contains(github.ref_name, '-rc')" in latest
     assert "!contains(inputs.etiqueta, '-rc')" in latest
+    # Solo después de que probar pasó: sin always(), un job fallido detiene a latest.
+    assert "needs: probar" in latest
+    assert "always()" not in latest
+
+
+def test_el_flujo_valida_la_etiqueta_antes_de_publicar() -> None:
+    """Una etiqueta anterior al entregable 5 (mvp-1.1) correría el arrancar.py viejo, que
+    compila en lugar de descargar: probar «pasaría» sin probar lo publicado (revisión final)."""
+    publicar = _flujo().split("\n  publicar:\n", 1)[1].split("\n  probar:\n", 1)[0]
+    construir = publicar.index("docker/build-push-action")
+    valida = publicar.index(r"^mvp-[0-9]+\.[0-9]+(-rc[0-9]+)?$")
+    tiene_imagenes = publicar.index("grep -q PLURIONE_VERSION infra/docker-compose.yml")
+    assert valida < construir and tiene_imagenes < construir
+
+
+@pytest.mark.parametrize("etiqueta", ["mvp-1.2", "mvp-1.2-rc1", "mvp-10.0", "latest"])
+def test_las_etiquetas_validas_pasan(etiqueta: str) -> None:
+    assert arrancar.ETIQUETA.fullmatch(etiqueta)
 
 
 def test_el_compose_nombra_cada_servicio_propio_con_su_imagen() -> None:
