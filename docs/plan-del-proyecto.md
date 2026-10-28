@@ -1,6 +1,6 @@
 # Plan del proyecto
 
-Entregable 4 del cronograma. Actualizado al 27/10/2026.
+Entregable 4 del cronograma. Actualizado al 28/10/2026.
 
 Junta en un solo lugar:
 - lo hecho, por incremento y con sus fechas reales;
@@ -44,6 +44,7 @@ El avance se sigue en tres lugares:
 | 4′. Adjudicación y aprobación | 16/10 – 20/10 | Recomendación multicriterio (acierto de 85.0 %), propuesta, aprobación por otra persona y contrato registrado | [spec](superpowers/specs/2026-10-16-adjudicacion-y-aprobacion-design.md), [plan](superpowers/plans/2026-10-19-adjudicacion-interfaz.md) |
 | Cierre del MVP | 22/10 – 24/10 | Revisiones del asesor (PRD y MVP cortos, uso de IA, arranque desde cero, este plan y el recorrido de demostración) y Tablero completo (capacidad 10), con las sesiones escaladas | [spec](superpowers/specs/2026-10-22-tablero-negociaciones-design.md), [plan](superpowers/plans/2026-10-22-tablero-negociaciones.md) |
 | N2. El LLM en la negociación | 26/10 | Servicio `ia` con Ollama y `qwen2.5:3b`: interpreta el mensaje libre del proveedor y redacta las respuestas del agente, con verificación y respaldo a plantillas. Evals: 99.0 % de campos, 0 filtraciones y turno de 1.7 s en el percentil 95 | [spec](superpowers/specs/2026-10-26-ia-en-la-negociacion-design.md), [plan](superpowers/plans/2026-10-26-ia-en-la-negociacion.md) |
+| Entregable 5. Imágenes en GHCR | 28/10 | Las seis imágenes propias se publican y se prueban sin compilar con cada etiqueta `mvp-*`; `arrancar.py --imagenes` arranca con ellas desde un clon limpio en 218 s, con 411 MB de descarga | [spec](superpowers/specs/2026-10-28-imagenes-ghcr-design.md), [plan](superpowers/plans/2026-10-28-imagenes-ghcr.md) |
 
 Las métricas y las revisiones de cada incremento están en [`docs/qa/`](qa/).
 
@@ -52,7 +53,7 @@ Las métricas y las revisiones de cada incremento están en [`docs/qa/`](qa/).
 | Fechas | Trabajo | Entregables |
 |---|---|---|
 | 29/10 – 04/11 | Era la ventana de N2, que se terminó el 26/10: queda de holgura | — |
-| 05/11 – 11/11 | Imágenes en GitHub Container Registry y sistema funcional; seguir el manual de usuario | 5 |
+| 05/11 – 11/11 | Seguir el manual de usuario (el entregable 5 se terminó el 28/10) | — |
 | 12/11 – 20/11 | Pruebas de extremo a extremo (Playwright), de carga (Locust) y de seguridad (ZAP y Trivy); Reporte QA | 6 |
 | 21/11 – 28/11 | Manual técnico y manual de usuario por rol; plan de mantenimiento | 7 y 8 |
 | 29/11 – 02/12 | Capacitación a administradores y compradores, con su acta | 9 |
@@ -73,11 +74,12 @@ Prioridad MoSCoW del PRD (§6.7), con los ajustes del 15/10 y del 22/10.
 | Seguridad (PRD §5.1 a §5.3): OIDC, roles, dos usuarios de base por servicio, bitácora inmutable | Must | Hecho; se prueba con ZAP en la fase de calidad |
 | Pruebas unitarias y de integración | Must | Hecho: 1005 de Python y 838 de la SPA al 26/10 |
 | Pruebas de extremo a extremo, de carga y de seguridad | Must | 12/11 – 20/11 |
-| Imágenes en GitHub Container Registry | Should | 05/11 – 11/11 |
+| Imágenes en GitHub Container Registry | Should | Hecho el 28/10: se publican y se prueban con cada etiqueta `mvp-*` |
 | Observabilidad (OpenTelemetry y Grafana) | Should | Sin fecha; entra solo si sobra tiempo |
 | Entregables 1, 2 y 3: requerimientos, propuesta técnica y arquitectura | Must | Hecho |
 | Entregable 4: este plan | Must | Hecho |
-| Entregables 5 a 10 | Must | Según el calendario de arriba |
+| Entregable 5: sistema funcional | Must | Hecho el 28/10: la etiqueta `mvp-1.2` y sus imágenes en GHCR |
+| Entregables 6 a 10 | Must | Según el calendario de arriba |
 
 ## Riesgos
 

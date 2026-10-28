@@ -1,6 +1,6 @@
 # MVP: alcance vigente
 
-Actualizado al 27/10/2026. Parte de las 10 capacidades del [PRD](PRD.md) y aplica dos recortes:
+Actualizado al 28/10/2026. Parte de las 10 capacidades del [PRD](PRD.md) y aplica dos recortes:
 la replanificación del 15/10/2026 (PRD §6.6.1, [ADR-010](arquitectura/adr/010-negociacion-determinista-antes-del-llm.md))
 y la decisión sobre el LLM del 22/10/2026 (PRD §6.6.2). El estado detallado de cada capacidad
 está en el [README](../README.md#qué-está-hecho-y-qué-falta).
@@ -71,17 +71,20 @@ número siguiente.
 | Etiqueta | Commit | Fecha | Qué contiene |
 |---|---|---|---|
 | `mvp-1.0` | `22da370` | 24/10/2026 | El MVP completo sin el LLM: capacidades 1–5, 7, 9 y 10, con el agente de plantillas. Es lo que revisó el asesor el 26/10 |
-| `mvp-1.1` | `41c0900` | 27/10/2026 | Lo mismo, más el LLM recortado (N2) con sus evals y el primer avance del manual de usuario. **Es la versión que se entrega** |
-| `mvp-1.2` | El de la integración del entregable 5 | — | Lo mismo, más las imágenes publicadas en GitHub Container Registry, que se instalan sin compilar. Se publica al integrar el entregable 5 |
+| `mvp-1.1` | `41c0900` | 27/10/2026 | Lo mismo, más el LLM recortado (N2) con sus evals y el primer avance del manual de usuario |
+| `mvp-1.2` | El de la integración del 28/10 | 28/10/2026 | Lo mismo, más las imágenes publicadas en GitHub Container Registry, que arrancan sin compilar (entregable 5). **Es la versión que se entrega** |
 
 Para probar una:
 
 ```bash
-git checkout mvp-1.1
-uv run python infra/arrancar.py
+git checkout mvp-1.2
+uv run python infra/arrancar.py --imagenes mvp-1.2
 ```
 
-El recorrido de abajo funciona en las dos. Con `mvp-1.1` y Ollama encendido, el proveedor también
+Sin `--imagenes`, el script compila las imágenes en el equipo; es la única forma de probar
+`mvp-1.0` y `mvp-1.1`, que no tienen imágenes publicadas.
+
+El recorrido de abajo funciona en todas. Desde `mvp-1.1`, con Ollama encendido, el proveedor también
 puede escribirle al agente con sus palabras (README, «IA en la negociación»).
 
 ## Recorrido de demostración (5 minutos)
@@ -127,5 +130,5 @@ El calendario completo hasta el 07/12, con el backlog y los riesgos, está en el
 |---|---|
 | 22/10 – 28/10 | Atender las revisiones del asesor del 22/10 y del 23/10. Ya hecho: este documento y el PRD corto, el uso de IA en el README, la prueba de arranque desde cero, el Tablero (10) con sus sesiones escaladas, las vulnerabilidades de npm, el plan del proyecto (entregable 4) y el recorrido de demostración |
 | 29/10 – 04/11 | Era la ventana del LLM recortado (N2), que se terminó el 26/10; queda de holgura |
-| 05/11 – 11/11 | Imágenes en GitHub Container Registry, sistema funcional (entregable 5) e inicio del manual de usuario |
+| 05/11 – 11/11 | Seguir el manual de usuario. El entregable 5, con las imágenes en GitHub Container Registry, se terminó el 28/10 |
 | 12/11 – 07/12 | Reporte QA (6), manuales (7), plan de mantenimiento (8), capacitación (9) e informe final (10) |
